@@ -1,0 +1,42 @@
+---
+- name: Чтение версии установленного ПО
+  shell: cat /opt/distr/software.conf | grep Astra-timesync
+  register: version
+  ignore_errors: yes
+
+- name: Синхронизируем время
+  shell:
+    cmd: "{{ item }}"
+  with_items:
+  - hwclock --hctosys
+  - hwclock --systohc
+  when: version.stdout != relis
+
+- name: Удалим NTP сервис
+  apt:
+    name: ntp
+    state: absent
+  when: version.stdout != relis
+
+- name: Создаим настройки синхронизации времени
+  shell:
+    cmd: "{{ item }}"
+  with_items:
+  - timedatectl set-ntp true
+  - sed -i 's/#NTP=/NTP={{ NTP_Server }}/g' /etc/systemd/timesyncd.conf
+  - systemctl restart systemd-timesyncd
+  - systemctl status systemd-timesyncd
+  - timedatectl status
+  when: version.stdout != relis
+
+- name: Запишем версию ПО если ее не разу не было (Install)
+  become: true
+  shell: "echo '{{ relis }}' >> /opt/distr/software.conf"
+  when: version.stdout == ""
+  ignore_errors: yes
+
+- name: Запишем новую версию ПО (Update)
+  become: true
+  shell: "sed -i 's/{{version.stdout}}/{{ relis }}/g' /opt/distr/software.conf"
+  when: version.stdout != relis
+  ignore_errors: yes

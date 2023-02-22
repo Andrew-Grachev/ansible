@@ -1,0 +1,37 @@
+---
+- name: Чтение версии установленного ПО
+  shell: cat /opt/distr/software.conf | grep Astra-repo-client
+  register: version
+  ignore_errors: yes
+
+- name: Удалим файл sources.list
+  file:
+    path: /etc/apt/sources.list
+    state: "{{ item }}"
+  with_items:
+  - absent
+  - touch
+  when: version.stdout != relis
+
+- name: Запишем файл sources.list
+  lineinfile:
+    path: /etc/apt/sources.list
+    regexp:
+    line: "deb http://{{ Repo_Server }}/repo/{{ item }} smolensk contrib main non-free"
+  with_items:
+#  - mo+update
+  - mo
+  - mo-update
+  - mo-dev
+  - mo-dev-update
+  when: version.stdout != relis
+
+- name: Обновим базу репозитория
+  apt:
+    update_cache: yes
+  when: version.stdout != relis
+
+- name: Запишем новую версию ПО (Update)
+  shell: "sed -i '/Astra-repo-client/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
+  become: true
+  when: version.stdout != relis

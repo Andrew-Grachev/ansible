@@ -1,0 +1,130 @@
+---
+- name: Чтение версии установленного ПО
+  shell: cat /opt/distr/software.conf | grep Astra-repo
+  register: version
+  ignore_errors: yes
+
+- name: Создание папок
+  file:
+    state: directory
+    path: "{{ item }}"
+  with_items:
+  - /srv
+  - /srv/iso
+  - /srv/repo
+#  - /srv/repo/update
+#  - /srv/repo/mo+update
+  - /srv/repo/mo
+  - /srv/repo/mo-update
+  - /srv/repo/mo-dev
+  - /srv/repo/mo-dev-update
+#  - /srv/repo/fsb
+#  - /srv/repo/fsb-update
+#  - /srv/repo/fsb-dev
+#  - /srv/repo/fsb-dev-update
+#  - /srv/repo/nvidia
+#  - /srv/tftp
+  when: version.stdout != relis
+
+- name: Копирование образов iso
+  copy:
+    src: "AstraLinux/{{ item }}.iso"
+    dest: "/srv/iso/{{ item }}.iso"
+    force: no
+  with_items:
+#  - mo+update
+  - mo
+  - mo-update
+  - mo-dev
+  - mo-dev-update
+#  - fsb
+#  - fsb-update
+#  - fsb-dev
+#  - fsb-dev-update
+#  - nvidia
+  when: version.stdout != relis
+
+- name: Монтирование образов ОС
+  mount:
+    path: /srv/repo/{{ item }}/
+    src: /srv/iso/{{ item }}.iso
+    fstype: iso9660
+    opts: ro,auto
+    state: mounted
+  with_items:
+#  - mo+update
+  - mo
+  - mo-update
+  - mo-dev
+  - mo-dev-update
+#  - fsb
+#  - fsb-update
+#  - fsb-dev
+#  - fsb-dev-update
+#  - nvidia
+  when: version.stdout != relis
+
+- name: Удаление sources.list
+  file:
+    path: /etc/apt/sources.list
+    state: "{{ item }}"
+  with_items:
+  - absent
+  - touch
+  when: version.stdout != relis
+
+- name: Добавление дистрибутивов в sources.list
+  lineinfile:
+    path: /etc/apt/sources.list
+    line: "deb file:///srv/repo/{{ item }} smolensk contrib main non-free"
+    state: present
+  with_items:
+#  - mo+update
+  - mo
+  - mo-update
+  - mo-dev
+  - mo-dev-update
+  when: version.stdout != relis
+
+- name: Установка необходимых пакетов
+  apt:
+    update_cache: yes
+    name:
+    - apache2
+    - tftpd-hpa
+    state: latest
+  when: version.stdout != relis
+
+- name: Конфигурированик Apache2
+  lineinfile:
+    path: /etc/apache2/apache2.conf
+    regexp: #AstraMode
+    line: AstraMode off
+    state: present
+  when: version.stdout != relis
+
+- name: Конфигурированик Apache2
+  copy:
+    src: ./000-default.conf
+    dest: /etc/apache2/sites-enabled/000-default.conf
+    force: no
+  when: version.stdout != relis
+
+- name: Создание ссылки на репозиторий
+  file:
+    src: "/srv/repo"
+    dest: "/var/www/html/repo"
+    state: link
+    force: yes
+  when: version.stdout != relis
+
+- name: Перезагрузка Apache2
+  service:
+    name: apache2
+    state: restarted
+    enabled: yes
+  when: version.stdout != relis
+
+- name: Запишем новую версию ПО (Update)
+  shell: "sed -i '/Astra-repo/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
+  when: version.stdout != relis

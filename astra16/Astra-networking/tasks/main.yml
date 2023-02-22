@@ -1,0 +1,54 @@
+---
+- name: Чтение версии установленного ПО
+  shell: cat /opt/distr/software.conf | grep Astra-Networking
+  register: version
+  ignore_errors: yes
+
+- name: Копирование файла interfaces
+  template:
+    src: interfaces
+    dest: /etc/network/interfaces.d/interfaces
+    owner: "root"
+    group: "root"
+    mode: "u=rw,g=r,o=r"
+  when: version.stdout != relis
+
+- name: установка пакетов для создания bond0
+  apt:
+    name:
+    - ifenslave
+    state: latest
+    update_cache: yes
+  when: version.stdout != relis
+
+- name: Перезагрузим хост
+  reboot:
+    reboot_timeout=300
+  when: version.stdout != relis
+
+- name: Удаление пакетов Network-Manager
+  apt:
+    name:
+    - network-manager
+    state: absent
+    purge: yes
+  when: version.stdout != relis
+
+- name: Удалим файл resolv.conf
+  file:
+    path: /etc/resolv.conf
+    state: "{{ item }}"
+  with_items:
+  - absent
+  - touch
+  when: version.stdout != relis
+
+- name: Сздадим файл resolv.conf
+  lineinfile:
+    path: /etc/resolv.conf
+    line: "nameserver {{ DNS_Server }}"
+  when: version.stdout != relis
+
+- name: Запишем новую версию ПО (Update)
+  shell: "sed -i '/Astra-Networking/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
+  when: version.stdout != relis
