@@ -1,0 +1,123 @@
+[all:vars]
+ansible_ssh_user = mniti
+ansible_ssh_pass = Vitek2020
+repo = MO
+domain = ss
+Gateway =    10.1.30.254
+NTP_Server = 10.1.30.254
+DNS_Server = 10.1.30.1
+Rebus_Server = 10.1.30.1
+Bacula_Server = 10.1.30.1
+Zabbix_Server = 10.1.30.1
+Repo_Server = 10.1.30.1
+DrWeb_Server = 10.1.30.1
+DrWeb_Password = Vitek2020
+
+ald_pass = Vitek2020
+krb_pass = Vitek2020
+grub_pass = Vitek2020
+user_name_preseed = mniti
+root_pass = Vitek2020
+user_pass = Vitek2020
+
+bond_slaves = 'eth0 eth1'
+
+mniti_pass_gpg = k5Xj8Ad1
+mniti_passphrase = 860A25123BA9631CCCF1EB98348E13C7FB5D9657
+
+[TK]
+#srv-tk ansible_ssh_host=10.1.30.1
+[AN]
+#srv-an-1 ansible_ssh_host=10.1.30.2
+#srv-an-2 ansible_ssh_host=10.1.30.3
+#srv-an-3 ansible_ssh_host=10.1.30.4
+#srv-an-4 ansible_ssh_host=10.1.30.5
+#srv-an-5 ansible_ssh_host=10.1.30.6
+#srv-an-6 ansible_ssh_host=10.1.30.7
+#srv-an-7 ansible_ssh_host=10.1.30.8
+#srv-an-8 ansible_ssh_host=10.1.30.9
+#srv-an-9 ansible_ssh_host=10.1.30.10
+#srv-an-10 ansible_ssh_host=10.1.30.11
+[PV]
+#srv-pv-1 ansible_ssh_host=10.1.31.12
+#srv-pv-2 ansible_ssh_host=10.1.31.13
+[MOD]
+#srv-mod-1 ansible_ssh_host=10.1.31.14 Strom_IP=10.1.30.129 Scan_Port=55201 repo=FSB
+#srv-mod-2 ansible_ssh_host=10.1.31.15 Strom_IP=10.1.30.130 Scan_Port=55202 repo=FSB
+#srv-mod-3 ansible_ssh_host=10.1.31.16 Strom_IP=10.1.30.131 Scan_Port=55203 repo=FSB
+#srv-mod-4 ansible_ssh_host=10.1.31.17 Strom_IP=10.1.30.132 Scan_Port=55204 repo=FSB
+#srv-mod-5 ansible_ssh_host=10.1.31.18 Strom_IP=10.1.30.133 Scan_Port=55205 repo=FSB
+#srv-mod-6 ansible_ssh_host=10.1.31.19
+#srv-mod-7 ansible_ssh_host=10.1.31.20
+#srv-mod-8 ansible_ssh_host=10.1.31.21
+#srv-mod-9 ansible_ssh_host=10.1.31.22
+#srv-mod-10 ansible_ssh_host=10.1.31.23
+#srv-mod-11 ansible_ssh_host=10.1.31.24
+#srv-mod-12 ansible_ssh_host=10.1.31.25
+#srv-mod-13 ansible_ssh_host=10.1.31.26
+#srv-mod-14 ansible_ssh_host=10.1.31.27
+#srv-mod-15 ansible_ssh_host=10.1.31.28
+#srv-mod-16 ansible_ssh_host=10.1.31.29
+#srv-mod-17 ansible_ssh_host=10.1.31.30
+#srv-mod-18 ansible_ssh_host=10.1.31.31
+#srv-mod-19 ansible_ssh_host=10.1.31.32
+#srv-mod-20 ansible_ssh_host=10.1.31.33
+[ARM]
+#arm-as ansible_ssh_host=10.1.30.65
+#arm-ab ansible_ssh_host=10.1.30.66
+arm-t1-1 ansible_ssh_host=10.1.30.67
+arm-t1-2 ansible_ssh_host=10.1.30.68
+arm-t1-3 ansible_ssh_host=10.1.30.69
+arm-t1-4 ansible_ssh_host=10.1.30.70
+arm-t1-5 ansible_ssh_host=10.1.30.71
+arm-t1-6 ansible_ssh_host=10.1.30.72
+
+
+[CSP]
+#srv-mod-1
+#srv-mod-2
+#srv-mod-3
+#srv-mod-4
+#srv-mod-5
+
+[ASM]
+#srv-mod-19
+#srv-pv-1
+#srv-pv-2
+
+[PROMT]
+#srv-mod-20
+#srv-pv-1
+#srv-pv-2
+
+################  Keepalived  ###############
+[Keepalived_srv:children]
+  Keepalived_master
+  Keepalived_slave
+
+[Keepalived_master]
+#  srv-mod-4
+#  srv-an-1
+
+[Keepalived_slave]
+#  srv-mod-5
+#  srv-an-2
+
+[Keepalived_srv:vars]
+  Keepalived_Name = SHD
+  Keepalived_IP = 10.1.31.206
+  Keepalived_Interface = bond0
+
+[Keepalived_master:vars]
+  Keepalived_State = MASTER
+  Keepalived_Priority = 255
+
+[Keepalived_slave:vars]
+  Keepalived_State = BACKUP
+  Keepalived_Priority = 100
+
+[Keepalived_cli:children]
+  TK
+  PV
+  MOD
+  AN

@@ -1,0 +1,301 @@
+---
+# Поднимаются шары Samba и NFS
+# СХД монтруются в /mnt/shd
+# Для хранения данных с мандатными атрибутами создаются папки
+# /mnt/shd/service - хранение данных пользователя service (службы)
+# /mnt/shd/users - хранение данных пользователями домена
+# /mnt/shd/nfs - хранение данных без разделения прав
+#
+# 19.07.22 Создание шары под smb и nfs
+#
+# Задачи:
+# выключеие портов коммутатора
+
+#- name: Чтение версии установленного ПО
+#  shell: cat /opt/distr/software.conf | grep Keepalived-server
+#  register: version
+#  ignore_errors: yes
+
+- name: umount /mnt/shd
+  mount:
+    path: '{{item}}'
+    state: unmounted
+  with_items:
+    - /mnt/shd/service
+    - /mnt/shd/users
+    - /mnt/shd/nfs
+  ignore_errors: yes
+#  when: version.stdout != relis
+
+- name: Cоздание первичной структуры папок на SHD
+  file:
+    path: '{{item}}'
+    state: directory
+  with_items:
+    - /mnt/shd
+    - /mnt/shd/service
+    - /mnt/shd/users
+    - /mnt/shd/nfs
+    - /mnt/shd/service/0_zero
+    - /mnt/shd/service/1_dsp
+    - /mnt/shd/service/2_secret
+    - /mnt/shd/service/3_topsecret
+    - /mnt/shd/users/abi
+    - /mnt/shd/users/abi/0_zero
+    - /mnt/shd/users/as
+    - /mnt/shd/users/as/0_zero
+    - /mnt/shd/users/o1
+    - /mnt/shd/users/o1/0_zero
+    - /mnt/shd/users/o1/1_dsp
+    - /mnt/shd/users/o1/2_secret
+    - /mnt/shd/users/o1/3_topsecret
+    - /mnt/shd/users/o2
+    - /mnt/shd/users/o2/0_zero
+    - /mnt/shd/users/o2/1_dsp
+    - /mnt/shd/users/o2/2_secret
+    - /mnt/shd/users/o2/3_topsecret
+    - /mnt/shd/nfs
+#  when: init
+
+- name: Установка первичных прав на папки SHD
+  shell: '{{item}}'
+  with_items:
+   - chmod 777 /mnt/shd -R
+   - pdpl-file 3:0:-1:CCNRA /mnt
+   - pdpl-file 3:0:-1:CCNRA /mnt/shd
+   - pdpl-file 3:0:-1:CCNRA /mnt/shd/service
+   - pdpl-file 3:0:-1:CCNRA /mnt/shd/users
+   - pdpl-file 0:0:0:CCNRA /mnt/shd/service/0_zero
+   - pdpl-file 1:0:0:CCNRA /mnt/shd/service/1_dsp
+   - pdpl-file 2:0:0:CCNRA /mnt/shd/service/2_secret
+   - pdpl-file 3:0:0:CCNRA /mnt/shd/service/3_topsecret
+   - pdpl-file 3:0:-1:CCNRA /mnt/shd/users/abi
+   - pdpl-file 0:0:0:CCNRA /mnt/shd/users/abi/0_zero
+   - pdpl-file 3:0:-1:CCNRA /mnt/shd/users/as
+   - pdpl-file 0:0:0:CCNRA /mnt/shd/users/as/0_zero
+   - pdpl-file 3:0:-1:CCNRA /mnt/shd/users/o1
+   - pdpl-file 0:0:0:CCNRA /mnt/shd/users/o1/0_zero
+   - pdpl-file 1:0:0:CCNRA /mnt/shd/users/o1/1_dsp
+   - pdpl-file 2:0:0:CCNRA /mnt/shd/users/o1/2_secret
+   - pdpl-file 3:0:0:CCNRA /mnt/shd/users/o1/3_topsecret
+   - pdpl-file 3:0:-1:CCNRA /mnt/shd/users/o2
+   - pdpl-file 0:0:0:CCNRA /mnt/shd/users/o2/0_zero
+   - pdpl-file 1:0:0:CCNRA /mnt/shd/users/o2/1_dsp
+   - pdpl-file 2:0:0:CCNRA /mnt/shd/users/o2/2_secret
+   - pdpl-file 3:0:0:CCNRA /mnt/shd/users/o2/3_topsecret
+   - chown -R service:service /mnt/shd/service
+   - chown -R abi:abi /mnt/shd/users/abi
+   - chown -R as:as /mnt/shd/users/as
+   - chown -R o1:o1 /mnt/shd/users/o1
+   - chown -R o2:o2 /mnt/shd/users/o2
+   - chmod 770 /mnt/shd/service -R
+   - chmod 770 /mnt/shd/users/abi -R
+   - chmod 770 /mnt/shd/users/as -R
+   - chmod 770 /mnt/shd/users/o1 -R
+   - chmod 770 /mnt/shd/users/o2 -R
+#  when: init
+
+#- name: Keepalived-server | Соберем LVM
+#  shell: |
+#    pvcreate /dev/mapper/shd1
+#    pvcreate /dev/mapper/shd2
+#    pvcreate /dev/m
+
+#    pvcreate /dev/mapper/shd0
+#    vgcreate vg1 /dev/mapper/shd0 /dev/mapper/shd1 /dev/mapper/shd2 /dev/mapper/shd3
+#    lvcreate -n lv1 -l 100%FREE vg1
+#    mkfs.ext4 -E nodiscard /dev/vg1/lv1
+#  ignore_errors: yes
+#  when: inventory_hostname in groups['Keepalived_master']
+
+#- name: Создание разделов на физических дисках
+#  parted:
+#    device: "/dev/mapper/{{ item }}"
+#    number: 1
+#    part_type: primary
+#    state: absent #present
+#  with_items:
+#    - "shd5"
+#  when: inventory_hostname in groups['Keepalived_master']
+
+#- name: Форматирование разделов на физических дисках
+#  filesystem:
+#    fstype: "ext4"
+#    dev: "/dev/mapper/{{ item }}"
+#    opts: -E nodiscard
+#    force: yes
+#  with_items:
+#    - "shd5"
+#  when: inventory_hostname in groups['Keepalived_master']
+
+#- name: Keepalived-server | Поменяем права доступа к SHD
+#  shell: |
+#    mount /dev/mapper/shd1 /mnt/shd/shd1
+#    mount /dev/mapper/shd2 /mnt/shd/shd2
+#    mount /dev/mapper/shd3 /mnt/shd/shd3
+#    mount /dev/mapper/shd4 /mnt/shd/shd4
+#    mount /dev/mapper/shd5 /mnt/shd/shd5
+#    chown -R root:root /mnt/shd1
+#    chown -R root:root /mnt/shd2
+#    chmod -R 4777 /mnt/shd1
+#    chmod -R 4777 /mnt/shd2
+#  ignore_errors: yes
+#  when: inventory_hostname in groups['Keepalived_master']
+
+#- name: Создадим группу и пользователя keepalived_script
+#  shell:
+#    cmd: "{{ item }}"
+#  with_items:
+#  - groupadd -r keepalived_script
+#  - useradd -r -s /sbin/nologin -g keepalived_script -M keepalived_script
+#  ignore_errors: yes
+#  when: version.stdout != relis
+
+- name: Инсталляция необходимых пакетов для сервера
+  apt:
+    update_cache: yes
+    name:
+     - samba
+     - fly-admin-samba
+#     - keepalived
+#     - multipath-tools
+#     - lvm2
+#     - nfs-kernel-server
+    state: latest
+#  when: version.stdout != relis
+
+- name: Остановка служб
+  service:
+    name: '{{item}}'
+    state:  stopped
+  with_items:
+#    - keepalived
+    - smbd
+#    - nfs-server
+#    - multipath-tools
+  ignore_errors: yes
+#  when: version.stdout != relis
+
+- name: Внесение изменений в /etc/sysctl.conf
+  lineinfile:
+    dest: /etc/sysctl.conf
+    insertafter: EOF
+    line: 'net.ipv4.ip_forward = 1'
+#  when: version.stdout != relis
+
+- name: Внесение изменений в /etc/sysctl.conf
+  lineinfile:
+    dest: /etc/sysctl.conf
+    insertafter: EOF
+    line: 'net.ipv4.ip_nonlocal_bind = 1'
+#  when: version.stdout != relis
+
+- name: Установка параметров Samba
+  shell: '{{item}}'
+  with_items:
+   - net conf setparm global "use socket MAC label" "Yes"
+   - net conf setparm global "server max protocol" "NT1"
+   - net conf setparm global "server signing" "required"
+   - smbcontrol all reload-config
+#  when: version.stdout != relis
+
+- name: Настройка smb.conf
+  template:
+    src: smb.conf
+    dest: /etc/samba/smb.conf
+    mode: 644
+    owner: root
+  when: version.stdout != relis
+
+#- name: Исправляем ошибки в пакете NFS
+#  blockinfile:
+#    path: /etc/systemd/system/multi-user.target.wants/nfs-server.service
+#    marker: '# {mark} SHD'
+#    block: |
+#      [Unit]
+#      Requires=rpcbind.service
+#      After=rpcbind.service
+#  when: version.stdout != relis
+
+#- name: Внесение изменений в /etc/multipath.conf
+#  copy:
+#    src: "{{ ansible_ssh_host.split('.')[2] }}/multipath.conf"
+#    dest: /etc/multipath.conf
+#    follow: yes
+#  when: version.stdout != relis
+
+#- name: Внесение изменений в /etc/exports
+#  copy:
+#    src: "{{ ansible_ssh_host.split('.')[2] }}/exports"
+#    dest: /etc/exports
+#    follow: yes
+#  when: version.stdout != relis
+
+#- name: Очистить /etc/keepalived/keepalived.conf
+#  file:
+#    path: /etc/keepalived/keepalived.conf
+#    state: "{{ item }}"
+#  with_items:
+#  - absent
+#  - touch
+#  when: version.stdout != relis
+
+#- name: Внесение изменений в /etc/keepalived/keepalived.conf
+#  blockinfile:
+#    path: /etc/keepalived/keepalived.conf
+#    create: yes
+#    marker: '# {mark} SHD'
+#    state: present
+#    block: |
+#      global_defs {
+#        script_user root
+#        }
+#      vrrp_instance {{ item.0 }} {
+#        state {{ Keepalived_State }}
+#        interface {{ item.1 }}
+#        virtual_router_id {{ item.2.split('.')[3] }}
+#        priority {{ Keepalived_Priority }}
+#        advert_int 1
+#        virtual_ipaddress {
+#          {{ item.2 }}/24 dev {{ item.1 }} label {{ item.1 }}:{{ item.2.split('.')[3] }}
+#        }
+#        notify_master /etc/keepalived/master.sh
+#        notify_backup /etc/keepalived/backup.sh
+#        notify_stop /etc/keepalived/stop.sh
+#      }
+#  with_together:
+#  - "{{ Keepalived_Name }}"
+#  - "{{ Keepalived_Interface }}"
+#  - "{{ Keepalived_IP }}"
+#  when: version.stdout != relis
+
+#- name: Копирование скриптов
+#  copy:
+#    src: "{{ ansible_ssh_host.split('.')[2] }}/{{ item }}"
+#    dest: /etc/keepalived
+#    owner: "keepalived_script"
+#    group: "keepalived_script"
+#    mode: "u=xrw,g=xr,o=xr"
+#  loop:
+#    - master.sh
+#    - backup.sh
+#    - stop.sh
+#  when: version.stdout != relis
+
+- name: Перезапуск служб
+  service:
+    name: "{{ item }}"
+    enabled: yes
+    state: restarted
+  with_items:
+#  - multipath-tools
+#  - keepalived
+#  - nfs-server
+  - smbd
+#  when: version.stdout != relis
+
+#- name: Запишем новую версию ПО (Update)
+#  become: true
+#  shell: "sed -i '/Keepalived-server/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
+#  when: version.stdout != relis
+#  ignore_errors: yes

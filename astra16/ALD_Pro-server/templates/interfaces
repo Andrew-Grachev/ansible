@@ -1,0 +1,23 @@
+auto eth0
+iface eth0 inet static
+  address {{ ansible_ssh_host }}
+  netmask 255.255.255.0
+  gateway {{ gateway }}
+  dns-domain {{ domain }}
+  dns-nameserver {{ bind }}
+# hwaddress 11:11:11:11:11:11
+
+#auto bond0
+#iface bond0 inet static
+#  address {{ ansible_ssh_host }}
+#  netmask 255.255.255.0
+#  gateway {{ Gateway }}
+#  bond-slaves {{bond_slaves}}
+#  bond-mode active-backup
+#  bond-miimon 100
+#  bond-downdelay 200
+#  bond-updelay 200
+#  resend_igmp 2 # для работы телевидения (2 и более) 
+#  dns-domain {{ domain }}
+#  dns-nameserver {{ DNS_Server }}
+#  hwaddress 11:11:11:11:11:11

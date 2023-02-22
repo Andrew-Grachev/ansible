@@ -1,0 +1,81 @@
+---
+- name: Чтение версии установленного ПО
+  shell: cat /opt/distr/software.conf | grep Zabbix-agent
+  register: version
+  ignore_errors: yes
+
+- name: Установка необходимых пакетов
+  apt:
+    name:
+    - zabbix-agent
+    - smartmontools
+    - iperf
+    state: latest
+    update_cache: yes
+  when: version.stdout != relis
+
+- name: Добавляем пользователя zabbix как sudoers
+  copy:
+    src: 'zabbix'
+    dest: '/etc/sudoers.d/'
+    mode: 644
+  when: version.stdout != relis
+
+- name: Добавляем пользователя zabbix в группу sudoers
+  shell:
+    cmd: "{{ item }}"
+  with_items:
+    - sudo adduser zabbix sudo
+    - sudo adduser zabbix adm
+  ignore_errors: yes
+  when: version.stdout != relis
+
+- name: Копирование файла конфигурации
+  copy:
+    src: 'zabbix_agent.conf'
+    dest: '/etc/zabbix/zabbix_agentd.conf.d/'
+    mode: 644
+    force: no
+  when: version.stdout != relis
+
+- name: Copy get_gpus_info.sh file
+  copy:
+    src: 'get_gpus_info.sh'
+    dest: '/etc/zabbix/'
+    force: no
+    mode: 644
+  when: version.stdout != relis
+
+- name: Copy bind_stats.py file
+  copy:
+    src: 'bind_stats.py'
+    dest: '/etc/zabbix/'
+    force: no
+    mode: 644
+  when: version.stdout != relis
+
+- name: Изменение zabbix_agent.conf
+  shell: "{{ item }}"
+  with_items:
+    - "sed -i 's/srv-tk/{{inventory_hostname}}/g' /etc/zabbix/zabbix_agentd.conf.d/zabbix_agent.conf"
+    - "sed -i 's/1.1.1.1/{{Zabbix_Server}}/g' /etc/zabbix/zabbix_agentd.conf.d/zabbix_agent.conf"
+    - "sed -i 's/zabbix_agentd.d/zabbix_agentd.conf.d/g' /etc/zabbix/zabbix_agentd.conf"
+  when: version.stdout != relis
+
+- name: Перезапуск служб
+  service:
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+  with_items:
+    - plog
+    - smartd
+    - zabbix-agent
+  when: version.stdout != relis
+
+- name: Запишем новую версию ПО (Update)
+  shell: "sed -i '/Zabbix-agent/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
+  become: true
+  when: version.stdout != relis
+  ignore_errors: yes
+

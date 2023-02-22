@@ -1,0 +1,41 @@
+bsign_paths:
+#- '/opt/distr'
+#- '/usr/local/lib/CPS'
+#- '/usr/lib/x86_64-linux-gnu'
+#- '/usr/local/lib/python3.5'
+#- '/usr/local/cuda-10.0'
+#- '/usr/local/cuda-10.2'
+#- '/usr/local/cuda-11.0'
+#- '/opt/vit'
+#- '/opt/asm_stt3'
+#- '/opt/asm_mdl3'
+- '/etc/agent-iss'
+- '/etc/server-iss'
+- '/etc/server-iss-ui'
+- '/var/www/html/adm'
+- '/var/opt/kaspersky'
+- '/opt/kaspersky'
+#- '/home/mniti'
+
+bsign_files:
+- /etc/dbus-1/system.d/lc.agent.NSD.conf
+- /etc/logrotate.d/agent-iss
+- /etc/logrotate.d/syslogs
+- /etc/pam.d/chku
+- /etc/systemd/system/agent-iss.service
+- /usr/lib/parsec/tests/afick.sh
+- /usr/lib/parsec/tests/avs.sh
+- /usr/lib/parsec/tests/backup
+- /usr/lib/x86_64-linux-gnu/libQt5RemoteObjects.so.5.11.4
+- /usr/share/fly-dm/themes/fly/background.jpg
+- /etc/cups/cupsd.conf_1.5
+- /etc/logrotate.d/server-iss
+- /etc/systemd/system/server-iss.service
+- /usr/share/cups/marker.template_1.5
+- /etc/logrotate.d/server-iss-ui
+- /var/www/html/index.html
+- /var/www/html/favicon.ico
+- /usr/local/lib/libnghttp2.so.14.16.2
+- /usr/local/lib/libpcre2-8.so.0.0.0
+- /usr/local/lib/daq/daq_afpacket.so
+- /usr/bin/nvidia-smi

@@ -1,0 +1,95 @@
+$TTL 604800
+@ IN SOA srv-tk.in. mniti.in. (
+    2021081301	; Serial
+    604800	; Refresh
+    86400	; Retry
+    2419200	; Expire
+    604800 )	; Negative Cach TTL
+;
+
+			IN	NS	srv-tk.in.
+srv-tk			IN	A	10.1.10.1
+ilo-srv-tk		IN	A	10.1.110.1
+srv-sb-1		IN	A	10.1.10.2
+ilo-srv-sb-1	IN	A	10.1.110.2
+srv-sb-2		IN	A	10.1.10.3
+ilo-srv-sb-2	IN	A	10.1.110.3
+srv-sb-3		IN	A	10.1.10.4
+ilo-srv-sb-3	IN	A	10.1.110.4
+srv-sb-4		IN	A	10.1.10.5
+ilo-srv-sb-4	IN	A	10.1.110.5
+srv-sb-5		IN	A	10.1.10.6
+ilo-srv-sb-5	IN	A	10.1.110.6
+srv-sb-6		IN	A	10.1.10.7
+ilo-srv-sb-6	IN	A	10.1.110.7
+srv-sb-7		IN	A	10.1.10.8
+ilo-srv-sb-7	IN	A	10.1.110.8
+srv-sb-8		IN	A	10.1.10.9
+ilo-srv-sb-8	IN	A	10.1.110.9
+srv-sb-9		IN	A	10.1.10.10
+ilo-srv-sb-9	IN	A	10.1.110.10
+srv-sb-10		IN	A	10.1.10.11
+ilo-srv-sb-10	IN	A	10.1.110.11
+srv-sb-11		IN	A	10.1.10.12
+ilo-srv-sb-11	IN	A	10.1.110.12
+srv-sb-12		IN	A	10.1.10.13
+ilo-srv-sb-12	IN	A	10.1.110.13
+srv-sb-13		IN	A	10.1.10.14
+ilo-srv-sb-13	IN	A	10.1.110.14
+srv-sb-14		IN	A	10.1.10.15
+ilo-srv-sb-14	IN	A	10.1.110.15
+srv-sb-15		IN	A	10.1.10.16
+ilo-srv-sb-15	IN	A	10.1.110.16
+srv-sb-16		IN	A	10.1.10.17
+ilo-srv-sb-16	IN	A	10.1.110.17
+srv-sb-17		IN	A	10.1.10.18
+ilo-srv-sb-17	IN	A	10.1.110.18
+srv-sb-18		IN	A	10.1.10.19
+ilo-srv-sb-18	IN	A	10.1.110.19
+srv-sb-19		IN	A	10.1.10.20
+ilo-srv-sb-19	IN	A	10.1.110.20
+srv-sb-20		IN	A	10.1.10.21
+ilo-srv-sb-20	IN	A	10.1.110.21
+
+
+arm-as			IN	A	10.1.10.65
+arm-as-tk		IN	A	10.1.110.65
+arm-ab			IN	A	10.1.10.66
+arm-t1-1		IN	A	10.1.10.67
+arm-t1-2		IN	A	10.1.10.68
+arm-t1-3		IN	A	10.1.10.69
+arm-t1-4		IN	A	10.1.10.70
+
+prn-1			IN	A	10.1.10.97
+prn-2			IN	A	10.1.10.98
+str-1			IN	A	10.1.10.129
+str-2			IN	A	10.1.10.130
+str-3			IN	A	10.1.10.131
+str-4			IN	A	10.1.10.132
+str-5			IN	A	10.1.10.133
+
+kmt-hs			IN	A	10.1.10.193
+kmt-hs-m		IN	A	10.1.110.193
+kmt-tk-1		IN	A	10.1.110.197
+kmt-tk-2		IN	A	10.1.110.198
+kmt-arm			IN	A	10.1.110.200
+kvm-k-1			IN	A	10.1.110.210
+kvm-k-2			IN	A	10.1.110.211
+kvm-m			IN	A	10.1.110.212
+snmp-1			IN	A	10.1.110.213
+snmp-2			IN	A	10.1.110.214
+ibp-1			IN	A	10.1.110.217
+ibp-2			IN	A	10.1.110.218
+mkt				IN	A	10.1.0.1
+mse				IN	A	10.1.10.254
+mse-tk			IN	A	10.1.110.254
+
+gitlab			IN	A	10.1.10.120
+gitlab-runner	IN	A	10.1.10.121
+
+zabbix			CNAME	srv-tk.in.
+drweb			CNAME	srv-tk.in.
+postgres-master	CNAME	srv-sb-21.in.
+redis-master	CNAME	srv-sb-2.in.
+mapserver		CNAME	srv-sb-7.in.
+

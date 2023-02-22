@@ -1,0 +1,47 @@
+$TTL 604800
+@ IN SOA srv-tk.kkip. mniti.kkip. (
+    2021030501	; Serial
+    604800	; Refresh
+    86400	; Retry
+    2419200	; Expire
+    604800 )	; Negative Cach TTL
+;
+
+			IN	NS	srv-tk.kkip.
+srv-tk.kkip.		IN	A	192.168.110.30
+ilo-srv-tk.kkip.	IN	A	192.168.120.30
+zabbix-srv-tk.kkip.	IN	A	192.168.120.10
+
+
+srv-kv-1.ns.		IN	A	10.1.20.2	
+ilo-srv-kv-1.ns.	IN	A	10.1.120.2
+srv-kv-2.ns.		IN	A	10.1.20.3	
+ilo-srv-kv-2.ns.	IN	A	10.1.120.3
+srv-kv-3.ns.		IN	A	10.1.20.4	
+ilo-srv-kv-3.ns.	IN	A	10.1.120.4
+srv-kv-4.ns.		IN	A	10.1.20.5	
+ilo-srv-kv-4.ns.	IN	A	10.1.120.5
+srv-kv-5.ns.		IN	A	10.1.20.6	
+ilo-srv-kv-5.ns.	IN	A	10.1.120.6
+arm-asb.ns.		IN	A	10.1.20.65	
+arm-asb-tk.ns.		IN	A	10.1.120.65
+prn-1.ns.		IN	A	10.1.20.97		
+str-1.ns.		IN	A	10.1.20.129		
+str-2.ns.		IN	A	10.1.20.130		
+str-3.ns.		IN	A	10.1.20.131		
+str-4.ns.		IN	A	10.1.20.132		
+str-5.ns.		IN	A	10.1.20.133		
+str-6.ns.		IN	A	10.1.20.134		
+kmt-hs-1.ns.		IN	A	10.1.20.193	
+kmt-hs-1.ns.		IN	A	10.1.120.193
+kmt-hs-2.ns.		IN	A	10.1.20.194	
+kmt-hs-2.ns.		IN	A	10.1.120.194
+kmt-tk.ns.		IN	A	10.1.120.197
+kmt-arm.ns.		IN	A	10.1.120.200
+kvm-k.ns.		IN	A	10.1.120.210
+kvm-m.ns.		IN	A	10.1.120.212
+snmp.ns.		IN	A	10.1.120.213
+mse.ns.			IN	A	10.1.20.254	
+mse-tk.ns.		IN	A	10.1.120.254
+
+zabbix			CNAME	srv-tk.kkip.

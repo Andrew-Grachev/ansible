@@ -1,0 +1,126 @@
+[all:vars]
+ansible_ssh_user = mniti
+ansible_ssh_pass = Vitek2020
+repo = mo
+domain = ss
+ald_pass = Vitek2020
+krb_pass = Vitek2020
+grub_pass = Vitek2020
+user_name_preseed = mniti
+root_pass = Vitek2020
+user_pass = Vitek2020
+bond_slaves = 'eth0 eth1'
+Gateway = 10.1.40.254
+DrWeb_Password = Vitek2020
+DrWeb_Server = 10.1.40.1
+Zabbix_Server = 10.1.40.1
+Bacula_Server = 10.1.40.1
+DNS_Server = 10.1.40.1
+NTP_Server = 10.1.40.254
+Repo_Server = 10.1.40.1
+Rebus_Server = 10.1.40.1
+Keepalived_IP = 10.1.40.222
+
+
+mniti_pass_gpg = k5Xj8Ad1
+mniti_passphrase = 860A25123BA9631CCCF1EB98348E13C7FB5D9657
+
+bsign = bsign -N -s --pgoptions="--batch --pinentry-mode=loopback --passphrase=k5Xj8Ad1 --default-key=860A25123BA9631CCCF1EB98348E13C7FB5D9657"
+
+[TK]
+srv-tk ansible_ssh_host=10.1.40.1
+
+[OA]
+srv-oa-1 ansible_ssh_host=10.1.40.2
+srv-oa-2 ansible_ssh_host=10.1.40.3
+#srv-oa-3 ansible_ssh_host=10.1.40.4
+#srv-oa-4 ansible_ssh_host=10.1.40.5
+#srv-oa-5 ansible_ssh_host=10.1.40.6
+#srv-oa-6 ansible_ssh_host=10.1.40.7
+#srv-oa-7 ansible_ssh_host=10.1.40.8
+
+[PV]
+#srv-pv-1 ansible_ssh_host=10.1.40.9
+#srv-pv-2 ansible_ssh_host=10.1.40.10
+
+[SRV:children]
+TK
+OA
+PV
+
+[ARM]
+#arm-as ansible_ssh_host=10.1.40.65
+#arm-ab ansible_ssh_host=10.1.40.66
+#arm-ia-1 ansible_ssh_host=10.1.40.67
+#arm-ia-2 ansible_ssh_host=10.1.40.68
+#arm-ia-3 ansible_ssh_host=10.1.40.69
+#arm-ia-4 ansible_ssh_host=10.1.40.70
+#arm-ia-5 ansible_ssh_host=10.1.40.71
+#arm-ia-6 ansible_ssh_host=10.1.40.72
+#arm-ia-7 ansible_ssh_host=10.1.40.73
+#arm-vs   ansible_ssh_host=10.1.40.74
+
+
+
+
+
+# Bacula
+[Bacula_client]
+#srv-oa-1
+#srv-oa-2
+#srv-oa-3
+#srv-oa-4
+#srv-oa-5
+#srv-oa-6
+#srv-oa-7
+#srv-pv-1
+#srv-pv-2
+
+[Keepalived_srv]
+
+[Keepalived_srv:children]
+Keepalived_master
+Keepalived_slave
+
+[Keepalived_cli]
+srv-tk
+#srv-oa-3
+#srv-oa-4
+#srv-oa-5
+#srv-oa-6
+#srv-oa-7
+#srv-pv-1
+#srv-pv-2
+#arm-as
+#arm-ab
+
+[Keepalived_cli:children]
+Keepalived_srv
+
+[Keepalived_master]
+srv-oa-1
+
+[Keepalived_slave]
+srv-oa-2
+
+[Keepalived_cli:vars]
+Keepalived_Name = SHD
+
+[Keepalived_srv:vars]
+Keepalived_Interface = eth0
+
+[Keepalived_master:vars]
+Keepalived_State = MASTER
+Keepalived_Priority = 255
+
+[Keepalived_slave:vars]
+Keepalived_State = BACKUP
+Keepalived_Priority = 100
+
+[PROMT]
+#srv-pv-1
+#srv-pv-2
+
+[ASM]
+#srv-pv-1
+#srv-pv-2

@@ -1,0 +1,21 @@
+127.0.0.1	localhost
+10.1.40.1	srv-tk.ss srv-tk
+10.1.40.2	srv-oa-1.ss srv-oa-1
+10.1.40.3	srv-oa-2.ss srv-oa-2
+10.1.40.4	srv-oa-3.ss srv-oa-3
+10.1.40.5	srv-oa-4.ss srv-oa-4
+10.1.40.6	srv-oa-5.ss srv-oa-5
+10.1.40.7	srv-oa-6.ss srv-oa-6
+10.1.40.8	srv-oa-7.ss srv-oa-7
+10.1.40.9	srv-pv-1.ss srv-pv-1
+10.1.40.10	srv-pv-2.ss srv-pv-2
+10.1.40.65	arm-as.ss arm-as
+10.1.40.66	arm-ab.ss arm-ab
+10.1.40.67	arm-ia-1.ss arm-ia-1
+10.1.40.68	arm-ia-2.ss arm-ia-2
+10.1.40.69	arm-ia-3.ss arm-ia-3
+10.1.40.70	arm-ia-4.ss arm-ia-4
+10.1.40.71	arm-ia-5.ss arm-ia-5
+10.1.40.72	arm-ia-6.ss arm-ia-6
+10.1.40.73	arm-ia-7.ss arm-ia-7
+10.1.40.74	arm-vs.ss arm-vs

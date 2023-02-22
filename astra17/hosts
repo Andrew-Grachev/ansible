@@ -1,0 +1,61 @@
+[all:vars]
+ansible_ssh_user = maket
+ansible_ssh_pass = 12345678
+domain = domain.local
+gateway = 172.29.92.1
+bind =    172.29.92.10
+#ntp =     10.0.1.32
+#repo = mo
+#ald_pass = Vitek2020
+#krb_pass = Vitek2020
+#grub_pass = Vitek2020
+#user_name_preseed = mniti
+#root_pass = Vitek2020
+#user_pass = Vitek2020
+#bond_slaves = 'eth0 eth1'
+#DrWeb_Password = Vitek2020
+#DrWeb_Server = 192.168.1.31
+#Zabbix_Server = 192.168.1.31
+#Bacula_Server = 192.168.1.31
+#Repo_Server = 192.168.1.31
+#mniti_pass_gpg = k5Xj8Ad1
+#bsign = bsign -N -s --pgoptions="--batch --pinentry-mode=loopback --passphrase=k5Xj8Ad1 --default-key=860A25123BA9631CCCF1EB98348E13C7FB5D9657"
+
+[SRV]
+astra172 	ansible_ssh_host=172.29.92.90
+
+
+
+#[ALDPROSERVERS]
+#ald-pro 	ansible_ssh_host=10.0.1.50 ansible_port=64050
+#ald-pro-2 ansible_ssh_host=10.0.1.51
+#[TK]
+#srv-tk ansible_ssh_host=192.168.1.31
+#[SRV:children]
+#TK
+#[ARM]
+#[Bacula_client]
+#[Samba] # Клиенты и сервера использующие Samba
+#[Samba:children]
+#  Keepalived_srv
+#[Keepalived_srv]
+#[Keepalived_srv:vars]
+#Keepalived_Interface = eth0
+#Keepalived_State = MASTER
+#Keepalived_Priority = 255
+#[Keepalived_srv:children]
+#Keepalived_master
+#Keepalived_slave
+#[Keepalived_master]
+# srv-tk
+#[Keepalived_slave]
+#[Keepalived_slave:vars]
+#Keepalived_State = BACKUP
+#Keepalived_Priority = 100
+#[Keepalived_cli]
+#[Keepalived_cli:vars]
+#Keepalived_Name = SHD
+#Keepalived_IP = 10.1.40.222
+#[Keepalived_cli:children]
+#[PROMT]
+#[ASM]

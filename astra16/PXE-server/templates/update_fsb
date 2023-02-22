@@ -1,0 +1,27 @@
+#!/bin/bash
+clear
+echo "deb http://{{ Repo_Server }}/repo/fsb smolensk main contrib non-free" > /etc/apt/sources.list
+echo "deb http://{{ Repo_Server }}/repo/fsb-dev smolensk main contrib non-free" >> /etc/apt/sources.list
+echo "deb http://{{ Repo_Server }}/repo/fsb-update smolensk main contrib non-free"  >> /etc/apt/sources.list
+echo "deb http://{{ Repo_Server }}/repo/fsb-dev-update smolensk main contrib non-free"  >> /etc/apt/sources.list
+echo "Updating system, please wait..."
+echo "Do not turn off your computer!"
+echo "auto lo" > /etc/network/interfaces
+echo "iface lo inet loopback" >> /etc/network/interfaces
+echo "auto bond0" >> /etc/network/interfaces
+echo "iface bond0 inet static" >> /etc/network/interfaces
+echo "address {{ hostvars[item].ansible_ssh_host }}" >> /etc/network/interfaces
+echo "netmask 255.255.255.0" >> /etc/network/interfaces
+echo "network {{ ansible_ssh_host.split('.')[0] }}.{{ ansible_ssh_host.split('.')[1] }}.{{ ansible_ssh_host.split('.')[2] }}.0" >> /etc/network/interfaces
+echo "gateway {{ Gateway }}" >> /etc/network/interfaces
+echo "bond-slaves {{ bond_slaves }}" >> /etc/network/interfaces
+echo "bond-mode active-backup" >> /etc/network/interfaces
+echo "bond-miimon 100" >> /etc/network/interfaces
+echo "bond-downdelay 200" >> /etc/network/interfaces
+echo "bond-updelay 200" >> /etc/network/interfaces
+apt-get update &> /dev/null
+rm -f /etc/systemd/system/multi-user.target.wants/update.service
+systemctl daemon-reload
+rm -f /usr/local/bin/update.sh
+reboot
+
