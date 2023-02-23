@@ -4,4 +4,4 @@
   become: true
   roles:
     - Astra-server
-#   - { role: ALDPro-server, when: "inventory_hostname == 'srv-dc'" }
+    - { role: ALD_Pro-server, when: "inventory_hostname == 'srv-dc'" }

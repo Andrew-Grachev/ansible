@@ -5,7 +5,8 @@ iface eth0 inet static
   gateway {{ gateway }}
   dns-domain {{ domain }}
   dns-nameserver {{ bind }}
-# hwaddress 11:11:11:11:11:11
+  dns-search {{ domain }}
+# hwaddress 01:92:01:68:01:XX
 
 #auto bond0
 #iface bond0 inet static

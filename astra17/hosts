@@ -1,7 +1,10 @@
 [all:vars]
 ansible_ssh_user = andrew
 ansible_ssh_pass = 12345678
+
 domain = domain.local
+pwdadmin = P@$$w0rd
+
 gateway = 192.168.1.1
 bind =    192.168.1.1
 

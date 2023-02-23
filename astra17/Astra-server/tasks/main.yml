@@ -1,4 +1,19 @@
 ---
+- name: Создание папки дистрибутивов
+  file:
+    path: /opt/distr/
+    state: directory
+    recurse: yes
+
+- name: Изменим права доступа к папке
+  shell: "chmod -R 777 /opt/distr"
+
+- name: Создадим файл версий установленного ПО
+  file:
+    path: /opt/distr/software.conf
+    mode: '0777'
+    state: touch
+
 - name: Чтение версии установленного ПО
   shell: cat /opt/distr/software.conf | grep Astra-server
   register: version
@@ -8,7 +23,7 @@
   hostname:
     name: "{{ inventory_hostname }}.{{ domain }}"
     use: "systemd"
-#  when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Удалим файл hosts
   file:
@@ -17,7 +32,7 @@
   with_items:
     - absent
     - touch
-#   when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Сздадим файл hosts
   template:
@@ -25,7 +40,7 @@
     dest: /etc/hosts
     mode: 0644
     owner: root
-#   when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Удалим файл sources.list
   file:
@@ -34,7 +49,7 @@
   with_items:
     - absent
     - touch
-#   when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Сздадим файл sources.list
   copy:
@@ -42,7 +57,7 @@
     dest: /etc/apt/sources.list
     mode: 0644
     owner: root
-#   when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Сздадим файл aldpro
   copy:
@@ -50,7 +65,7 @@
     dest: /etc/apt/preferences.d/aldpro
     mode: 0644
     owner: root
-#   when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Обновим репозитории и OC
   shell: "{{ item }}"
@@ -58,7 +73,7 @@
     - astra-update -d
     - astra-update -A -T -r -n
     - astra-update -A -T -r
-#  when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Копирование файла interfaces
   template:
@@ -67,7 +82,7 @@
     owner: "root"
     group: "root"
     mode: "u=rw,g=r,o=r"
-#  when: version.stdout != relis
+  when: version.stdout != relis
 
 #- name: установка пакетов для создания bond0
 #  apt:
@@ -83,7 +98,7 @@
     - network-manager
     state: absent
     purge: yes
-#  when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Удалим файл resolv.conf
   file:
@@ -92,23 +107,23 @@
   with_items:
   - absent
   - touch
-#  when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Сздадим файл resolv.conf
   lineinfile:
     path: /etc/resolv.conf
     line: "nameserver {{ bind }}"
-#  when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Удаление лишних пакетов
   apt:
     autoremove: yes
-#  when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Перезагрузим хост
   reboot:
     reboot_timeout=300
-#  when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Запишем новую версию ПО (Update)
   shell: "sed -i '/Astra-server/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
