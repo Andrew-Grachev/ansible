@@ -3,7 +3,7 @@ ansible_ssh_user = andrew
 ansible_ssh_pass = 12345678
 
 domain = domain.local
-pwdadmin = P@$$w0rd
+pwdadmin = Passw0rd
 
 gateway = 192.168.1.1
 bind =    192.168.1.1
@@ -12,3 +12,4 @@ bond_slaves = 'eth0 eth1'
 
 [SRV]
 srv-dc	 	ansible_ssh_host=192.168.1.50
+srv-pxe	 	ansible_ssh_host=192.168.1.51
