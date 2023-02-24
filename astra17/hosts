@@ -3,10 +3,10 @@ ansible_ssh_user = andrew
 ansible_ssh_pass = 12345678
 
 domain = domain.local
-pwdadmin = Passw0rd
+pwdadmin = Qwerty2023
 
 gateway = 192.168.1.1
-bind =    192.168.1.1
+bind =    192.168.1.50
 
 bond_slaves = 'eth0 eth1'
 

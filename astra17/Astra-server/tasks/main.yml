@@ -108,11 +108,14 @@
   - absent
   - touch
   when: version.stdout != relis
-
+  
 - name: Сздадим файл resolv.conf
   lineinfile:
     path: /etc/resolv.conf
-    line: "nameserver {{ bind }}"
+    line: "{{ item }}"
+  with_items:
+    - nameserver {{ bind }}
+    - search {{ domain }}
   when: version.stdout != relis
 
 - name: Удаление лишних пакетов

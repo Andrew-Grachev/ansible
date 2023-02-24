@@ -8,41 +8,6 @@
   shell: "DEBIAN_FRONTEND=noninteractive apt-get install -q -y aldpro-mp"
   when: version.stdout != relis
 
-- name: Удалим файл /etc/hosts
-  file:
-    path: /etc/hosts
-    state: "{{ item }}"
-  with_items:
-  - absent
-  - touch
-  when: version.stdout != relis
-
-- name: Создадим файл /etc/hosts
-  template:
-    src: hosts
-    dest: /etc/
-    mode: 0400
-    owner: root
-  when: version.stdout != relis
-
-- name: Удалим файл resolv.conf
-  file:
-    path: /etc/resolv.conf
-    state: "{{ item }}"
-  with_items:
-    - absent
-    - touch
-  when: version.stdout != relis
-
-- name: Сздадим файл resolv.conf
-  lineinfile:
-    path: /etc/resolv.conf
-    line: "{{ item }}"
-  with_items:
-    - nameserver 127.0.0.1
-    - search {{ domain }}
-  when: version.stdout != relis
-
 - name: Настройка первого контроллера домена
   shell: /opt/rbta/aldpro/mp/bin/aldpro-server-install.sh -d {{ domain }} -n {{ inventory_hostname }} -p {{ pwdadmin }} --ip {{ ansible_ssh_host }} --no-reboot
   when: version.stdout != relis
