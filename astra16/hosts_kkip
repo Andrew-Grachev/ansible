@@ -1,0 +1,66 @@
+[all:vars]
+ansible_ssh_user = administrator
+ansible_ssh_pass = 12345678
+repo = mo
+domain = kkip
+ald_pass = P@ssw0rd0516
+krb_pass = P@ssw0rd0516
+grub_pass = P@ssw0rd0516
+user_name_preseed = mniti
+root_pass = 12345678
+user_pass = P@ssw0rd0516
+bond_slaves = 'eth0 eth1'
+Gateway = 192.168.110.99
+DrWeb_Password = P@ssw0rd0516
+DrWeb_Server = 192.168.110.30
+Zabbix_Server = 192.168.110.30
+Bacula_Server = 192.168.110.30
+DNS_Server = 192.168.110.30
+NTP_Server = 192.168.110.99
+Repo_Server = 192.168.110.30
+Rebus_Server = 192.168.110.30
+Keepalived_IP = 192.168.110.222
+
+
+
+[SRV]
+
+[ARM]
+
+# Bacula
+[Bacula_client]
+
+[Keepalived_srv]
+
+[Keepalived_srv:children]
+Keepalived_master
+Keepalived_slave
+
+[Keepalived_cli]
+
+[Keepalived_cli:children]
+Keepalived_srv
+
+[Keepalived_master]
+srv-sx
+
+[Keepalived_slave]
+#srv-oa-2
+
+[Keepalived_cli:vars]
+Keepalived_Name = SHD
+
+[Keepalived_srv:vars]
+Keepalived_Interface = eth0
+
+[Keepalived_master:vars]
+Keepalived_State = MASTER
+Keepalived_Priority = 255
+
+[Keepalived_slave:vars]
+Keepalived_State = BACKUP
+Keepalived_Priority = 100
+
+[PROMT]
+
+[ASM]

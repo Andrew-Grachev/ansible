@@ -1,0 +1,48 @@
+[all:vars]
+ansible_ssh_user = mniti
+ansible_ssh_pass = Vitek2020
+domain = in
+repo = mo
+
+ald_pass = Vitek2020
+krb_pass = Vitek2020
+grub_pass = Vitek2020
+user_name_preseed = mniti
+root_pass = Vitek2020
+user_pass = Vitek2020
+DrWeb_Password=Vitek2020
+
+Gateway = 10.1.10.254
+NTP_Server = 10.1.10.254
+Bacula_Server = 10.1.10.1
+DNS_Server = 10.1.10.1
+Repo_Server = 10.1.10.1
+Rebus_Server = 10.1.10.1
+Zabbix_Server = 10.1.10.1
+DrWeb_Server = 10.1.10.1
+
+bond_slaves = 'eth0 eth1'
+
+mniti_pass_gpg = 
+mniti_passphrase = 
+bsign = 
+
+[TK]
+[SB]
+[ARM]
+
+[STROM]
+
+################  Gluster  ###############
+[GFS:children]
+gluster_master
+gluster_slave
+
+[gluster_master]
+
+[gluster_slave]
+
+[gluster_client]
+
+[Bacula_client]
+

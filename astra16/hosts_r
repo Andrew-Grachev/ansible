@@ -1,0 +1,35 @@
+[all:vars]
+ansible_ssh_user = mniti
+ansible_ssh_pass = Vitek2020
+
+domain = r
+
+ntp_server = 10.1.21.254
+gateway = 10.1.21.254
+dns_server = 10.1.20.1
+
+zone_name = forward
+zone_rev_name = reverse
+
+rubicon = 10.
+
+repo_ip = 10.1.21.1
+zabbix = 10.1.20.1
+
+ald_pass = Vitek2020
+krb_pass = Vitek2020
+
+grub_pass = Vitek2020
+user_name_preseed = mniti
+root_pass = Vitek2020
+user_pass = Vitek2020
+drweb_pass = Vitek2020
+
+
+bond_slaves = 'eth0 eth1'
+repo = mo
+system_disk = e
+
+[r]
+
+[arm]

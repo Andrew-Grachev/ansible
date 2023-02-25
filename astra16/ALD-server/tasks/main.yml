@@ -1,0 +1,131 @@
+---
+- name: Чтение версии установленного ПО
+  shell: cat /opt/distr/software.conf | grep ALD-server
+  register: version
+  ignore_errors: yes
+
+- name: Зададим имя хоста
+  shell: "hostnamectl set-hostname {{ inventory_hostname }}"
+  when: version.stdout != relis
+
+- name: Установка необходимых пакетов
+  apt:
+    name:
+    - ald-server-common
+    - fly-admin-ald-server
+    - smolensk-security-ald
+    state: latest
+    update_cache: yes
+  when: version.stdout != relis
+
+#- name: Удаление лишних пакетов
+#  apt:
+#    autoremove: yes
+#  when: version.stdout != relis
+
+- name: Удалим файл hosts
+  file:
+    path: /etc/hosts
+    state: "{{ item }}"
+  with_items:
+  - absent
+  - touch
+  when: version.stdout != relis
+
+- name: Сздадим файл hosts
+  copy:
+    src: "hosts.{{domain}}"
+    dest: "/etc/hosts"
+  when: version.stdout != relis
+
+- name: Удалим файл resolv.conf
+  file:
+    path: /etc/resolv.conf
+    state: "{{ item }}"
+  with_items:
+  - absent
+  - touch
+  when: version.stdout != relis
+
+- name: Сздадим файл resolv.conf
+  lineinfile:
+    path: /etc/resolv.conf
+    line: "nameserver {{ DNS_Server }}"
+  when: version.stdout != relis
+
+- name: ald.conf
+  lineinfile:
+    dest: /etc/ald/ald.conf
+    regexp: "{{ item.do }}"
+    line: "{{ item.posle }}"
+  with_items:
+  - { do: 'DOMAIN=', posle: 'DOMAIN=.{{ domain }}'}
+  - { do: 'SERVER=', posle: "SERVER={{ inventory_hostname }}.{{ domain }}"}
+  - { do: 'DESCRIPTION=', posle: 'DESCRIPTION={{ inventory_hostname }}'}
+  - { do: 'SERVER_ID=', posle: "SERVER_ID={{ ansible_ssh_host.split('.')[3] }}"}
+  - { do: 'NETWORK_FS_TYPE=', posle: 'NETWORK_FS_TYPE=none'}
+  - { do: 'CLIENT_ON=', posle: 'CLIENT_ON=1'}
+  - { do: 'SERVER_ON=', posle: 'SERVER_ON=0'}
+  when: version.stdout != relis
+
+- name: ald.conf server
+  lineinfile:
+    dest: /etc/ald/ald.conf
+    regexp: "{{ item.do }}"
+    line: "{{ item.posle }}"
+  with_items:
+    - { do: 'SERVER_ID=', posle: 'SERVER_ID=1'}
+    - { do: 'SERVER_ON=', posle: 'SERVER_ON=1'}
+  when: version.stdout != relis
+
+- name: copy aldpassserver
+  template:
+    src: aldpassserver
+    dest: /tmp/
+    mode: 0400
+    owner: root
+  when: version.stdout != relis
+
+- name: add users
+  lineinfile:
+    path: /tmp/aldpassserver
+    line: "{{ item.0 }}:{{ item.1 }}"
+  with_together:
+  - "{{ users }}"
+  - "{{ users_pass }}"
+  when: version.stdout != relis
+
+- name: delete ald_home
+  file:
+    state: absent
+    path: /ald_home/
+  when: version.stdout != relis
+
+- name: init ald-domain
+  shell: ald-init init --pass-file=/tmp/aldpassserver -f
+  when: version.stdout != relis
+
+- name: Создадим пользователей ALD из списка
+  shell: "ald-admin user-add {{ item }} --home-type=' ' --home-server=' ' --home=/ald_home/{{ item }}' ' --login-shell=/bin/bash --gecos={{ item }},,, --policy=default --pass-file=/tmp/aldpassserver -f"
+  with_items:
+  - "{{ users }}"
+  when: version.stdout != relis
+
+- name: Зададим мандатный уровень доступа
+  shell: "ald-admin user-mac {{ item }} --reset --min-lev-int=0 --max-lev-int=3 -f --pass-file=/tmp/aldpassserver -f" 
+  with_items:
+  - "{{ users }}"
+  when: version.stdout != relis
+
+- name: Добавим хосты в ALD
+  shell: "ald-admin user-ald-cap {{ item }} --add-hosts --host-group='Domain Computers'  --pass-file=/tmp/aldpassserver -f"
+  with_items:
+  - "{{ users }}"
+  when: version.stdout != relis
+
+- name: Запишем новую версию ПО (Update)
+  shell: "sed -i '/ALD-server/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
+  when: version.stdout != relis
+
+
+

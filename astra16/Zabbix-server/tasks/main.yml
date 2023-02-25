@@ -1,0 +1,161 @@
+---
+- name: Чтение версии установленного ПО
+  shell: cat /opt/distr/software.conf | grep Zabbix-server
+  register: version
+  ignore_errors: yes
+
+#- name: Создание папок
+#  file:
+#    state: directory
+#    path: "{{ item }}"
+#  with_items:
+#  - /opt/vit_data
+#  when: version.stdout != relis
+
+#- name: Создание папок
+#  file:
+#    state: directory
+#    path: /opt/vit_data/zabbix_db
+#    owner: postgres
+#    group: postgres
+#    mode: '0700'
+#  when: version.stdout != relis
+
+- name: Инсталляция необходимых пакетов для сервера
+  apt:
+    update_cache: yes
+    name:
+    - apache2
+    - postgresql-9.6
+    - libapache2-mod-php7.0
+    - php7.0-pgsql
+    - ipmitool
+    - zabbix-frontend-php
+    - zabbix-server-pgsql
+    - ldap-utils
+#    - pgbouncer
+#    - initdb
+    - iperf
+    state: latest
+  when: version.stdout != relis
+
+#- name: Копируем бамп базы (если есть)
+#  file:
+#    src: "{{ domain }}.dump"
+#    dest: /opt/distr/Zabbix-server/
+#    mode: 644
+#    force: no
+#    directory_mode: yes
+#  when: version.stdout != relis
+#  ignore_errors: yes
+
+- name: Модифицируем файлы конфигурации
+  shell: "{{ item }}"
+  with_items:
+    - "sed -i 's/zero_if_notfound: no/zero_if_notfound: yes/g' /etc/parsec/mswitch.conf"
+    - "sh /usr/share/doc/apache2/examples/setup-instance zabbix"
+    - "sed -i 's/# AstraMode on/AstraMode off/g' /etc/apache2-zabbix/apache2.conf"
+    - "sed -i 's/Listen 80/Listen 81/g' /etc/apache2-zabbix/ports.conf"
+    - "sed -i 's/;date.timezone =/date.timezone = Europe\\/Moscow/g' /etc/php/7.0/apache2/php.ini"
+  when: version.stdout != relis
+
+- name: Добавление виртуального сервера
+  blockinfile:
+    dest: /etc/apache2-zabbix/sites-available/000-default.conf
+    marker: "### zabbix ###"
+    block: |
+        <VirtualHost {{ Zabbix_Server }}:81>
+            ServerName zabbix.{{ domain }}
+            ServerAlias zabbix
+            ServerAdmin webmaster@localhost
+            DocumentRoot /usr/share/zabbix
+        </VirtualHost>
+  when: version.stdout != relis
+
+- name: Внесение изменений в /etc/postgresql/9.6/main/pg_hba.conf
+  shell: "{{ item }}"
+  with_items:
+    - "sed -i '/Zabbix'/d /etc/postgresql/9.6/main/pg_hba.conf"
+    - "sed -i '/postgre/s/^/#/' /etc/postgresql/9.6/main/pg_hba.conf"
+    - "sed -i '/is for Unix/i local	all		postgres				trust  # Настройки для Zabbix' /etc/postgresql/9.6/main/pg_hba.conf"
+    - "sed -i '/0.0.0.0/s/^/#/' /etc/postgresql/9.6/main/pg_hba.conf"
+    - "sed -i '/# IPv4/i local	all		all					trust  # Настройки для Zabbix' /etc/postgresql/9.6/main/pg_hba.conf"
+    - "sed -i '/# IPv6/i host	zabbix		zabbix		127.0.0.1/32		trust  # Настройки для Zabbix' /etc/postgresql/9.6/main/pg_hba.conf"
+    - "sed -i '/# IPv6/i host	all		all		{{ Zabbix_Server }}/24		trust  # Настройки для Zabbix' /etc/postgresql/9.6/main/pg_hba.conf"
+    - "sed -i 's/##/#/g' /etc/postgresql/9.6/main/pg_hba.conf"
+    - "sed -i 's/max_connections = 100/max_connections = 512			# Настройки для Zabbix/g' /etc/postgresql/9.6/main/postgresql.conf"
+    - "sed -i 's/shared_buffers = 128 MB/shared_buffers = 1GB			# Настройки для Zabbix/g' /etc/postgresql/9.6/main/postgresql.conf"
+  when: version.stdout != relis
+
+- name: Предоставить пользователю postgres права читать мандатные метки и категории
+  shell: "{{ item }}"
+  with_items:
+    - "usermod -a -Gshadow postgres"
+    - "setfacl -d -mu:postgres:r /etc/parsec/macdb"
+    - "setfacl -R -mu:postgres:r /etc/parsec/macdb"
+    - "setfacl -mu:postgres:rx /etc/parsec/macdb"
+    - "setfacl -d -mu:postgres:r /etc/parsec/capdb"
+    - "setfacl -R -mu:postgres:r /etc/parsec/capdb"
+    - "setfacl -mu:postgres:rx /etc/parsec/capdb"
+    - "pdpl-user -l 0:0 zabbix"
+  when: version.stdout != relis
+
+- name: Перезапуск службы postgresql
+  service:
+    name: postgresql
+    enabled: yes
+    state: restarted
+  when: version.stdout != relis
+
+#- name: Бекап базы Zabbix
+#  shell: "sudo -u postgres pg_dump zabbix > /opt/distr/Zabbix-server/{{ domain }}.dump"
+#  ignore_errors: yes
+
+- name: Создадим БД
+  shell: |
+         sudo -u postgres psql -c 'DROP DATABASE IF EXISTS zabbix;'
+         sudo -u postgres psql -c 'DROP ROLE IF EXISTS zabbix;'
+         sudo -u postgres psql -c 'CREATE DATABASE zabbix;'
+         sudo -u postgres psql -c 'CREATE ROLE zabbix WITH LOGIN PASSWORD $$12345678$$;'
+         sudo -u postgres psql -c 'GRANT ALL ON DATABASE zabbix to zabbix;'
+         sudo zcat /usr/share/zabbix-server-pgsql/{schema,images,data}.sql.gz | sudo -u zabbix psql zabbix
+         sed -i 's/# php_value date.timezone Europe\\/Riga/php_value date.timezone Europe\\/Moscow/g' /etc/apache2/conf-available/zabbix-frontend-php.conf
+         ln -sf /etc/apache2/conf-available/zabbix-frontend-php.conf /etc/apache2/conf-enabled/zabbix-frontend-php.conf
+  ignore_errors: yes
+  when: version.stdout != relis
+
+- name: Перезапуск службы apache2@zabbix
+  service:
+    name: apache2@zabbix
+    enabled: yes
+    state: restarted
+  when: version.stdout != relis
+
+- name: Копируем файл конфигурации zabbix_server_mniti.conf
+  copy:
+    src: "zabbix_server_mniti.conf"
+    dest: "/etc/zabbix/zabbix_server.conf.d"
+    owner: root
+    group: root
+    mode: 644
+  when: version.stdout != relis
+
+- name: Копируем файл конфигурации PHP
+  copy:
+    src: "zabbix.conf.php"
+    dest: "/etc/zabbix"
+    mode: 644
+  when: version.stdout != relis
+
+- name: Перезапуск службы zabbix-server
+  service:
+    name: zabbix-server
+    enabled: yes
+    state: restarted
+  when: version.stdout != relis
+
+- name: Запишем новую версию ПО (Update)
+  shell: "sed -i '/Zabbix-server/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
+  become: true
+  when: version.stdout != relis
+  ignore_errors: yes

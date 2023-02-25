@@ -1,0 +1,50 @@
+---
+- name: install all
+  hosts: all
+  become: yes
+  roles:
+    - ALD_Pro-server
+
+
+
+#    - Distr
+#    - Astra-start
+#    - { role: Astra-repo, when: "inventory_hostname == 'srv-tk'" }
+#    - { role: Astra-repo-client, when: "inventory_hostname != 'srv-tk'" }
+#   - Astra-upgrade
+#   - Astra-networking
+#   - { role: ALD-server, when: "inventory_hostname == 'srv-tk'" }
+#    - { role: BIND-server, when: "inventory_hostname == 'srv-tk'" }
+#    - { role: Zabbix-server, when: "inventory_hostname == 'srv-tk'" }
+#   - { role: DrWeb-server, when: "inventory_hostname == 'srv-tk'" }
+#   - { role: RebusSov-server, when: "inventory_hostname == 'srv-tk'" }
+#   - { role: ALD-client, when: "inventory_hostname != 'srv-tk'" }
+#   - { role: ADM-client, when: "inventory_hostname != 'srv-tk'" }
+#   - { role: DrWeb-client, when: "inventory_hostname in groups['SRV']" }
+#   - { role: RebusSov-client, when: "inventory_hostname != 'srv-tk'" }
+#    - Zabbix-agent
+#   - { role: Keepalived-server, when: "inventory_hostname in groups['Keepalived_srv']" }
+#   - { role: Keepalived-client, when: "inventory_hostname in groups['Keepalived_cli']" }
+#   - { role: PROMT-server, when: "inventory_hostname in groups['PROMT']" }
+#   - { role: ASM-solutions, when: "inventory_hostname in groups['ASM']" }
+#   - { role: CriptoProCSP, when: "inventory_hostname in groups['CSP']" }
+#    - Astra-timesync
+#   - { role: Firefox, when: "inventory_hostname in groups['ARM']" }
+#   - { role: DrWeb-workstations, when: "inventory_hostname == 'arm-ab'" }
+#   - { role: KAV-workstation, when: "inventory_hostname in groups['ARM']" }
+#   - { role: kp_sgp,  when: "inventory_hostname == 'arm-ab'" } # arm-ab
+#   - SZI
+#   - Sobol
+#   - Signed
+#   - gostsum
+#- { role: PXE-server, when: "inventory_hostname == 'srv-tk'" }
+#- { role: Bacula-server, when: "inventory_hostname == 'srv-tk'" }
+#- { role: Bacula-client, when: "inventory_hostname in groups['Bacula_client']" }
+# Добавить монтирование через AutoFS + script timeout##########################################
+#- { role: GlusterFS-server, when: "inventory_hostname in groups['GFS']" }
+#- { role: GlusterFS-client, when: "inventory_hostname in groups['GFS']" }
+#- Astra-apt
+#- aptchang
+#- admokenit
+#- strom-send
+#- strom-rcv

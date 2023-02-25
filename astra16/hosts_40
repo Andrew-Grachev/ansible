@@ -1,0 +1,78 @@
+[all:vars]
+ansible_ssh_user = mniti
+ansible_ssh_pass = Vitek2020
+repo = mo
+domain = ss
+ald_pass = Vitek2020
+krb_pass = Vitek2020
+grub_pass = Vitek2020
+user_name_preseed = mniti
+root_pass = Vitek2020
+user_pass = Vitek2020
+bond_slaves = 'eth0 eth1'
+Gateway = 10.1.40.254
+DrWeb_Password = Vitek2020
+DrWeb_Server = 10.1.40.1
+Zabbix_Server = 10.1.40.1
+Bacula_Server = 10.1.40.1
+DNS_Server = 10.1.40.1
+NTP_Server = 10.1.40.254
+Repo_Server = 10.1.40.1
+Rebus_Server = 10.1.40.1
+Keepalived_IP = 10.1.40.222
+
+
+
+
+[TK]
+
+[OA]
+
+[PV]
+
+[SRV:children]
+TK
+OA
+PV
+
+[ARM]
+
+
+
+
+
+# Bacula
+[Bacula_client]
+
+[Keepalived_srv]
+
+[Keepalived_srv:children]
+Keepalived_master
+Keepalived_slave
+
+[Keepalived_cli]
+
+[Keepalived_cli:children]
+Keepalived_srv
+
+[Keepalived_master]
+
+[Keepalived_slave]
+
+[Keepalived_cli:vars]
+Keepalived_Name = SHD
+
+[Keepalived_srv:vars]
+Keepalived_Interface = eth0
+
+[Keepalived_master:vars]
+Keepalived_State = MASTER
+Keepalived_Priority = 255
+
+[Keepalived_slave:vars]
+Keepalived_State = BACKUP
+Keepalived_Priority = 100
+
+[PROMT]
+
+[ASM]

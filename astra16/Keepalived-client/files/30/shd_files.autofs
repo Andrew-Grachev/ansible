@@ -1,0 +1,1 @@
+/opt/vit_data/shd_nfs  /etc/auto.master.d/shd_files.nfs  --timeout=86400,--ghost

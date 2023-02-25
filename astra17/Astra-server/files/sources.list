@@ -1,0 +1,7 @@
+#deb cdrom:[OS Astra Linux 1.7.2 1.7_x86-64 DVD ]/ 1.7_x86-64 contrib main non-free
+
+deb http://download.astralinux.ru/astra/frozen/1.7_x86-64/1.7.2/repository-base 1.7_x86-64 main non-free contrib
+deb http://download.astralinux.ru/astra/frozen/1.7_x86-64/1.7.2/repository-extended 1.7_x86-64 main contrib non-free
+
+deb https://download.astralinux.ru/aldpro/stable/repository-main/ 1.2.0 main
+deb https://download.astralinux.ru/aldpro/stable/repository-extended/ generic main
