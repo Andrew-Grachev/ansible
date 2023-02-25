@@ -1,9 +1,0 @@
-zone "XX" {
-  type master;
-  file "/etc/bind/zones/db.XX";
-};
-
-zone "1.10.in-addr.arpa" {
-  type master;
-  file "/etc/bind/zones/db.YY";
-};
