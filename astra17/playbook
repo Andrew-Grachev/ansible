@@ -5,5 +5,8 @@
   become: true
   roles:
     - Astra-server
-    - { role: ALD_Pro-server, when: "inventory_hostname == 'srv-dc'" }
-    - { role: ALD_Pro-client, when: "inventory_hostname != 'srv-dc'" }
+#   - { role: ALD_Pro-server, when: "inventory_hostname == 'srv-dc'" }
+#   - { role: ALD_Pro-client, when: "inventory_hostname != 'srv-dc'" }
+
+    - { role: Zabbix-server, when: "inventory_hostname == 'srv-zabbix'" }
+#   - Zabbix-client
