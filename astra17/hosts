@@ -9,7 +9,9 @@ pwdadmin = Qwerty2023
 # Шлюз по умолчанию
 gateway = 192.168.1.1
 # DNS сервер(а)
-bind =    192.168.1.50
+bind =    192.168.1.1
+# Zabbix сервер
+zabbix_server = 192.168.1.65
 # Объединяемые сетевые интерфейсы
 bond_slaves = 'eth0 eth1'
 
@@ -20,6 +22,7 @@ bond_slaves = 'eth0 eth1'
 #srv-pxe    ansible_ssh_host=192.168.1.53	# Сервер удаленой загрузки
 #srv-repo   ansible_ssh_host=192.168.1.54	# Сервер репозиториев
 #srv-prn    ansible_ssh_host=192.168.1.55	# Сервер печати
-srv-zabbix  ansible_ssh_host=192.168.1.56	# Сервер мониторинга (Zabbix)
+
+srv-zabbix  ansible_ssh_host=192.168.1.65	# Сервер мониторинга (Zabbix)
 
 [ARM]
