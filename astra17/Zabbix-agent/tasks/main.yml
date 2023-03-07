@@ -38,27 +38,22 @@
     force: no
   when: version.stdout != relis
 
-- name: Copy get_gpus_info.sh file
+- name: Копирование пользовательских скриптов
   copy:
-    src: 'get_gpus_info.sh'
+    src: "{{ item }}"
     dest: '/etc/zabbix/'
     force: no
     mode: 644
-  when: version.stdout != relis
-
-- name: Copy bind_stats.py file
-  copy:
-    src: 'bind_stats.py'
-    dest: '/etc/zabbix/'
-    force: no
-    mode: 644
+  with_items:
+    - get_gpus_info.sh
+    - bind_stats.py
   when: version.stdout != relis
 
 - name: Изменение zabbix_agent.conf
   shell: "{{ item }}"
   with_items:
     - "sed -i 's/srv-tk/{{inventory_hostname}}/g' /etc/zabbix/zabbix_agentd.conf.d/zabbix_agent.conf"
-    - "sed -i 's/1.1.1.1/{{Zabbix_Server}}/g' /etc/zabbix/zabbix_agentd.conf.d/zabbix_agent.conf"
+    - "sed -i 's/1.1.1.1/{{zabbix_server}}/g' /etc/zabbix/zabbix_agentd.conf.d/zabbix_agent.conf"
     - "sed -i 's/zabbix_agentd.d/zabbix_agentd.conf.d/g' /etc/zabbix/zabbix_agentd.conf"
   when: version.stdout != relis
 

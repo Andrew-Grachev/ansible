@@ -16,7 +16,7 @@
     - postgresql-11
     - libapache2-mod-php7.3
     - php7.3-pgsql
-    - ipmitool
+#    - ipmitool
     - zabbix-frontend-php
     - zabbix-server-pgsql
     - ldap-utils
@@ -24,7 +24,7 @@
 #    - initdb
     - iperf
     state: latest
-#  when: version.stdout != relis
+  when: version.stdout != relis
 
 #- name: Копируем бамп базы (если есть)
 #  file:
@@ -35,10 +35,6 @@
 #    directory_mode: yes
 #  when: version.stdout != relis
 #  ignore_errors: yes
-
-
-
-
 
 - name: Модифицируем файлы конфигурации
   shell: "{{ item }}"
@@ -112,14 +108,14 @@
          sed -i 's/# php_value date.timezone Europe\\/Riga/php_value date.timezone Europe\\/Moscow/g' /etc/apache2/conf-available/zabbix-frontend-php.conf
          ln -sf /etc/apache2/conf-available/zabbix-frontend-php.conf /etc/apache2/conf-enabled/zabbix-frontend-php.conf
   ignore_errors: yes
-#  when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Перезапуск службы apache2@zabbix
   service:
     name: apache2@zabbix
     enabled: yes
     state: restarted
-#  when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Копируем файл конфигурации zabbix_server.conf
   copy:
@@ -128,21 +124,21 @@
     owner: root
     group: root
     mode: 644
-#  when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Копируем файл конфигурации PHP
   copy:
     src: "zabbix.conf.php"
     dest: "/etc/zabbix"
     mode: 644
-#  when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Перезапуск службы zabbix-server
   service:
     name: zabbix-server
     enabled: yes
     state: restarted
-#  when: version.stdout != relis
+  when: version.stdout != relis
 
 - name: Запишем новую версию ПО (Update)
   shell: "sed -i '/Zabbix-server/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"

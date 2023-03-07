@@ -1,0 +1,32 @@
+---
+- name: Backula | Инсталляция необходимых пакетов
+  apt:
+    name:
+    - bacula-fd
+    state: latest
+    update_cache: yes
+
+- name: Backula | Создание конфигурации клиента
+  template:
+    src: "bacula-fd.conf"
+    dest: "/etc/bacula/bacula-fd.conf"
+    owner: "bacula"
+    group: "bacula"
+    mode: "u=rw,g=r,o="
+  become: true
+
+- name: Backula | Копирование файла паролей
+  copy:
+    src: "common_default_passwords"
+    dest: "/etc/bacula/common_default_passwords"
+    owner: "bacula"
+    group: "bacula"
+    mode: "u=rw,g=r,o="
+  become: true
+
+- name: Backula | Включаем и перезапускаем службы
+  service:
+    name: bacula-fd
+    enabled: yes
+    state: restarted
+

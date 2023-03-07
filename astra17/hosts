@@ -12,17 +12,21 @@ gateway = 192.168.1.1
 bind =    192.168.1.1
 # Zabbix сервер
 zabbix_server = 192.168.1.65
+# Bacula сервер
+bacula_server = 192.168.1.65
 # Объединяемые сетевые интерфейсы
 bond_slaves = 'eth0 eth1'
 
-[SRV]
+
+
+[servers]
 #srv-dc     ansible_ssh_host=192.168.1.50	# Первый контроллер домена
 #srv-dc-2   ansible_ssh_host=192.168.1.51	# Второй контроллер домена
 #srv-dc-3   ansible_ssh_host=192.168.1.52	#
 #srv-pxe    ansible_ssh_host=192.168.1.53	# Сервер удаленой загрузки
 #srv-repo   ansible_ssh_host=192.168.1.54	# Сервер репозиториев
 #srv-prn    ansible_ssh_host=192.168.1.55	# Сервер печати
-
 srv-zabbix  ansible_ssh_host=192.168.1.65	# Сервер мониторинга (Zabbix)
 
-[ARM]
+[bacula_client]
+srv-zabbix

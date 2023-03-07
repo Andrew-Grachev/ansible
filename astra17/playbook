@@ -9,4 +9,7 @@
 #   - { role: ALD_Pro-client, when: "inventory_hostname != 'srv-dc'" }
 
     - { role: Zabbix-server, when: "inventory_hostname == 'srv-zabbix'" }
-#   - Zabbix-client
+    - Zabbix-agent
+
+#   - { role: Bacula-server, when: "inventory_hostname == 'srv-zabbix'" }
+#   - { role: Bacula-client, when: "inventory_hostname in groups['bacula_client']" }

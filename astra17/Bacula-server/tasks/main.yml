@@ -1,0 +1,169 @@
+---
+- name: Bacula-server | Чтение версии установленного ПО
+  shell: cat /etc/software.conf | grep Bacula-server
+  register: version
+  ignore_errors: yes
+
+- name: Bacula-server | Добавим группу 'bacula'
+  group:
+    name: bacula
+  when: version.stdout != relis
+
+- name: Bacula-server | Добавим пользователя 'bacula'
+  user:
+    name: bacula
+    comment: bacula
+    password: bacula
+    group: bacula
+  when: version.stdout != relis
+
+- name: Backula-server | Инсталляция необходимых пакетов
+  apt:
+    name:
+    - postgresql-11
+    - bacula-fd
+    - bacula-common-pgsql
+    - bacula-bscan
+    - bacula-director-pgsql
+    - bacula-console
+    - bacula-console-qt
+    update_cache: yes
+    force_apt_get: yes
+  when: version.stdout != relis
+
+- name: Bacula-server | Создадим папку для хранения резервных копий
+  file:
+    state: directory
+    mode: '0755'
+    recurse: yes
+    owner: bacula
+    group: bacula
+    path: "/opt/backup"
+  when: version.stdout != relis
+
+- name: Bacula-server | Внесение изменений в /etc/postgresql/9.6/main/pg_hba.conf
+  become: true
+  shell: "{{ item }}"
+  with_items:
+    - "sed -i '/Bacula'/d /etc/postgresql/11/main/pg_hba.conf"
+    - "sed -i '/postgre/s/^/#/' /etc/postgresql/11/main/pg_hba.conf"
+    - "sed -i '/is for Unix/i local	all		postgres				trust  # Настройки для Bacula' /etc/postgresql/11/main/pg_hba.conf"
+    - "sed -i '/0.0.0.0/s/^/#/' /etc/postgresql/11/main/pg_hba.conf"
+    - "sed -i '/# IPv4/i local	all		all					trust  # Настройки для Bacula' /etc/postgresql/11/main/pg_hba.conf"
+    - "sed -i '/# IPv6/i host	bacula		bacula		127.0.0.1/32		trust  # Настройки для Bacula' /etc/postgresql/11/main/pg_hba.conf"
+    - "sed -i '/# IPv6/i host	all		all		{{ bacula_server }}/24		trust  # Настройки для Bacula' /etc/postgresql/11/main/pg_hba.conf"
+    - "sed -i 's/##/#/g' /etc/postgresql/11/main/pg_hba.conf"
+  when: version.stdout != relis
+
+- name: Bacula-server | Перезапустим PostgreSQL
+  service:
+    name: postgresql
+    state: restarted
+  when: version.stdout != relis
+
+- name: Bacula-server | Создание и конфигурирование БД
+  become: true
+  shell: "{{ item }}"
+  with_items:
+    - "sudo -u postgres psql template1 -c 'DROP DATABASE IF EXISTS bacula;'"
+    - "sudo -u postgres psql template1 -c 'DROP ROLE IF EXISTS bacula;'"
+    - "sudo -u postgres psql template1 -c 'CREATE ROLE bacula;'"
+    - "sudo -u postgres psql template1 -c 'ALTER USER bacula WITH PASSWORD $$bacula$$;'"
+    - "sudo -u postgres psql template1 -c 'ALTER USER bacula LOGIN SUPERUSER CREATEDB CREATEROLE;'"
+    - "sudo -u postgres psql -c 'CREATE DATABASE bacula WITH ENCODING = $$SQL_ASCII$$ LC_COLLATE = $$C$$ LC_CTYPE = $$C$$ TEMPLATE = $$template0$$;'"
+    - "sudo -u postgres psql -c 'ALTER DATABASE bacula OWNER TO bacula;'"
+    - "sed -i 's/db_name=${db_name:-XXX_DBNAME_XXX}/db_name=bacula/' /usr/share/bacula-director/make_postgresql_tables"
+    - "sed -i 's/psql -f - -d/psql -U bacula -h 127.0.0.1 -p 5432 -f - -d/' /usr/share/bacula-director/make_postgresql_tables"
+    - "sed -i 's/db_user=${db_user:-XXX_DBUSER_XXX}/db_user=bacula/' /usr/share/bacula-director/grant_postgresql_privileges"
+    - "sed -i 's/db_name=${db_name:-XXX_DBNAME_XXX}/db_name=bacula/' /usr/share/bacula-director/grant_postgresql_privileges"
+    - "sed -i 's/db_password=XXX_DBPASSWORD_XXX/db_password=bacula/' /usr/share/bacula-director/grant_postgresql_privileges"
+    - "sed -i 's/psql -f - -d/psql -U bacula -h 127.0.0.1 -p 5432 -f - -d/' /usr/share/bacula-director/grant_postgresql_privileges"
+    - "sudo usermod -a -G shadow postgres"
+    - "sudo setfacl -d -m u:postgres:r  /etc/parsec/macdb /etc/parsec/capdb"
+    - "sudo setfacl -R -m u:postgres:r  /etc/parsec/macdb /etc/parsec/capdb"
+    - "sudo setfacl    -m u:postgres:rx /etc/parsec/macdb /etc/parsec/capdb"
+    - "sudo pdpl-user bacula -l 0:0"
+    - "cd /usr/share/bacula-director && ./make_postgresql_tables"
+    - "cd /usr/share/bacula-director && ./grant_postgresql_privileges"
+  when: version.stdout != relis
+
+- name: Bacula-server | Копирование конфигураций
+  template: 
+    src: "{{ item }}"
+    dest: /etc/bacula
+    mode: "u=rw,g=r,o=r"
+    owner: "bacula"
+    group: "bacula"
+  with_items:
+    - 'bacula-dir.conf'
+    - 'bacula-fd.conf'
+    - 'bacula-sd.conf'
+    - 'bat.conf'
+    - 'bconsole.conf'
+  when: version.stdout != relis
+
+- name: Bacula-server | Копирование паролей
+  copy:
+    src: common_default_passwords
+    dest: /etc/bacula
+    owner: "bacula"
+    group: "bacula"
+    mode: "u=rw,g=r,o=r"
+  become: true
+  when: version.stdout != relis
+
+- name: Bacula-server | Добавление клиентов
+  blockinfile:
+    dest: /etc/bacula/bacula-dir.conf
+    regexp: "{{ item }}"
+    marker: "##### {{ item }} #####"
+    block: |
+      Client {
+        Name = {{ item }}-fd
+        Address = {{ hostvars[item].ansible_ssh_host }}
+        FDPort = 9102
+        Catalog = MyCatalog
+        Password = "a9obYqJMXLLmmgZpebAbSf_tqVs6TKSpa"
+        File Retention = 30 days
+        Job Retention = 1 months
+        AutoPrune = yes
+        }
+      Job {
+        Name = "Backup {{ item }}"
+        JobDefs = "Job SRV"
+        Client = {{ item }}-fd
+        }
+  loop: "{{ query('inventory_hostnames', 'bacula_client') }}"
+  when: version.stdout != relis
+
+- name: Backula-server | Инсталляция необходимых пакетов
+  apt:
+    name:
+    - pgadmin3
+    - bacula-director
+    update_cache: yes
+    force_apt_get: yes
+  when: version.stdout != relis
+
+- name: Backula-server | Включим службы и перезапустим службы
+  service:
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+  with_items:
+    - bacula-director
+    - bacula-sd
+    - bacula-fd
+  when: version.stdout != relis
+
+- name: Backula-server | Запишем версию ПО если ее не разу не было (Install)
+  become: true
+  shell: "echo '{{ relis }}' >> /etc/software.conf"
+  when: version.stdout == ""
+  ignore_errors: yes
+
+- name: Backula-server | Запишем новую версию ПО (Update)
+  become: true
+  shell: "sed -i 's/{{version.stdout}}/{{ relis }}/g' /etc/software.conf"
+  when: version.stdout != relis
+  ignore_errors: yes
