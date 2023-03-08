@@ -27,6 +27,8 @@
     - bacula-director-pgsql
     - bacula-console
     - bacula-console-qt
+    - bacula-director
+    - pgadmin3
     update_cache: yes
     force_apt_get: yes
   when: version.stdout != relis
@@ -41,7 +43,7 @@
     path: "/opt/backup"
   when: version.stdout != relis
 
-- name: Bacula-server | Внесение изменений в /etc/postgresql/9.6/main/pg_hba.conf
+- name: Bacula-server | Внесение изменений в /etc/postgresql/11/main/pg_hba.conf
   become: true
   shell: "{{ item }}"
   with_items:
@@ -98,7 +100,6 @@
     - 'bacula-dir.conf'
     - 'bacula-fd.conf'
     - 'bacula-sd.conf'
-    - 'bat.conf'
     - 'bconsole.conf'
   when: version.stdout != relis
 
@@ -136,15 +137,6 @@
   loop: "{{ query('inventory_hostnames', 'bacula_client') }}"
   when: version.stdout != relis
 
-- name: Backula-server | Инсталляция необходимых пакетов
-  apt:
-    name:
-    - pgadmin3
-    - bacula-director
-    update_cache: yes
-    force_apt_get: yes
-  when: version.stdout != relis
-
 - name: Backula-server | Включим службы и перезапустим службы
   service:
     name: "{{ item }}"
@@ -156,14 +148,8 @@
     - bacula-fd
   when: version.stdout != relis
 
-- name: Backula-server | Запишем версию ПО если ее не разу не было (Install)
+- name: Запишем новую версию ПО (Update)
+  shell: "sed -i '/Bacula-server/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
   become: true
-  shell: "echo '{{ relis }}' >> /etc/software.conf"
-  when: version.stdout == ""
-  ignore_errors: yes
-
-- name: Backula-server | Запишем новую версию ПО (Update)
-  become: true
-  shell: "sed -i 's/{{version.stdout}}/{{ relis }}/g' /etc/software.conf"
   when: version.stdout != relis
   ignore_errors: yes
