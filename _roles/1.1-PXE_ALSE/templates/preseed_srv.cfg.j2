@@ -1,0 +1,139 @@
+# Сетевой репозиторий для установки
+d-i mirror/protocol string http
+d-i mirror/http/hostname string {{ hostvars[repo.srv].ansible_ssh_host }}:{{ repo.port }}
+d-i mirror/http/directory string /{{ _repo.name_iso[0] }}/
+
+# Настройки языка
+d-i mirror/country string manual
+d-i debian-installer/locale string ru_RU
+d-i debian-installer/locale select ru_RU.UTF-8
+d-i debian-installer/language string ru
+d-i debian-installer/country string RU
+d-i debian-installer/keymap string ru
+
+# Настройки клавиатуры
+d-i console-tools/archs select at
+d-i console-keymaps-at/keymap select ru
+d-i console-setup/toggle string Alt+Shift
+d-i console-setup/layoutcode string ru
+d-i keyboard-configuration/toggle select Alt+Shift
+d-i keyboard-configuration/layoutcode string ru
+d-i keyboard-configuration/xkb-keymap select ru
+d-i languagechooser/language-name-fb select Russian
+d-i countrychooser/country-name select Russia
+
+# Настройки сетевого интерфейса
+d-i netcfg/choose_interface select auto
+
+# Выбор компонент репозитория
+d-i apt-setup/non-free boolean true
+d-i apt-setup/contrib boolean true
+d-i apt-setup/services-select none
+
+# Настройка часов и синхронизации времени
+d-i clock-setup/utc boolean true
+d-i time/zone string {{ ntp.timezone }}
+
+# Определяет, нужно ли использовать NTP для установки часов во время установки
+d-i clock-setup/ntp boolean true
+
+# Используемый сервер NTP. Значение по умолчанию указывается здесь.
+d-i clock-setup/ntp-server {{ ntp.ntp }}
+
+# UEFI LVM разметка диска от 200GB
+d-i partman-partitioning/confirm_write_new_label boolean true
+d-i partman/choose_partition select finish
+d-i partman/confirm boolean true
+d-i partman-auto-crypto/erase_disks boolean true
+d-i partman-basicfilesystems/no_swap boolean false
+d-i partman-target/mount_failed         boolean true
+d-i partman-partitioning/unknown_label  boolean true
+d-i partman-auto/purge_lvm_from_device  string  true
+d-i partman-lvm/vgdelete_confirm        boolean true
+d-i partman/confirm_write_new_label     string  true
+d-i partman-lvm/confirm boolean true
+d-i partman/confirm_nooverwrite boolean true
+d-i base-installer/kernel/image string linux-image-generic
+d-i partman-auto/disk string /dev/sda
+d-i partman-auto/method string lvm
+d-i partman-lvm/device_remove_lvm boolean true
+d-i partman-lvm/confirm_nooverwrite boolean true
+d-i partman-auto-lvm/guided_size string max
+d-i partman-efi/non_efi_system boolean true
+d-i partman-auto/expert_recipe string efi-lvm :: \
+       512  1    512 fat32      $primary{ } method{ efi } format{ } . \
+      1024  2   1024 ext2       $primary{ } $bootable{ } method{ format } format{ } use_filesystem{ } filesystem{ ext2 } label{ boot } mountpoint{ /boot } . \
+         1  3     -1 ext4       $primary{ } method{ lvm } device{ /dev/sda3 } vg_name{ vg00 } . \
+    100000  4 100000 ext4       $lvmok{ } in_vg{ vg00 } lv_name{ root } method{ format } format{ } use_filesystem{ } filesystem{ ext4 } label{ root } mountpoint{ / } . \
+#    50000  5  50000 ext4       $lvmok{ } in_vg{ vg00 } lv_name{ home } method{ format } format{ } use_filesystem{ } filesystem{ ext4 } label{ home } mountpoint{ /home } . \
+     20000  6  20000 ext4       $lvmok{ } in_vg{ vg00 } lv_name{ opt }  method{ format } format{ } use_filesystem{ } filesystem{ ext4 } label{ opt }  mountpoint{ /opt } . \
+     20000  7  20000 ext4       $lvmok{ } in_vg{ vg00 } lv_name{ log }  method{ format } format{ } use_filesystem{ } filesystem{ ext4 } label{ log }  mountpoint{ /var/log } . \
+#      50%  8   100% linux-swap $lvmok{ } in_vg{ vg00 } lv_name{ swap } method{ swap }   format{ } . \
+         1  9     -1 ext4       $lvmok{ } in_vg{ vg00 } lv_name{ free } label{ free } .
+
+# Пропустить создание обычной учётной записи пользователя.
+d-i passwd/make-user boolean true
+
+# Учетная запись и пароль пользователя
+d-i passwd/user-fullname string {{ ansible_ssh_user }}
+d-i passwd/username string {{ ansible_ssh_user }}
+d-i passwd/user-password password {{ ansible_ssh_pass }}
+d-i passwd/user-password-again password {{ ansible_ssh_pass }}
+
+# Пароль суперпользователя, любой открытым текстом
+d-i passwd/root-password password {{ pass.root }}
+d-i passwd/root-password-again password {{ pass.root }}
+
+d-i debian-installer/allow_unauthenticated string true
+
+# Выбор ПО для установки
+tasksel tasksel/first multiselect Base packages, Fly desktop, SSH server
+tasksel tasksel/astra-feat-setup multiselect
+
+# Выбор установки защищености ОС
+d-i astra-additional-setup/os-check select Maximum security level Smolensk
+d-i astra-additional-setup/additional-settings-smolensk multiselect Enable Mandatory Integrity Control, Enable Mandatory Access Control, Disable ptrace capability
+astra-additional-setup astra-additional-setup/additional-settings multiselect
+
+tripwire tripwire/use-localkey boolean false
+tripwire tripwire/use-sitekey boolean false
+tripwire tripwire/installed note ok
+portsentry portsentry/warn_no_block note ok
+astra-license astra-license/license boolean true
+krb5-config krb5-config/kerberos_servers string  
+libnss-ldapd libnss-ldapd/ldap-base string 
+libnss-ldapd libnss-ldapd/ldap-uris string
+libnss-ldapd libnss-ldapd/nsswitch multiselect services
+ald-client ald-client/make_config boolean false
+ald-client ald-client/manual_configure note
+astra-feat-setup astra-feat-setup/feat multiselect kiosk mode false
+astra-feat-setup astra-feat-setup/feat multiselect Служба ALD false
+d-i console-cyrillic/switch select "Клавиша Menu"
+d-i console-cyrillic/toggle select Control+Shift
+d-i samba-common/dhcp boolean false
+d-i samba-common/workgroup string testgroup1
+
+# Не отсылать отчёт об установленных пакетах
+popularity-contest popularity-contest/participate boolean false
+
+# grub должен устанавливаться в MBR, если на машине не найдено другой операционной системы.
+d-i grub-installer/only_debian boolean true
+# Это заставляет grub-installer устанавливать в MBR, даже если на машине есть другая ОС
+d-i grub-installer/with_other_os boolean true
+
+# Пароль загрузчика grub
+d-i grub-installer/password password {{ pass.grub }}
+d-i grub-installer/password-again password {{ pass.grub }}
+grub-installer grub-installer/password-mismatch error
+
+# Не показывать последнее сообщение о том, что установка завершена.
+d-i finish-install/reboot_in_progress note
+d-i finish-install/exit/poweroff boolean true
+
+d-i preseed/late_command string   \
+  in-target systemctl enable ssh; \
+  echo -e "" >> /target/etc/network/interfaces; \
+  echo -e "auto eth0" >> /target/etc/network/interfaces; \
+  echo -e "iface eth0 inet static" >> /target/etc/network/interfaces; \
+  echo -e "  address 127.127.127.127" >> /target/etc/network/interfaces; \
+  echo -e "  netmask {{ net.mask }}" >> /target/etc/network/interfaces;

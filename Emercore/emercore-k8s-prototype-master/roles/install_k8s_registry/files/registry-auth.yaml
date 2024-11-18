@@ -1,0 +1,8 @@
+apiVersion: v1
+data:
+  htpasswd: cmVnaXN0cnk6JDJ5JDA1JEJxdldNMjk5bDhKbjMwaS85djQzb2ViejE0U3N4eFdwRk9nNmlYM3liTjJnZDVaem0zYXVLCgo=
+kind: Secret
+metadata:
+  creationTimestamp: null
+  name: registry-auth
+  namespace: "{{ registry_namespace }}"

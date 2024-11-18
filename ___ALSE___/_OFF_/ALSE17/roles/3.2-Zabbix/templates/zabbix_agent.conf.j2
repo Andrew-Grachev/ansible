@@ -1,0 +1,6 @@
+Hostname = {{ inventory_hostname }}.{{ domain }}
+Server = {{ hostvars[zabbix.srv].ansible_ssh_host }}
+ServerActive = {{ hostvars[zabbix.srv].ansible_ssh_host }}
+EnableRemoteCommands = 1
+LogRemoteCommands = 1
+Timeout = 30

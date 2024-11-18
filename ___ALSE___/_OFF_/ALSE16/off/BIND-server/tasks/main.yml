@@ -1,0 +1,92 @@
+---
+- name: Чтение версии установленного ПО
+  shell: cat /opt/distr/software.conf | grep BIND-server
+  register: version
+  ignore_errors: yes
+
+- name: Инсталляция необходимых пакетов
+  apt:
+    name:
+    - bind9
+    - dnsutils
+    - curl
+    - xml2
+    update_cache: yes
+  when: version.stdout != relis
+
+- name: Копирование файла named.conf.local
+  copy:
+    src: named.conf.local
+    dest: /etc/bind/
+    force: yes
+  when: version.stdout != relis
+
+- name: Внесение изменений в named.conf.local
+  shell: "{{ item }}"
+  with_items:
+    - "sed -i 's/XX/{{ domain }}/g' /etc/bind/named.conf.local"
+    - "sed -i 's/YY/{{ ansible_ssh_host.split('.')[2] }}/g' /etc/bind/named.conf.local"
+  when: version.stdout != relis
+
+- name: Копирование файла named.conf.options
+  copy:
+    src: named.conf.options
+    dest: /etc/bind/
+    force: yes
+  when: version.stdout != relis
+
+- name: Внесение изменений в named.conf.options
+  shell: "sed -i 's/XX/{{ ansible_ssh_host.split('.')[2] }}/g' /etc/bind/named.conf.options"
+  when: version.stdout != relis
+
+- name: Копирование файла bind9
+  copy:
+    src: bind9
+    dest: /etc/default/
+    force: yes
+  when: version.stdout != relis
+
+- name: Создание папки для зоны
+  file:
+    state: directory
+    path: /etc/bind/zones
+  when: version.stdout != relis
+
+- name: Копирование файла прямой зоны
+  copy:
+    src: db.{{ domain }}
+    dest: /etc/bind/zones/
+    force: yes
+  when: version.stdout != relis
+
+- name: Копирование файла обратной зоны
+  copy:
+    src: db.{{ ansible_ssh_host.split('.')[2] }}
+    dest: /etc/bind/zones/
+    force: yes
+  when: version.stdout != relis
+
+- name: Активируем механизм privsock
+  shell: "sed -i '/named/d' /etc/parsec/privsock.conf && echo '/usr/sbin/named' >> /etc/parsec/privsock.conf"
+  when: version.stdout != relis
+  ignore_errors: yes
+
+- name: Установка PATH
+  shell: "sed -i '/PATH/d' /etc/default/bind9 && echo 'PATH=/usr/lib/parsec/bin:$PATH' >> /etc/default/bind9"
+  when: version.stdout != relis
+  ignore_errors: yes
+
+- name: Включим службы и перезапустим службы
+  service:
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+  with_items:
+    - bind9-resolvconf
+    - bind9
+  when: version.stdout != relis
+
+- name: Запишем новую версию ПО (Update)
+  shell: "sed -i '/BIND-server/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
+  become: true
+  when: version.stdout != relis

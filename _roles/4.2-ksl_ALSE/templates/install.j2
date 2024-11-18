@@ -1,0 +1,4 @@
+#!/bin/bash
+export KLAUTOANSWERS=/tmp/answers.txt
+apt install -y /tmp/{{ kav.srv_deb }}
+####/opt/kaspersky/ksc64/sbin/kladduser -n {{ kav.admin.user }} -p {{ kav.admin.pass }}

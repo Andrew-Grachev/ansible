@@ -1,0 +1,58 @@
+---
+# tasks file for install_ceph_astra
+- name: Install ceph-deploy astra
+  apt:
+    update_cache: true
+    name:
+      - ceph-deploy
+      - python
+  become: true
+  become_method: sudo
+  when: ansible_facts['distribution_version'] == "1.6" and (ansible_facts['distribution_release'] == "smolensk" or ansible_facts['distribution_release'] == "astra")
+
+- name: Install ceph-deploy alt
+  apt_rpm:
+    update_cache: true
+    name:
+      - ceph-deploy
+      - python3
+  become: true
+  become_method: sudo
+  when: ansible_facts.os_family == 'Altlinux'
+
+- name: Create user ceph-adm
+  user:
+    name: ceph-adm
+    generate_ssh_key: yes
+    ssh_key_bits: 2048
+    ssh_key_file: .ssh/id_rsa
+    password: '{{ ceph_admin_pasword }}'
+  become: true
+  become_method: sudo
+
+- name: Add root access ceph-adm astra
+  shell: |
+      echo "ceph-adm ALL = (root) NOPASSWD:ALL" > /etc/sudoers.d/ceph-adm
+      chmod 0440 /etc/sudoers.d/ceph-adm
+      pdpl-user -i 63 ceph-adm
+  become: true
+  become_method: sudo
+  when: ansible_facts['distribution_version'] == "1.6" and (ansible_facts['distribution_release'] == "smolensk" or ansible_facts['distribution_release'] == "astra")
+
+- name: Add root access ceph-adm alt
+  shell: |
+      echo "ceph-adm ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ceph-adm
+      chmod 0440 /etc/sudoers.d/ceph-adm
+  become: true
+  become_method: sudo
+  when: ansible_facts.os_family == 'Altlinux'
+
+- name: copy authorized_keys
+  copy:
+      src: '{{ role_path }}/files/authorized_keys'
+      dest: '/home/ceph-adm/.ssh/authorized_keys'
+      owner: ceph-adm
+      group: ceph-adm
+      mode: '0644'
+  become: true
+  become_method: sudo

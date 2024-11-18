@@ -1,0 +1,196 @@
+additionalPrometheusRulesMap:
+  rule-name:
+    groups:
+    - name: Redis
+      rules:
+        - alert: RedisTooManyConnections
+          expr: redis_connected_clients > 500
+          for: 2m
+          labels:
+            severity: critical
+            send_to: emercore-devops
+          annotations:
+            summary: Redis too many connections (namespace {{ $labels.namespace }})
+            description: "Redis instance has too many connections\n  VALUE = {{ $value }}\n  NAMESPACE = {{ $labels.namespace }}"
+
+    - name: RabbitMQ
+      rules:
+        - alert: RabbitmqNodeDown
+          expr: sum by (namespace) (rabbitmq_build_info) < 3
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: Rabbitmq node on {{ $labels.namespace }} down
+            description: "Less than 3 nodes running in RabbitMQ cluster\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+        - alert: RabbitmqNodeNotDistributed
+          expr: erlang_vm_dist_node_state < 3
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: Rabbitmq node not distributed (instance {{ $labels.instance }})
+            description: "Distribution link state is not 'up'\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+  
+        - alert: RabbitmqInstancesDifferentVersions
+          expr: count(rabbitmq_build_info) by (rabbitmq_version,namespace) < 3
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: Rabbitmq on {{ $labels.namespace }}  different versions
+            description: "Running different version of Rabbitmq in the {{ $labels.namespace}} cluster, can lead to failure."
+  
+        - alert: RabbitmqMemoryHigh
+          expr: rabbitmq_process_resident_memory_bytes / rabbitmq_resident_memory_limit_bytes * 100 > 90
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: Rabbitmq memory high (instance {{ $labels.instance }})
+            description: "A node use more than 90% of allocated RAM\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+  
+        - alert: RabbitmqTooManyUnackMessages
+          expr: rabbitmq_queue_messages_unacked  > 300
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: Rabbitmq too many unack messages (instance {{ $labels.instance }})
+            description: "Too many unacknowledged messages\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+  
+        - alert: RabbitmqTooManyConnections
+          expr: rabbitmq_connections > 100
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: Rabbitmq too many connections (instance {{ $labels.instance }})
+            description: "The total connections of a node is too high\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+  
+        - alert: RabbitmqNoQueueConsumer
+          expr: sum(rabbitmq_queue_consumers) by (namespace) < 1
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: Rabbitmq no queue consumer (namespace {{ $labels.namespace }})
+            description: "A queue has less than 1 consumer\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+  
+        - alert: RabbitmqUnroutableMessages
+          expr: increase(rabbitmq_channel_messages_unroutable_returned_total[1m]) > 0 or increase(rabbitmq_channel_messages_unroutable_dropped_total[1m]) > 0
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: Rabbitmq unroutable messages (instance {{ $labels.instance }})
+            description: "A queue has unroutable messages\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+  
+        - alert: RabbitmqMessagesInErrorQueue
+          expr: sum by (namespace) (rabbitmq_queue_messages{queue=~".*_error"}) > 0
+          labels:
+            severity: warning
+            send_to: emercore-devops
+          annotations:
+            summary: Rabbitmq messages in error queue on {{$labels.namespace}}
+            description: "{{if eq \"master\" $labels.namespace}}RabbitMQ web admin \n http://{{$labels.namespace}}-rabbitmq-01.ec.ec63.lan:15672{{else}}http://rabbitmq.{{$labels.namespace}}stage.sphaera.ru{{end}}\n List of known bugs \n https://jira.sphaera.ru/browse/CCNG-5192"
+
+alertmanager:
+
+  templateFiles:
+    telegram.tmpl: |-
+      {{ define "telegram" }}
+      {{ range .Alerts }}
+      {{ if eq .Status "firing"}}🔥 <b>{{ .Status | toUpper }}</b> 🔥{{ else }}✅ <b>{{ .Status | toUpper }}</b> 🎉{{ end }}
+      <b>DC02 - {{ .Labels.alertname }}</b>
+      {{ if .Annotations.message }}
+      {{ .Annotations.message }}
+      {{- end -}}
+      {{ if .Annotations.summary }}
+      {{ .Annotations.summary }}
+      {{- end -}}
+      {{ if .Annotations.description }}
+      {{ .Annotations.description }}
+      {{ end }}
+      {{ end }}
+      {{ end }}
+
+  ingress:
+    enabled: false
+    ingressClassName: nginx
+    hosts:
+      - "alertmanager.{{ domain }}"
+
+grafana:
+  ingress:
+    hosts:
+      - grafana.{{ domain }}
+
+  env:
+    GF_SERVER_ROOT_URL: http://grafana.ec.demo.emercore.ru
+    GF_AUTH_ANONYMOUS_ENABLED: true
+
+  additionalDataSources:
+    - name: 'Elasticsearch'
+      type: 'elasticsearch'
+      url: 'http://elasticsearch-master-hl.logging:9200'
+      database: ''
+      jsonData:
+        tlsSkipVerify: true
+        esVersion: 8.0
+        interval: Daily
+        logMessageField: message
+        logLevelField: fields.level
+        timeField: '@timestamp'
+      basicAuth: false
+      is_default: false
+      version:
+      editable: false
+
+kubeEtcd:
+  endpoints: []
+  # - 10.141.4.22
+  # - 10.141.4.23
+  # - 10.141.4.24
+
+prometheus:
+  prometheusSpec:
+    scrapeInterval: "5s"
+    scrapeTimeout: "3s"
+    retention: 5d
+    retentionSize: "10GB"
+    logLevel: info
+    logFormat: json
+    routePrefix: /
+    podMetadata: {}
+    remoteWriteDashboards: false
+    resources: {}
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: csi-lvm
+          accessModes:
+            - ReadWriteOnce
+          volumeMode: Filesystem
+          resources:
+            requests:
+              storage: 10Gi
+    volumeMounts: []
+    additionalScrapeConfigs: #[]
+      - job_name: ceph-cluster
+        metrics_path: /metrics
+        static_configs:
+          - targets:
+            - 10.123.9.31:9283
+            labels:
+              cluster: ceph-cluster-ec63
+      - job_name: external-node-exporter
+        metrics_path: /metrics
+        static_configs:
+          - targets:
+            - 10.123.9.31:9100
+            - 10.123.9.32:9100
+            - 10.123.9.33:9100
+            labels:
+              cluster: ceph-cluster-ec123
+              job: node-exporter

@@ -1,0 +1,10 @@
+---
+
+- name: Инсталляция 'helm'
+  community.general.apt_rpm:
+    update_cache: true
+    pkg: "helm"
+  become: true
+  become_method: sudo
+
+...

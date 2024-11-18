@@ -1,0 +1,18 @@
+---
+
+####################
+### 0.2-Repo     ###
+####################
+_repo:
+  name_iso:
+  - installation-1.7.5.16-06.02.24_14.21
+  - main_update-1.7.5.16-06.02.24_14.21
+  - base-1.7.5.16-06.02.24_14.21
+  - extended-1.7.5.ext1.5-07.11.2023_19.05
+  dist: 1.7_x86-64
+  res: contrib main non-free
+  build: 1.7.5.16
+  kernel: 6.1.50-1-generic
+  live_cd: alse-1.7.5.livecd
+
+...

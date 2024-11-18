@@ -1,0 +1,66 @@
+---
+
+- name: Чтение статуса 'Postgres'
+  shell: kubectl get pods -n staff | grep 'postgres-operator' | grep 'Running'
+  register: status_postgres
+  become: false
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: Создание пространства имен 'staff'
+    kubernetes.core.k8s:
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: staff
+          labels:
+            pod-security.kubernetes.io/enforce: privileged
+      state: present
+
+  - name: Добавление репозитория 'postgres-operator'
+    kubernetes.core.helm_repository:
+      name: postgres-operator
+      repo_url: https://opensource.zalando.com/postgres-operator/charts/postgres-operator
+      force_update: true
+    become: false
+
+  - name: Копируем helm чарт 'postgres_operator.yaml'
+    copy:
+      src: helm_charts/postgres_operator.yaml
+      dest: /tmp/postgres_operator.yaml
+      force: yes
+
+  - name: Внесение изменений в файл '/tmp/postgres_operator.yamll'
+    lineinfile:
+      dest: /tmp/postgres_operator.yaml
+      regexp: '  cluster_domain: __DOMAIN__'
+      line: '  cluster_domain: {{ domain }}'
+
+  - name: Развертывание 'postgres-operator v1.9.0'
+    kubernetes.core.helm:
+      name: postgres-operator
+      release_namespace: staff
+      chart_ref: postgres-operator/postgres-operator
+      chart_version: 1.9.0
+      values_files:
+        - /tmp/postgres_operator.yaml
+      force: true
+    become: false
+
+  when: status_postgres.stdout == ''
+
+...
+
+# https://github.com/zalando/postgres-operator
+# helm repo add postgres-operator https://opensource.zalando.com/postgres-operator/charts/postgres-operator/
+# helm repo list
+# helm repo update
+# helm search repo -l postgres-operator/postgres-operator | head -20
+# helm show values postgres-operator/postgres-operator --version 1.13.0 > postgres-operator_1_13_0_values.yaml
+# helm repo add postgres-operator-charts https://opensource.zalando.com/postgres-operator/charts/postgres-operator
+# helm repo add postgres-operator-ui-charts https://opensource.zalando.com/postgres-operator/charts/postgres-operator-ui
+# https://www.youtube.com/watch?v=1eJ8njJqIS4

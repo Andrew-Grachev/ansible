@@ -1,0 +1,48 @@
+---
+
+- name: Выполняется только на клиентах FreeIPA
+  block:
+
+  - name: Проверка наличия файла '/etc/ipa/default.conf'
+    stat:
+      path: /etc/ipa/default.conf
+    register: freeipa_result
+
+  - name: Регистрация клиентов домена FreeIPA
+    block:
+
+    - name: Получить список сетевых интерфейсов
+      shell: |
+        ip link show | grep BROADCAST | awk '{print $2}' | sed 's/.$//'
+      register: device_list
+
+    - name: Создание массива сетевых интерфейсов
+      set_fact:
+        interfaces: "{{ device_list.stdout_lines | list }}"
+
+    - name: Модификация '/etc/net/ifaces/.../resolv.conf'
+      lineinfile:
+        path: '/etc/net/ifaces/{{ item }}/resolv.conf'
+        line: 'nameserver {{ hostvars[freeipa.srv].ansible_ssh_host }}'
+      with_items: "{{ interfaces }}"
+
+    - name: Установка пакетов необходимых для подключения к контроллеру домена FreeIPA
+      apt_rpm:
+        update_cache: true
+        package:
+        - freeipa-client
+        - zip
+        state: present
+
+    - name: Подключение к домену FreeIPA
+      shell: ipa-client-install -U -p admin -w {{ pass.admin }} --domain {{ domain }} --server {{ freeipa.srv }}.{{ domain }}
+
+    - name: Перезагрузим хост
+      reboot:
+        msg: 'Reboot'
+
+    when: not freeipa_result.stat.exists
+
+  when: inventory_hostname != freeipa.srv
+
+...

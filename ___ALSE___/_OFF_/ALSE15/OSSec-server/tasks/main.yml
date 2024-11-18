@@ -1,0 +1,81 @@
+---
+- name: Чтение версии установленного ПО
+  shell: cat /opt/distr/software.conf | grep OSSec-server
+  register: version
+  ignore_errors: yes
+
+- name: Установка необходимых пакетов
+  apt:
+    name:
+    - apache2
+    - libapache2-mod-auth-kerb
+    - ossec-hids-server
+    - ossec-web
+    state: latest
+    update_cache: yes
+  when: version.stdout != relis
+  ignore_errors: yes
+
+- name: Копирование файла с паролем для доступа к ALD
+  template:
+    src: aldpassclient.j2
+    dest: /tmp/aldpassclient
+    mode: 0400
+    owner: root
+  when: version.stdout != relis
+
+- name: Вносим изменения в /etc/apache2/sites-available/defaults
+  template:
+    src: default.j2
+    dest: /etc/apache2/sites-available/default
+    mode: 0644
+    owner: root
+  when: version.stdout != relis
+
+- name: /etc/php5/apache2/php.ini
+  lineinfile:
+    dest: /etc/php5/apache2/php.ini
+    regexp: "date.timezone"
+    line: "date.timezone = Europe/Moscow"
+  when: version.stdout != relis
+
+- name: /etc/php5/cli/php.ini
+  lineinfile:
+    dest: /etc/php5/cli/php.ini
+    regexp: "date.timezone"
+    line: "date.timezone = Europe/Moscow"
+  when: version.stdout != relis
+
+- name: Настроийка и перезапуск Apache2
+  shell: |
+         a2dismod auth_pam
+         a2enmod auth_kerb
+         ald-client update-svc-keytab HTTP/{{inventory_hostname}}.{{domain}} --ktfile=/etc/apache2/keytab --pass-file=/tmp/aldpassclient -f
+         chown www-data /etc/apache2/keytab
+         chmod 644 /etc/apache2/keytab
+         service apache2 restart
+  when: version.stdout != relis
+
+- name: Создадим принципал для Apache2 (на контроллере домена !!!)
+  shell: |
+         ald-admin service-add HTTP/{{inventory_hostname}}.{{domain}} --pass-file=/tmp/aldpassclient -f
+         ald-admin sgroup-svc-add HTTP/{{inventory_hostname}}.{{domain}} --sgroup=mac --pass-file=/tmp/aldpassclient -f
+  when: version.stdout != relis
+
+- name: Перезапуск сервиса 'incron'
+  shell: service incron restart
+  when: version.stdout != relis
+
+- name: Добавляем доменному пользователю 'abi' права наблюдателя событий
+  shell: |
+         usermod -a -G ossec abi
+         setfacl -R -m u:abi:rx /var/www/ossec
+         setfacl -d -m u:abi:rwx /var/www/ossec/data
+         setfacl -d -m u:abi:rwx /var/www/ossec/arch
+  when: version.stdout != relis
+
+- name: Запишем новую версию ПО (Update)
+  become: true
+  shell: "sed -i '/OSSec-server/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
+  when: version.stdout != relis
+  ignore_errors: yes

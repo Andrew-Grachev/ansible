@@ -1,0 +1,140 @@
+---
+
+- name:
+  block:
+
+  - name: Получение ключа клиента
+    shell: ceph auth get-key client.kubernetes
+    register: client_kubernetes
+    delegate_to: '{{ ceph.srv[0] }}'
+
+  # - name: Вывод
+    # debug:
+      # msg: "{{ client_kubernetes.stdout }}"
+
+  - name: Получение ключа администратора
+    shell: |
+      ceph auth get client.admin 2>&1 |grep "key = " | awk '{print  $3'}
+    register: admin_kubernetes
+    delegate_to: '{{ ceph.srv[0] }}'
+
+  # - name: Вывод
+    # debug:
+      # msg: "{{ admin_kubernetes.stdout }}"
+
+  - name: Создадим файлы с токенами
+    shell: |
+      echo {{ client_kubernetes.stdout }} > /tmp/key.client
+      echo {{ admin_kubernetes.stdout }} > /tmp/key.admin
+
+  - name: Созданте secret
+    shell: |
+      kubectl create secret generic ceph-secret --from-file=/tmp/key.client --namespace=kube-system --type=kubernetes.io/rbd
+      kubectl create secret generic ceph-admin-secret --from-file=/tmp/key.admin --namespace=kube-system --type=kubernetes.io/rbd
+    become: false
+
+
+
+
+  - name: Ожидаем запуска контейнера 'Prometheus'
+    ansible.builtin.pause:
+      minutes: 1
+
+
+
+
+
+
+
+  # - name: Запись client.kubernetes.key в /tmp 
+    # fetch:
+      # src: /tmp/client.kubernetes.key
+      # dest: /tmp/client.kubernetes.key
+      # flat: yes
+    # delegate_to: '{{ ceph.srv[0] }}'
+
+  # - name: Запись client.admin.key в /tmp 
+    # fetch:
+      # src: /tmp/client.admin.key
+      # dest: /tmp/client.admin.key
+      # flat: yes
+    # delegate_to: '{{ ceph.srv[0] }}'
+
+
+
+
+
+
+# - name: Чтение статуса 'LVM'
+  # shell: kubectl get pods -n csi-nfs | grep 'nfs-provisioner' | grep 'Running'
+  # register: status_nfs
+  # become: false
+  # ignore_errors: yes
+
+# - name:
+  # block:
+
+  # - name: Создание пространства имен '{{ k8s.nfs_provisioner.namespace }}'
+    # kubernetes.core.k8s:
+      # kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      # definition:
+        # apiVersion: v1
+        # kind: Namespace
+        # metadata:
+          # name: '{{ k8s.nfs_provisioner.namespace }}'
+          # labels:
+            # pod-security.kubernetes.io/enforce: privileged
+      # state: present
+
+  # - name: Создание NFS Persistent Volume
+    # kubernetes.core.k8s:
+      # state: present
+      # force: true
+      # kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      # definition: "{{ lookup('template', 'providers/nfs/nfs_pv.yaml') }}"
+
+  # - name: Создание NFS Persistent Volume Claim
+    # kubernetes.core.k8s:
+      # state: present
+      # force: true
+      # kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      # definition: "{{ lookup('template', 'providers/nfs/nfs_pvc.yaml') }}"
+
+#- name: Create NFS provisioner PSP
+#  kubernetes.core.k8s:
+#    state: present
+#    force: no
+#    kubeconfig: "~/.kube/config"
+#    definition: "{{ lookup('template', '{{ role_path }}/files/nfs_psp.yaml') }}"
+
+
+
+  # - name: Создание NFS provisioner RBAC
+    # kubernetes.core.k8s:
+      # state: present
+      # force: true
+      # kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      # definition: "{{ lookup('template', 'providers/nfs/nfs_rbac.yaml') }}"
+
+  # - name: Создание NFS Provisioner deployment
+    # kubernetes.core.k8s:
+      # state: present
+      # force: true
+      # kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      # definition: "{{ lookup('template', 'providers/nfs/nfs_deployment.yaml') }}"
+
+  # - name: Создание NFS Provisioner StorageClass
+    # kubernetes.core.k8s:
+      # state: present
+      # force: true
+      # kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      # definition: "{{ lookup('template', 'providers/nfs/nfs_storageclass.yaml') }}"
+
+  # when: status_nfs.stdout == ''
+
+...
+
+
+# kubectl get pv nfs-provisioner-pv
+# kubectl get pvc nfs-provisioner-pvc
+# kubectl get deployment nfs-provisioner

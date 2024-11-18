@@ -1,0 +1,401 @@
+---
+
+####################
+### 0.1-hostname ###
+####################
+# Домен
+domain: 'nivka.com'
+
+####################
+### 0.2-repo     ###
+####################
+# srv     - Имя сервера репозиториев
+# port    - Порт HTTP
+repo:
+  srv: c1n1
+  port: 8080
+  name_iso:
+  - mo
+  - mo-update-12
+  - mo-dev
+  - mo-dev-update-12
+  dist: smolensk
+  res: contrib main non-free
+
+####################
+### 0.3-network  ###
+####################
+# Сеть передачи данных
+# net     - IP адрес
+# mask    - Маска сети
+# vlan    - Виртуальная сеть
+# gateway - IP адрес маршрутизатора
+# bind    - IP адрес сервера DNS (контроллер домена)
+net:
+  net: 10.10.12.0
+  mask: 255.255.255.0
+  vlan: 12
+  gateway: 10.10.12.1
+  bind: 10.10.12.111
+# Сеть управления
+mgmt:
+  net: 10.10.112.0
+  mask: 255.255.255.0
+  vlan: 112
+
+####################
+### 0.4-time     ###
+####################
+# Настройки системного времени
+# timezone - часовой пояс
+# srv      - имя внутреннего сервера времени (контроллер домена)
+# ntp_int  - IP адрес внутреннего сервера времени (контроллер домена)
+# ntp_out  - IP aдрес внешнего сервера времени (межсетевой экран). 127.127.1.0 в изолированной системе
+ntp:
+  timezone: Europe/Dublin
+  srv: c1n1
+  ntp_int: 10.10.12.111
+  ntp_out: 10.10.12.1
+
+####################
+### 0.7-nvidia   ###
+####################
+nvidia:
+  repo:
+    - ALSE16-NVidia-all-230704
+  pkgs:
+    - nvidia-driver-no-dkms-470
+    - nvidia-detect-470
+  settings:
+    - nvidia-settings-new-version  
+
+####################
+### 1.1-pxe      ###
+####################
+# Сервера PXE
+# srv       - Имя сервера
+# dhcp      - диапазон адресов DHCP сервера
+# ip        - IP адрес сервера
+# grub_pass - пароль GRUB
+# root_pass - пароль ROOT
+pxe:
+  srv: c1n1
+  dhcp: [10.10.12.140, 10.10.12.250]
+  grub_pass: 12345678
+  root_pass: Vitek2020
+
+####################
+### 2.1-ALD      ###
+####################
+# ald:
+  # srv: srvald 
+  # pass: Vitek2020
+  # krb_pass: Vitek2020
+
+####################
+### 2.2-freeipa  ###
+####################
+# Сервер домена FreeIPA
+# srv     - имя сервера контроллера домена
+# replica - имя резервного сервера контроллера домена
+# pass    - пароль администратора домена (admin)
+freeipa:
+  srv: c1n1
+  replica: c1n2
+  pass: P@ssw0rd
+
+####################
+### 3.1-bacula   ###
+####################
+# Сервера Bacula
+bacula:
+  srv: c2n1
+  store: /opt/backup
+# Список хостов подлежащих бекапированию
+  clients:
+    - name: 'c1n1'
+      freeipa: Y
+      path: '/opt;/srv;/var/log'
+    - name: 'c1n2'
+      freeipa: Y 
+      path: '/opt;/var/log'
+    - name: 'c2n1'
+      db: ['bacula', 'ossec']
+      path: '/opt'
+    - name: 'c2n2'
+      db: 'zabbix'
+      path: '/opt'
+    - name: 'c3n1'
+      db: 'test'
+      path: '/opt'
+    - name: 'c3n2'
+      path: '/opt'
+    - name: 'c4n1'
+      db: 'test'
+      path: '/opt'
+    - name: 'c4n2'
+      path: '/opt'
+    - name: 'arm-abi'  
+      path: '/home'
+# Список серверов FreeIPA подлежащих бекапированию
+  freeipa:
+    - 'c1n1'
+    - 'c1n2'
+# Список хостов и баз postgresql подлежащих бекапированию
+  postgresql:
+    - ['c2n2', 'zabbix']
+    - ['c2n1', 'bacula']
+# Список хостов и папок подлежащих бекапированию
+  files:
+    - ['c1n1',    '/home']
+    - ['c1n1',    '/srv']
+    - ['c1n2',    '/home']
+    - ['c2n1',    '/home;/opt;/tmp']
+    - ['c1n2',    '/home']
+    - ['c3n2',    '/opt']
+    - ['c4n1',    '/home;/opt;/tmp']
+    - ['c4n2',    '/home;/opt;/tmp']
+    - ['arm-abi', '/home;/tmp']  
+
+####################
+### 3.2-zabbix   ###
+####################
+# Сервер Zabbix
+# srv     - имя сервера
+# port    - IP порт
+zabbix:
+  srv: c2n1
+  port: 8081
+
+####################
+### 3.3-cluster  ###
+####################
+# Кластер pacemaker + corosync
+cluster:
+  pkgs:
+    - pcs
+    - pacemaker
+    - corosync
+    - crmsh
+    - resource-agents
+    - pacemaker-resource-agents
+  group: haclient
+  user: hacluster
+  pass: P@ssw0rd
+# Список кластеров
+# name    - Нзвание кластера
+# srv     - Имена нод кластера
+# ip      - IP адрес кластера
+### apache
+# dev     - Название диска монтируемого к серверу
+# path    - Локальный путь на сервере
+# port    - ?
+### postgresql
+# dev     - Название диска монтируемого к серверу
+# after   - Название дополнительных служб
+### samba
+# name    - Название сетевой шары
+# dev     - Название диска монтируемого к серверу SMB
+# path    - Локальный путь SMB шары на сервере
+# group   - Название группы пользователей с правом доступа к сетевой шаре
+# У пользователя шара монтируется по пути: /media/(%USER) 
+clusters:
+  # - name: Cluster_BD2
+    # srv:
+      # - c4n1
+      # - c4n2
+    # ip: 10.10.12.104
+    # postgresql:
+      # dev: /dev/sdb1
+      # after:
+      # - ntp
+      # - multipath-tools
+  # - name: Cluster_BD3
+    # srv:
+      # - c5n1
+      # - c5n2
+    # ip: 10.10.12.105
+    # apache:
+      # dev: /dev/mapper/c4v100
+      # ip: 10.10.12.202
+      # port: 9999
+    # postgresql:
+      # dev: /dev/mapper/c4v500
+      # ip: 10.10.12.203
+  # - name: Cluster_Samba
+    # srv:
+      # - c6n1
+      # - c6n2
+    # ip: 10.10.12.106
+    # apache:
+      # name: fffrr
+      # dev: /dev/mapper/c4v100
+      # ip: 10.10.12.202
+      # port: 9999
+    # postgresql:
+      # dev: /dev/mapper/c4v500
+      # ip: 10.10.12.203
+  - name: SMB_Share_Cluster
+    srv:
+      - c6n1
+      - c6n2
+    ip: 10.10.12.106
+    samba:
+      name: smbshare
+#     dev: /dev/mapper/smb_share-part1
+      dev: /dev/sdb1
+      path: /smbshare
+      group: shareaccess
+
+####################
+### 3.4-cups     ###
+####################
+# Система печати CUPS
+cups:
+  srv:
+    - c1n2
+    - c3n1
+  admins:
+    - admin
+    - print_admin
+
+printers:
+  - ip: 10.10.12.10
+    drv: laserjet
+  - ip: 10.10.12.111
+    drv: xerox
+
+####################
+### 3.5-backup   ###
+####################
+# dev     - название диска бекапов, монтируемого с СХД
+# log     - лог файл
+# path    - папка для бекапов
+backup:
+  srv: c2n1
+  dev: /dev/sdb1
+# dev: /dev/mapper/backup-part1
+  path: /opt/backup
+  log: /opt/backup/log/backup.log
+
+####################
+### 4.1-drweb    ###
+####################
+# Dr.Web
+drweb:
+  srv: c2n1
+  admin:
+    user: admin
+    pass: P@ssw0rd
+  server_dist: drweb-13.00.0-202204040-esuite-server-unix-linux-x86_64.tar.gz.run
+# server_extra: drweb-11.00.2-201905070-esuite-extra-unix-linux-all.tar.gz.run
+  agent_FS: drweb-file-servers_11.1.0-1905132145+mo_linux_amd64.run
+  agent_WS: drweb-workstations_11.1.3-2201141226+mo-linux_amd64.run
+
+####################
+### 4.2-ksl      ###
+####################
+# KAV
+kav:
+  srv: c2n1
+  admin:
+    user: ksc
+    pass: Vitek2020
+    group: kladmins
+  db:
+    srv: c2n1
+    name: KAV
+    user: KSCAdmin
+    pass: Vitek2020
+  srv_deb: ksc64_15.0.0-12912_amd64.deb
+
+####################
+### 5.1-arabi    ###
+####################
+# АРМ администратора безопсности
+armabi:
+  arm:
+    - arm-322-1
+    - arm-322-2
+  ip: 10.10.12.66 
+  srv: c2n2
+  admin:
+    user: adminabi
+    pass: P@ssw0rd
+  db: abi
+  user: abidbadmin
+  pass: P@ssw0rd
+# Сервер БД OSSEC
+ossec:
+  srv: c2n2
+  db: ossec
+  user: ossecdbadmin
+  pass: P@ssw0rd
+
+####################
+### 5.2-kpsgp    ###
+####################
+# Генератор паролей
+kpsgp:
+  hosts:
+    - arm-322-1
+    - arm-322-2
+
+####################
+### 9.1-gostsum  ###
+####################
+# Подсчет контрольных сумм
+# alg - алгоритм подсчета контрольных сумм
+# dirs - список директорий для которых ведется подсчет
+gostsum:
+  alg: gost-2012
+  dirs:
+    - /boot/
+    - /bin/
+    - /sbin/
+    - /etc/fstab
+    - /etc/digsig/digsig_initramfs.conf
+    - /etc/group
+    - /etc/gshadow
+    - /etc/init.d
+    - /etc/inittab
+    - /etc/network/interfaces
+    - /etc/hosts.allow
+    - /etc/hosts.deny
+    - /etc/pam.d
+    - /etc/passwd
+    - /etc/rc0.d
+    - /etc/rcl.d
+    - /etc/rc2.d
+    - /etc/гсЗ.d
+    - /etc/rc4.d
+    - /etc/rc5.d
+    - /etc/rc6.d
+    - /etc/rc.local
+    - /etc/rcS.d
+    - /etc/ssh
+    - /etc/securetty
+    - /etc/security
+    - /opt/asm_stt3/bin
+    - /opt/cprocsp/bin
+    - /opt/cprocsp/lib
+    - /opt/drweb.com/bin/
+    - /opt/drweb.com/lib/
+    - /opt/drwcs/
+    - /opt/sgp/
+    - /opt/kesl/
+
+
+logs:
+  - /var/log
+  - /var/log/afick
+  - /var/log/apache2
+  - /var/log/apt
+  - /var/log/audit
+  - /var/log/exim4
+  - /var/log/fly-dm
+  - /var/log/installer
+  - /var/log/ipa
+  - /var/log/ntpstats
+  - /var/log/pmta
+  - /var/log/sssd

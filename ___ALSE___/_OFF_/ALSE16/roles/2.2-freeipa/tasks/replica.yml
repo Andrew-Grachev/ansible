@@ -1,0 +1,80 @@
+---
+
+- name: Подготовка контроллера домена FreeIPA к созданию сервера реплики домена
+  block:
+
+  - name: Проверка наличия файла '/etc/ssl/freeipa/{{ freeipa.replica }}.{{ domain }}.key'
+    stat:
+      path: /etc/ssl/freeipa/{{ freeipa.replica }}.{{ domain }}.key
+    register: ssl_result
+
+  - name: Подготовка контроллера домена FreeIPA
+    block:
+
+    - name: Добавим реверсивные записи для сервера репликации
+      become: true
+      become_method: su
+      become_user: admin
+      command: 'ipa dnsrecord-add {{ hostvars[freeipa.replica].ansible_ssh_host.split(".")[2] }}.{{ hostvars[freeipa.replica].ansible_ssh_host.split(".")[1] }}.{{ hostvars[freeipa.replica].ansible_ssh_host.split(".")[0] }}.in-addr.arpa {{ hostvars[freeipa.replica].ansible_ssh_host.split(".")[3] }} --ptr-rec {{ freeipa.replica }}.{{ domain }}.'
+      vars:
+        ansible_become_pass: '{{ freeipa.pass }}'
+      ignore_errors: yes
+
+#    - name: Удаление старых сертификатов
+#      shell: 'rm -f /etc/ssl/freeipa/{{ freeipa.replica }}.{{ domain }}*'
+
+    - name: Выпуск сертификатов для контроллера-реплики домена FreeIPA  '{{ freeipa.replica }}.{{ domain }}'
+      shell: astra-freeipa-server-crt --host {{ freeipa.replica }}.{{ domain }} --pin 12345 --export -y
+
+#    - name: Удаление старых сертификатов
+#      shell: 'mv /etc/ssl/freeipa/{{ freeipa.replica }}.{{ domain }}*.p12 /etc/ssl/freeipa/{{ freeipa.replica }}.{{ domain }}.p12'
+
+    - name: Подготовка сертификатов к отправке
+      shell: 'cp /etc/ssl/freeipa/{{ freeipa.replica }}.{{ domain }}*.p12 /tmp/{{ freeipa.replica }}.{{ domain }}.p12'
+
+    - name: Получение сертификата '{{ freeipa.replica }}.{{ domain }}.p12'
+      fetch:
+        src: /tmp/{{ freeipa.replica }}.{{ domain }}.p12
+        dest: /tmp
+
+    when: not ssl_result.stat.exists
+
+  when: inventory_hostname == freeipa.srv
+
+- name: Создание сервера реплики контроллера домена FreeIPA
+  block:
+
+  - name: Проверка наличия файла '/etc/ipa/dnssec/softhsm2.conf'
+    stat:
+      path: /etc/ipa/dnssec/softhsm2.conf
+    register: dnssec_result
+
+  - name: Создание сервера реплики контроллера домена FreeIPA
+    block:
+
+    - name: Установка пакетов необходимых для создания реплики контроллера домена FreeIPA
+      apt:
+        name:
+        - fly-admin-freeipa-server
+        - astra-freeipa-server
+        state: latest
+        update_cache: yes
+
+    - name: Отправка сертификата '{{ freeipa.replica }}.{{ domain }}.p12'
+      copy:
+        src: /tmp/{{ freeipa.srv }}/tmp/{{ freeipa.replica }}.{{ domain }}.p12
+        dest: /tmp/{{ freeipa.replica }}.{{ domain }}.p12
+        force: yes
+
+    - name: Инициализация домена FreeIPA
+      shell: 'astra-freeipa-replica -p {{ freeipa.pass }} -a /tmp/{{ freeipa.replica }}.{{ domain }}.p12 --pin 12345'
+
+    - name: Перезагрузим сервер
+      reboot:
+        msg: 'Reboot'
+
+    when: not dnssec_result.stat.exists
+
+  when: inventory_hostname == freeipa.replica
+
+...

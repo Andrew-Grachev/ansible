@@ -1,0 +1,61 @@
+---
+- name: Проверка наличия файла /opt/sgp/PassGen
+  stat:
+    path: /opt/sgp/PassGen
+  register: sgp_result
+
+- name: Инсталляция КП СГП
+  block:
+
+  - name: Копируем пакеты для инсталяции
+    copy:
+      src: ../../../../software/kp_sgp
+      dest: /tmp/
+      force: yes
+      mode: 0777
+      directory_mode: yes
+
+  - name: Установка пакетов необходимых для ЗПС
+    apt:
+      name:
+      - astra-digsig-oldkeys
+      state: latest
+      update_cache: yes
+
+  - name: Установка ключа для ЗПС
+    copy:
+      src: /tmp/kp_sgp/etc/digsig/keys/rbt-tver_pub_key.gpg
+      dest: /etc/digsig/keys/rbt-tver_pub_key.gpg
+      mode: 0444
+      remote_src: yes
+
+  - name: Создание папки /etc/digsig/keys/legacy/soft
+    file:
+      state: directory
+      path: /etc/digsig/keys/legacy/soft
+
+  - name: Установка ключа для ЗПС
+    copy:
+      src: /tmp/kp_sgp/etc/digsig/keys/legacy/soft/rbt-tver_pub_key.gpg
+      dest: /etc/digsig/keys/legacy/soft/rbt-tver_pub_key.gpg
+      mode: 0444
+      remote_src: yes
+
+  - name: Инициализация initramfs
+    shell: update-initramfs -u -k all
+
+  - name: Установка .deb пакетов
+    apt:
+      deb: '/tmp/kp_sgp/{{ item }}'
+    with_items:
+      - sgp-1.1.deb
+      - sgp-1.1_patch01.deb
+
+  - name: Удаление файлов
+    file:
+      path: /tmp/kp_sgp
+      state: absent
+
+  when:
+  - not sgp_result.stat.exists
+  - inventory_hostname in kpsgp.hosts

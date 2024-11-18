@@ -1,0 +1,70 @@
+---
+
+- name: Создаем файл '/etc/modules-load.d/k8s.conf'
+  file:
+    path: /etc/modules-load.d/k8s.conf
+    owner: root
+    group: root
+    mode: 0644
+    state: touch
+  become: "{{ 'no' if ansible_user == 'root' else 'yes' }}"
+  become_method: sudo
+
+- name: Заполняем файл '/etc/modules-load.d/k8s.conf'
+  blockinfile:
+    path: /etc/modules-load.d/k8s.conf
+    block: |
+          overlay
+          br_netfilter
+  become: "{{ 'no' if ansible_user == 'root' else 'yes' }}"
+  become_method: sudo
+
+- name: Подгружаем модуль ядра 'overlay'
+  modprobe:
+    name: overlay
+  become: "{{ 'no' if ansible_user == 'root' else 'yes' }}"
+  become_method: sudo
+
+- name: Подгружаем модуль ядра 'br_netfilter'
+  modprobe:
+    name: br_netfilter
+  become: "{{ 'no' if ansible_user == 'root' else 'yes' }}"
+  become_method: sudo
+
+- name: Включаем 'ip forward'
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_file: /etc/sysctl.d/k8s.conf
+    reload: true
+  become: "{{ 'no' if ansible_user == 'root' else 'yes' }}"
+  become_method: sudo
+
+- name: Включаем 'bridge-nf-call-iptables'
+  sysctl:
+    name: net.bridge.bridge-nf-call-iptables
+    value: '1'
+    sysctl_file: /etc/sysctl.d/k8s.conf
+    reload: true
+  become: "{{ 'no' if ansible_user == 'root' else 'yes' }}"
+  become_method: sudo
+
+- name: Включаем 'bridge-nf-call-ip6tables'
+  sysctl:
+    name: net.bridge.bridge-nf-call-ip6tables
+    value: '1'
+    sysctl_file: "/etc/sysctl.d/k8s.conf"
+    reload: true
+  become: "{{ 'no' if ansible_user == 'root' else 'yes' }}"
+  become_method: sudo
+
+- name: Устанавливаем значение 'fs.inotify.max_user_instances = 524288'
+  sysctl:
+    name: fs.inotify.max_user_instances
+    value: '524288'
+    sysctl_file: "/etc/sysctl.d/k8s.conf"
+    reload: true
+  become: "{{ 'no' if ansible_user == 'root' else 'yes' }}"
+  become_method: sudo
+
+...

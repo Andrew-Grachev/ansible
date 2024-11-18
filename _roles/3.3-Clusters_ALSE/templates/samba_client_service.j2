@@ -1,0 +1,12 @@
+[Unit]
+Description=Определение имени активной ноды Samba шары '{{ item.samba.name }}' и запись в файл '/etc/security/pam_mount.conf.xml'
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/samba_client_demon.sh
+Type=simple
+Restart=always
+RestartSec=900
+
+[Install]
+WantedBy=multi-user.target

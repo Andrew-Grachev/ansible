@@ -1,0 +1,86 @@
+---
+
+- name: Чтение статуса 'NFS Provisioner'
+  shell: kubectl get pods -n '{{ k8s.nfs_provisioner.namespace }}' | grep ' csi-nfs-controller' | grep 'Running'
+  register: status_nfs
+  become: false
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: Создание пространства имен '{{ k8s.nfs_provisioner.namespace }}'
+    kubernetes.core.k8s:
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: '{{ k8s.nfs_provisioner.namespace }}'
+          labels:
+            pod-security.kubernetes.io/enforce: privileged
+      state: present
+
+  # - name: Добавление репозитория 'csi-driver-nfs'
+    # kubernetes.core.helm_repository:
+      # name: csi-driver-nfs
+      # repo_url: https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts
+      # force_update: true
+    # become: false
+
+  # - name: Развертывание 'csi-driver-nfs v4.9.0'
+    # kubernetes.core.helm:
+      # name: csi-driver-nfs
+      # release_namespace: '{{ k8s.nfs_provisioner.namespace }}'
+      # chart_ref: csi-driver-nfs/csi-driver-nfs
+      # chart_version: v4.9.0
+      # force: true
+    # become: false
+
+  - name: Создание NFS Persistent Volume Claim
+    kubernetes.core.k8s:
+      state: present
+      force: true
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition: "{{ lookup('template', 'providers/nfs/nfs_pvc.yaml') }}"
+
+  - name: Создание NFS provisioner RBAC
+    kubernetes.core.k8s:
+      state: present
+      force: true
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition: "{{ lookup('template', 'providers/nfs/nfs_rbac.yaml') }}"
+
+  - name: Создание NFS Provisioner deployment
+    kubernetes.core.k8s:
+      state: present
+      force: true
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition: "{{ lookup('template', 'providers/nfs/nfs_deployment.yaml') }}"
+
+  - name: Создание NFS Provisioner StorageClass
+    kubernetes.core.k8s:
+      state: present
+      force: true
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition: "{{ lookup('template', 'providers/nfs/nfs_sc.yaml') }}"
+
+
+
+  # when: status_nfs.stdout == ''
+
+...
+
+# kubectl get pv nfs-provisioner-pv
+# kubectl get pvc nfs-provisioner-pvc
+# kubectl get deployment nfs-provisioner
+
+# https://rudimartinsen.com/2024/01/09/nfs-csi-driver-kubernetes/
+# https://github.com/kubernetes-csi/csi-driver-nfs/tree/master/charts
+
+# kubectl get storageclasses
+# kubectl describe storageclasses nfs-csi
+
+
+# sudo mount -t nfs nfs.ec.redos:/nfs_share/ /opt/nfs
+

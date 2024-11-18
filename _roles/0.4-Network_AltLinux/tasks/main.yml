@@ -1,0 +1,195 @@
+---
+
+- name: Получить список сетевых интерфейсов
+  shell: |
+    ip link show | grep BROADCAST | grep ens | awk '{print $2}' | sed 's/.$//'
+  register: device_list
+
+- name: Создание массива сетевых интерфейсов
+  set_fact:
+    interfaces: "{{ device_list.stdout_lines | list }}"
+
+- name: Получение количества элементов в списке интерфейсов
+  set_fact:
+    interfaces_length: "{{ interfaces | length }}"
+
+# - name: Вывод доступных сетевых интерфейсов
+  # debug:
+    # msg: "Доступные сетевые интерфейсы: ({{ interfaces_length }}) {{ interfaces }}"
+
+- name: Чтение содержимого файла '/etc/net/ifaces/{{ interfaces[0] }}/resolv.conf'
+  shell: cat /etc/net/ifaces/{{ interfaces[0] }}/resolv.conf | grep '{{ net.bind }}'
+  register: resolv_status
+  ignore_errors: yes
+
+- name: Создание одиночного интерфейса если количество интерфейсов однин
+  block:
+
+  - name: Удаление папки '/etc/net/ifaces/vmbr0'
+    ansible.builtin.file:
+      path: /etc/net/ifaces/vmbr0
+      state: absent
+
+  - name: Создание папки '/etc/net/ifaces/{{ interfaces[0] }}'
+    file:
+      state: directory
+      path: '/etc/net/ifaces/{{ interfaces[0] }}'
+
+  - name: Копирование файла '/etc/net/ifaces/{{ interfaces[0] }}/options'
+    template:
+      src: 'bond_options.j2'
+      dest: '/etc/net/ifaces/{{ interfaces[0] }}/options'
+
+  - name: Копирование файла '/etc/net/ifaces/{{ interfaces[0] }}/ipv4address'
+    template:
+      src: 'ipv4address.j2'
+      dest: '/etc/net/ifaces/{{ interfaces[0] }}/ipv4address'
+
+  - name: Копирование файла '/etc/net/ifaces/{{ interfaces[0] }}/ipv4route'
+    template:
+      src: 'ipv4route.j2'
+      dest: '/etc/net/ifaces/{{ interfaces[0] }}/ipv4route'
+
+  - name: Копирование файла '/etc/net/ifaces/{{ interfaces[0] }}/resolv.conf'
+    template:
+      src: 'resolv.conf.j2'
+      dest: '/etc/net/ifaces/{{ interfaces[0] }}/resolv.conf'
+
+  - name: Перезагрузка ОС
+    reboot:
+      msg: 'Reboot'
+
+  when:
+    - interfaces_length == '1'
+    - resolv_status.stdout == ''
+
+- name: Проверка наличия установленного 'bond0'
+  stat:
+    path: /etc/net/ifaces/bond0/options
+  register: bond0_result
+  ignore_errors: yes
+
+- name: Настройка сетевых интерфейсов если их боллее одного 
+  block:
+
+  - name: Создание папки '/etc/net/ifaces/ens__'
+    file:
+      state: directory
+      path: '/etc/net/ifaces/{{ item }}'
+    with_items: '{{ interfaces }}'
+
+  - name: Копирование файла '/etc/net/ifaces/ens__/options'
+    template:
+      src: 'options_no.j2'
+      dest: '/etc/net/ifaces/{{ item }}/options'
+    with_items: '{{ interfaces }}'
+
+  - name: Удаление файла '/etc/net/ifaces/ens__/ipv4address'
+    file:
+      path: '/etc/net/ifaces/{{ item }}/ipv4address'
+      state: absent
+    with_items: '{{ interfaces }}'
+
+  - name: Удаление файла '/etc/net/ifaces/ens__/ipv4route'
+    file:
+      path: '/etc/net/ifaces/{{ item }}/ipv4route'
+      state: absent
+    with_items: '{{ interfaces }}'
+
+  - name: Удаление файла '/etc/net/ifaces/ens__/resolv.conf'
+    file:
+      path: '/etc/net/ifaces/{{ item }}/resolv.conf'
+      state: absent
+    with_items: '{{ interfaces }}'
+
+  - name: Создание 'bond0'
+    block:
+
+    - name: Создание папки '/etc/net/ifaces/bond0'
+      file:
+        state: directory
+        path: '/etc/net/ifaces/bond0'
+
+    - name: Копирование файла '/etc/net/ifaces/bond0/options'
+      template:
+        src: 'bond_options.j2'
+        dest: '/etc/net/ifaces/bond0/options'
+
+    - name: Копирование файла '/etc/net/ifaces/bond0/ipv4address'
+      template:
+        src: 'ipv4address.j2'
+        dest: '/etc/net/ifaces/bond0/ipv4address'
+
+    - name: Копирование файла '/etc/net/ifaces/bond0/ipv4route'
+      template:
+        src: 'ipv4route.j2'
+        dest: '/etc/net/ifaces/bond0/ipv4route'
+
+    - name: Копирование файла '/etc/net/ifaces/bond0/resolv.conf'
+      template:
+        src: 'resolv.conf.j2'
+        dest: '/etc/net/ifaces/bond0/resolv.conf'
+
+    - name: Перезагрузка ОС
+      reboot:
+        msg: 'Reboot'
+
+  when:
+    - not bond0_result.stat.exists
+    # - not inventory_hostname in pve.srv
+    - interfaces_length != '1'
+
+# - name: Проверка наличия установленного 'vmbr0'
+  # stat:
+    # path: /etc/net/ifaces/vmbr0/options
+  # register: vmbr0_result
+  # ignore_errors: yes
+
+# - name: Создание 'vmbr0' для серверов кластера PVE
+  # block:
+
+  # - name: Создание папки '/etc/net/ifaces/vmbr0'
+    # file:
+      # state: directory
+      # path: '/etc/net/ifaces/vmbr0'
+
+  # - name: Копирование файла '/etc/net/ifaces/vmbr0/options'
+    # template:
+      # src: 'vmbr_options.j2'
+      # dest: '/etc/net/ifaces/vmbr0/options'
+
+  # - name: Копирование файла '/etc/net/ifaces/vmbr0/ipv4address'
+    # template:
+      # src: 'ipv4address.j2'
+      # dest: '/etc/net/ifaces/vmbr0/ipv4address'
+
+  # - name: Копирование файла '/etc/net/ifaces/vmbr0/ipv4route'
+    # template:
+      # src: 'ipv4route.j2'
+      # dest: '/etc/net/ifaces/vmbr0/ipv4route'
+
+  # - name: Копирование файла '/etc/net/ifaces/vmbr0/resolv.conf'
+    # template:
+      # src: 'resolv.conf.j2'
+      # dest: '/etc/net/ifaces/vmbr0/resolv.conf'
+
+  # - name: Перезагрузка ОС
+    # reboot:
+        # msg: 'Reboot'
+
+  # when:
+    # - not vmbr0_result.stat.exists
+    # - inventory_hostname in pve.srv
+
+- name: Чтение содержимого файла '/etc/resolv.conf'
+  shell: cat /etc/resolv.conf | grep '{{ net.bind }}'
+  register: resolv_status
+  ignore_errors: yes
+
+- name: Копирование файла '/etc/resolv.conf'
+  template:
+    src: 'resolv.conf.j2'
+    dest: '/etc/resolv.conf' 
+  when: resolv_status.stdout == ''
+
+...

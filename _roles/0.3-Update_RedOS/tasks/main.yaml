@@ -1,0 +1,13 @@
+---
+
+- name: Обновление репозиториев
+  dnf:
+    update_only: true
+    update_cache: true
+
+- name: Обновление ОС
+  dnf:
+    name: "*"
+    state: latest
+
+...

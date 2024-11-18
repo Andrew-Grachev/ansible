@@ -1,0 +1,60 @@
+---
+
+- name: Get certificate key
+  shell: kubeadm init phase upload-certs --upload-certs|grep -v 'upload-certs'
+  register: k8s_certificate_key
+  run_once: true
+  become: true
+  delegate_to: "{{ net_address_master01 }}"
+  delegate_facts: true
+
+- name: Get certificate hash
+  shell: openssl x509 -in /etc/kubernetes/pki/ca.crt -pubkey -noout | openssl pkey -pubin -outform DER |openssl dgst -sha256| awk '{print $2}'
+  register: k8s_certificate_hash
+  tags: master_keys
+  run_once: true
+  delegate_facts: true
+
+- name: Get token
+  shell: kubeadm token create
+  register: k8s_join_token
+  tags: master_keys
+  run_once: true
+  delegate_to: "{{ net_address_master01 }}"
+  delegate_facts: true
+  become: "{{ 'no' if ansible_user == 'root' else 'yes' }}"
+  become_method: sudo
+
+- name: Create pull config
+  template:
+    src: config.yml.j2
+    dest: '/tmp/config.yml'
+  delegate_to: "{{ item }}"
+  run_once: true
+  with_items:
+     - '{{ net_address_master02 }}'
+     - '{{ net_address_master03 }}'
+
+- name: Pull images
+  shell: kubeadm config images pull #--config /tmp/config.yml
+  become: "{{ 'no' if ansible_user == 'root' else 'yes' }}"
+  become_method: sudo
+  delegate_to: "{{ item }}"
+  run_once: true
+  ignore_errors: yes
+  with_items:
+     - '{{ net_address_master02 }}'
+     - '{{ net_address_master03 }}'
+
+- name: Join masters
+  shell: "kubeadm join kubernetes:6443 --token {{ k8s_join_token.stdout }} --discovery-token-ca-cert-hash sha256:{{ k8s_certificate_hash.stdout }} --control-plane --certificate-key {{ k8s_certificate_key.stdout }}"
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+  run_once: true
+  become: "{{ 'no' if ansible_user == 'root' else 'yes' }}"
+  become_method: sudo
+  with_items:
+     - '{{ net_address_master02 }}'
+     - '{{ net_address_master03 }}'
+
+...

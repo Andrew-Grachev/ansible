@@ -1,0 +1,17 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ k8s.rwx_sc }}
+#provisioner: example.com/nfs
+provisioner: nfs.csi.k8s.io
+
+parameters:
+  server: {{ nfs.srv }}.{{ domain }}
+  share: {{ nfs.path }}/
+
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+
+mountOptions:
+  - nfsvers=3
+#  - vers=4.1

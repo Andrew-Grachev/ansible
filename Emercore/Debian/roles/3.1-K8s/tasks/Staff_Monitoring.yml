@@ -1,0 +1,71 @@
+---
+
+# helm repo add prometheus https://prometheus-community.github.io/helm-charts/
+# helm repo list
+# helm repo update
+# helm search repo -l prometheus/kube-prometheus-stack | head -20
+# helm show values prometheus/kube-prometheus-stack --version 64.0.0 > prometheus.yaml
+
+- name: Чтение статуса 'Prometheus'
+  shell: kubectl get pods -n monitoring | grep 'prometheus' | grep 'Running'
+  register: status_prometheus
+  become: false
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: Создание пространства имен для 'Monitoring'
+    kubernetes.core.k8s:
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: monitoring
+          labels:
+            pod-security.kubernetes.io/enforce: privileged
+      state: present
+
+  - name: Добавление репозитория 'prometheus-community' для Helm
+    kubernetes.core.helm_repository:
+      name: prometheus
+      repo_url: https://prometheus-community.github.io/helm-charts
+      force_update: true
+    become: false
+
+  - name: Развертывание 'Prometheus (64.0.0)'
+    kubernetes.core.helm:
+      name: prometheus
+      release_namespace: monitoring
+      chart_ref: prometheus/kube-prometheus-stack
+      chart_version: 64.0.0
+      # values: "{{ lookup('template', 'helm_charts/prometheus.yaml') | from_yaml }}"
+      force: true
+    become: false
+
+  - name: Ожидаем запуска контейнера 'Prometheus'
+    ansible.builtin.pause:
+      minutes: 10
+
+  - name: Установка панелей инструментов для Grafana
+    kubernetes.core.k8s:
+      state: present
+      namespace: monitoring
+      force: false
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition: 
+        - "{{ lookup('file', 'grafana/grafana_dashboard_ceph-cephfs.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/grafana_dashboard_ceph-cluster.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/grafana_dashboard_elasticsearch-cluster.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/grafana_dashboard_postgresql_database.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/grafana_dashboard_rabbitmq-overview.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/grafana_dashboard_redis-operator.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/grafana_dashboard_redis-overview.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/Prometheus_PodMonitor_Postgres.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/PrometheusRule_rabbitmq-cluster-operator.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/rabbitmq-servicemonitor.yaml') | from_yaml }}"
+
+  when: status_prometheus.stdout == ''
+
+...

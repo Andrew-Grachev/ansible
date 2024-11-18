@@ -1,0 +1,47 @@
+---
+
+- name: Проверка наличия файла '/etc/haproxy/haproxy.cfg'
+  stat:
+    path: /etc/haproxy/haproxy.cfg
+  register: haproxy_result
+  ignore_errors: yes
+
+- name: Установка 'HAProxy'
+  block:
+
+  - name: Включаем 'net.ipv4.ip_nonlocal_bind'
+    sysctl:
+      name: net.ipv4.ip_nonlocal_bind
+      value: 1
+      sysctl_file: /etc/sysctl.d/k8s.conf
+      reload: true
+
+  - name: Установка пакета 'haproxy'
+    dnf:
+      name:
+      - haproxy
+
+  - name: Очистка файла '/etc/haproxy/haproxy.cfg'
+    file:
+      path: /etc/haproxy/haproxy.cfg
+      state: '{{ item }}'
+    with_items:
+    - absent
+    - touch
+
+  - name: Создаем конфигурацию '/etc/haproxy/haproxy.cfg'
+    template:
+      src: haproxy.cfg.j2
+      dest: '/etc/haproxy/haproxy.cfg'
+
+  - name: Запускаем службу 'haproxy'
+    service:
+      name: haproxy
+      state: restarted
+      enabled: yes
+
+  when:
+    - inventory_hostname in k8s.masters
+    - not haproxy_result.stat.exists
+
+...

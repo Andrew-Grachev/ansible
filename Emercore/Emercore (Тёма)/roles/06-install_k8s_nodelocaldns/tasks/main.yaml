@@ -1,0 +1,10 @@
+---
+
+- name: Создаем локальный сервер DNS
+  kubernetes.core.k8s:
+    state: present
+    force: false
+    kubeconfig: "~/.kube/config"
+    definition: "{{ lookup('template', '{{ role_path }}/files/node_local_dns.yaml') }}"
+
+...

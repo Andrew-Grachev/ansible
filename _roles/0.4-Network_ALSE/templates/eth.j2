@@ -1,0 +1,14 @@
+auto {{ interfaces[0] }}
+iface {{ interfaces[0] }} inet static
+  address {{ ansible_ssh_host }}
+  netmask {{ net.mask }}
+  gateway {{ net.gateway }}
+  dns-domain {{ domain }}
+  dns-nameserver {{ net.bind }}
+  dns-search {{ domain }}
+
+
+#auto {{ interfaces[0] }}.{{ net.vlan }}
+#iface {{ interfaces[0] }}.{{ net.vlan }} inet static
+#  address {{ ansible_ssh_host }}
+#  netmask {{ net.mask }}

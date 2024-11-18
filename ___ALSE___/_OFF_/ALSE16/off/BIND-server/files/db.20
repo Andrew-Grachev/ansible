@@ -1,0 +1,18 @@
+$TTL 604800
+@ IN SOA srv-tk.ns. admin.in. (
+    2021042001		; Serial
+    604800		; Refresh
+    86400		; Retry
+    2419200		; Expire
+    604800 )	; Negative Cach TTL
+;
+
+		IN	NS	srv-tk.ss.
+1.20		IN	PTR	srv-tk.ss.
+2.20		IN	PTR	srv-kv-1.ss.
+3.20		IN	PTR	srv-kv-2.ss.
+4.20		IN	PTR	srv-kv-3.ss.
+5.20		IN	PTR	srv-kv-4.ss.
+6.20		IN	PTR	srv-kv-5.ss.
+
+254.20		IN	PTR	mse.ss.

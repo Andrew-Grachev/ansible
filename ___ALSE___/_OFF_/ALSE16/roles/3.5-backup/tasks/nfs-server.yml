@@ -1,0 +1,82 @@
+---
+
+- name: Запускаем на Backup сервере
+  block:
+
+  - name: Проверка наличия установленного NFS сервер
+    stat:
+      path: /etc/exports
+    register: nfs_result
+
+  - name: Настройка NFS сервера
+    block:
+
+    - name: Инсталляция необходимых пакетов для сервера
+      apt:
+        update_cache: yes
+        name:
+        - nfs-kernel-server
+        state: latest
+
+    - name: Остановка служб
+      service:
+        name: '{{item}}'
+        state:  stopped
+      with_items:
+      - nfs-server
+      ignore_errors: yes
+
+    - name: Создадим папки '{{ backup.path }}' для хранения бекапа 
+      file:
+        state: directory
+        mode: 0777
+        recurse: yes
+        path: '{{ backup.path }}/log'
+
+    - name: Создание папок для серверов
+      file:
+        state: directory
+        mode: 0777
+        recurse: yes
+        path: '{{ backup.path }}/{{ item }}'
+      loop: "{{ query('inventory_hostnames', 'srv') }}"
+
+#- name: Исправляем ошибки в пакете NFS
+#  blockinfile:
+#    path: /etc/systemd/system/multi-user.target.wants/nfs-server.service
+#    marker: '# {mark} SHD'
+#    block: |
+#      [Unit]
+#      Requires=rpcbind.service
+#      After=rpcbind.service
+
+    - name: Создание /etc/exports
+      template:
+        src: exports.j2
+        dest: /etc/exports
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Создание политики лог-файла бекапа
+      template:
+        src: backup_logrotate.j2
+        dest: /etc/logrotate.d/backup_logrotate
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Перезапуск служб
+      service:
+        name: "{{ item }}"
+        enabled: yes
+        state: restarted
+      with_items:
+      - nfs-server
+      - cron
+
+    when: not nfs_result.stat.exists
+
+  when: inventory_hostname == backup.srv
+
+...

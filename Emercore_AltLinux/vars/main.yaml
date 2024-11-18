@@ -1,0 +1,78 @@
+---
+
+domain: 'ec-demo.local'
+
+net:
+  network: 10.150.0.0/27
+  prefix: 27
+  gateway: 10.150.0.1
+  bind: 10.150.0.1
+
+ntp:
+  timezone: Europe/Moscow
+  ntp: 10.150.0.1
+  srv: ntp
+
+
+########################
+### 3.7-CephFS       ###
+########################
+# ceph:
+  # srv:
+  # - ceph01
+  # - ceph02
+  # - ceph03
+  # dev:
+  # - /dev/nvme0n2
+# Убедиться, что эта сеть присутствует в интерфейсах!
+# cluster_network: 10.234.0.0/24 
+  # cluster_network: 10.150.0.0/24
+
+
+########################
+### 3.8-NFS          ###
+########################
+# nfs:
+  # srv: nfs
+  # path: /nfs_share
+  # device: /dev/nvme0n2
+
+
+########################
+### 3.9-K8S          ###
+########################
+k8s:
+  ver: 1.28
+  masters:
+  - master01
+  # - master02
+  # - master03
+  workers:
+  - worker01
+  # - worker02
+  # - worker03
+
+  keepalived_IP:  10.150.0.11
+  haproxy_port:   6443
+  # подсеть выделенная для подов
+  pod_subnet:     10.230.0.0/22
+  # подсеть выделенная для сервисов
+  service_subnet: 10.232.0.0/24
+  # адрес внутреннего днс куба (первые 3 октета из подсети сервисов, последний - 10)
+  core_dns: 10.232.0.10
+
+  rwo_sc: csi-lvm
+  rwx_sc: csi-nfs
+
+  lvm_provisioner:
+    namespace: csi-lvm-system
+    device: /dev/sdb
+    vg_name: vg01
+
+  nfs_provisioner:
+    namespace: csi-nfs
+    disk_size: 50Gi
+    # server_ip: 10.150.0.110
+    # path: /srv
+
+...

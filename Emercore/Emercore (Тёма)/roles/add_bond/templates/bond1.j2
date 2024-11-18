@@ -1,0 +1,22 @@
+auto {{ net_bond1_name }}
+iface {{ net_bond1_name }} inet static
+{% set hostname = ansible_facts['hostname'] %}
+{% if hostname == "master01" %}
+address {{ iscsi_adress_master01 }}/{{ net_bond1_mask }}
+{% elif hostname == "master02" %} 
+address {{ iscsi_adress_master02 }}/{{ net_bond1_mask }}
+{% elif hostname == "master03" %} 
+address {{ iscsi_adress_master03 }}/{{ net_bond1_mask }}
+{% elif hostname == "worker01" %} 
+address {{ iscsi_adress_worker01 }}/{{ net_bond1_mask }}
+{% elif hostname == "worker02" %}
+address {{ iscsi_adress_worker02 }}/{{ net_bond1_mask }}
+{% elif hostname == "worker03" %}
+address {{ iscsi_adress_worker03 }}/{{ net_bond1_mask }}
+{% endif %}
+ bond-mode active-backup
+ bond-primary {{ net_bond1_slave[0] }}
+ bond-miimon 100
+ bond-downdelay 200
+ bond-updelay 150
+ bond-slaves {{ net_bond1_slave[0] }} {{ net_bond1_slave[1] }}

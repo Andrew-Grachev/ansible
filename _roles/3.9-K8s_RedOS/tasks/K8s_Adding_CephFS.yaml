@@ -1,0 +1,53 @@
+---
+
+- name: Чтение статуса провайдера 'Ceph'
+  shell: kubectl get pods -n kube-system | grep 'ceph-csi' | grep 'Running'
+  register: status_ceph
+  become: false
+  ignore_errors: yes
+
+- name:
+  block:
+
+
+
+  # - name: Добавление репозитория 'ceph-csi'
+    # kubernetes.core.helm_repository:
+      # name: 'ceph-csi'
+      # repo_url: 'https://ceph.github.io/csi-charts'
+      # force_update: true
+    # become: false
+
+  # - name: Создание пространства имен 'ceph-csi'
+    # kubernetes.core.k8s:
+      # kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      # definition:
+        # apiVersion: v1
+        # kind: Namespace
+        # metadata:
+          # name: ceph-csi
+          # labels:
+            # pod-security.kubernetes.io/enforce: privileged
+      # state: present
+  
+  # - name: Развертывание 'ceph-csi-cephfs'
+    # kubernetes.core.helm:
+      # name: 'ceph-csi-cephfs'
+      # release_namespace: 'ceph-csi'
+      # chart_ref: 'ceph-csi/ceph-csi-cephfs'
+      # chart_version: 3.7.2
+      # values: "{{ lookup('template', 'providers/ceph/ceph-csi.yaml') | from_yaml }}"
+      # force: true
+    # become: false
+    # ignore_errors: yes
+  
+  # when: status_ceph.stdout == ''
+
+...
+
+# helm repo add ceph-csi https://ceph.github.io/csi-charts
+# helm repo update
+# helm search repo -l ceph-csi/ceph-csi-cephfs | head -20
+# helm show values ceph-csi/ceph-csi-cephfs --version 3.12.0 > ceph-csi-cephfs_3_12_0_values.yaml
+# helm search repo -l ceph-csi/ceph-csi-rbd | head -20
+# helm show values ceph-csi/ceph-csi-rbd --version 3.12.0 > ceph-csi-rbd_3_12_0_values.yaml

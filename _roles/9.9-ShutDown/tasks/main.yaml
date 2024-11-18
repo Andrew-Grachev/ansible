@@ -1,0 +1,6 @@
+---
+
+- name: Выключаем хосты!
+  command: shutdown -h now
+
+...

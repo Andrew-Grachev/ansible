@@ -1,0 +1,161 @@
+---
+- name: Создания PXE сервера
+  block:
+
+  - name: Проверка наличия файла /etc/dhcp/dhcpd.conf
+    stat:
+      path: /etc/dhcp/dhcpd.conf
+    register: dhcpd_result
+
+  - name: Создания сервера DHCP
+    block:
+
+    - name: Установка DHCP сервера
+      apt:
+        update_cache: yes
+        name:
+        - isc-dhcp-server
+        - fly-admin-dhcp
+        state: latest
+
+    - name: Внесение изменений в файл '/etc/default/isc-dhcp-server'
+      lineinfile:
+        dest: /etc/default/isc-dhcp-server
+        regexp: INTERFACESv4=""
+        line: INTERFACESv4="bond0"
+      when: interfaces.split(',')|length != 1
+
+    - name: Внесение изменений в файл '/etc/default/isc-dhcp-server'
+      lineinfile:
+        dest: /etc/default/isc-dhcp-server
+        regexp: INTERFACESv4=""
+        line: INTERFACESv4="{{ interfaces }}"
+      when: interfaces.split(',')|length == 1
+
+    - name: Конфигурирование DHCP сервера
+      template:
+        src: dhcpd.j2
+        dest: /etc/dhcp/dhcpd.conf
+        mode: 0644
+        owner: root
+        force: yes
+
+    - name: Перезагрузка DHCP сервера
+      service:
+        name: isc-dhcp-server
+        state: restarted
+        enabled: yes
+
+    when: not dhcpd_result.stat.exists
+
+  - name: Проверка наличия файла '/srv/tftp/linux'
+    stat:
+      path: /srv/tftp/linux
+    register: linux_result
+
+  - name: Создания сервера PXE
+    block:
+  
+    - name: Установка пакетов для PXE сервера
+      apt:
+        name:
+        - pxelinux
+        - syslinux
+        - tftpd-hpa
+        state: latest
+        update_cache: yes
+
+    - name: Копирование файлов загрузчиков Legacy
+      shell: |
+        cp /srv/repo/{{ repo.name_iso[0] }}/netinst/* /srv/tftp/
+        cp /usr/lib/syslinux/modules/bios/{chain.c32,ldlinux.c32,libcom32.c32,libutil.c32,menu.c32} /srv/tftp/
+
+    - name: Копирование файлов загрузчиков UEFI
+      unarchive:
+        src: netinst.tar.gz
+        dest: /srv/tftp
+        mode: '0777'
+
+    - name: Удаление лишних строк из файла '/srv/tftp/debian-installer/amd64/grub/grub.cfg'
+      shell: |
+        cd /srv/tftp/debian-installer/amd64/grub/
+        sed '1,20! d' grub.cfg > grub.new
+        mv grub.new grub.cfg
+
+    - name: Создание папки '/srv/tftp/pxelinux.cfg' для меню загрузчика Legacy 
+      file:
+        state: directory
+        path: /srv/tftp/pxelinux.cfg
+
+    - name: Создание меню PXE загрузчика Legacy
+      copy:
+        src: default.j2
+        dest: /srv/tftp/pxelinux.cfg/default
+
+    - name: Создание папки с конфигурациями
+      file:
+        state: directory
+        path: '/srv/tftp/preseeds'
+
+    - name: Создание файлов с конфигурациями серверов
+      template:
+        src: preseed_srv.j2
+        dest: '/srv/tftp/preseeds/{{ item }}.cfg'
+        mode: 0444
+      loop: "{{ query('inventory_hostnames', 'c*') }}"
+
+    - name: Создание файлов с конфигурациями АРМов
+      template:
+        src: preseed_arm.j2
+        dest: '/srv/tftp/preseeds/{{ item }}.cfg'
+        mode: 0444
+      loop: "{{ query('inventory_hostnames', 'arm*') }}"
+
+    - name: Модификация файлов 'preseed.cfg'
+      shell: |
+        VAR_IP={{ hostvars[item].ansible_ssh_host }}
+        VAR_SED=s/127.127.127.127/$VAR_IP/g
+        sed -i "$VAR_SED" /srv/tftp/preseeds/{{ item }}.cfg
+      loop: "{{ query('inventory_hostnames', 'all') }}"
+
+    - name: Создание меню PXE загрузчика Legacy
+      blockinfile:
+        path: /srv/tftp/pxelinux.cfg/default
+        state: present
+        block: |
+          ### Установка ALSE 1.7 Смоленск на хост {{ item }}.{{ domain }} ###
+          LABEL netinstall
+             MENU LABEL Install ALSE 1.7 Smolensk '{{ item }}.{{ domain }}'
+             kernel linux
+             append initrd=initrd.gz modprobe.blacklist=evbug auto=true priority=critical debian-installer/locale=en_US console-keymaps-at/keymap=ru hostname=alse17 domain={{ domain }} astra-license/license=true url=tftp://{{ hostvars[pxe.srv].ansible_ssh_host }}/preseeds/{{ item }}.cfg interface=auto netcfg/dhcp_timeout=60 astra_install=1 vga=788 debian-installer/allow_unauthenticated=true network-console/enable=false
+        marker: "###"
+      loop: "{{ query('inventory_hostnames', 'all') }}"
+
+    - name: Создание меню PXE загрузчика UEFI
+      blockinfile:
+        path: /srv/tftp/debian-installer/amd64/grub/grub.cfg
+        state: present
+        block: |
+          ### Установка ALSE 1.7 Смоленск на хост {{ item }}.{{ domain }} ###
+          menuentry 'Install ALSE 1.7 Smolensk {{ item }}.{{ domain }}' {
+            set background_color=black
+            linux linux modprobe.blacklist=evbug debian-installer/allow_unauthenticated=true auto=true priority=critical debian-installer/locale=en_US console-keymaps-at/keymap=ru hostname=alse17 domain={{ domain }} astra-license/license=true url=tftp://{{ hostvars[pxe.srv].ansible_ssh_host }}/preseeds/{{ item }}.cfg interface=auto netcfg/dhcp_timeout=60 network-console/enable=false nomodeset
+            initrd initrd.gz
+          }
+        marker: "###"
+      loop: "{{ query('inventory_hostnames', 'all') }}"
+
+    - name: Перезапуск служб
+      service:
+        name: '{{ item }}'
+        state: restarted
+        enabled: yes
+      with_items:
+        - isc-dhcp-server
+        - tftpd-hpa
+
+    when: not linux_result.stat.exists
+
+  when: inventory_hostname == pxe.srv
+
+...

@@ -1,0 +1,38 @@
+---
+- hosts: master01
+  remote_user: "{{ local_admin }}"
+  name: Deploy alt linux kubernetes
+  roles:
+    - role: conf_sysctl
+      tags: [conf_sysctl]
+    - role: install_kubernetes_alt
+      tags: [install_kubernetes]
+    - role: add_k8s_cluster
+      tags: [add_k8s_cluster]
+    - role: add_k8s_network
+      tags: [add_k8s_network]
+    - role: untain_master
+      tags: [untain_master]
+      when: single_node|bool
+    - role: install_k8s_nodelocaldns
+      tags: [nodelocaldns]
+    - role: install_k8s_provisioners_lvm
+      tags: [install_k8s_provisioners_lvm]
+      when: lvm_provisioner_namespace == "csi-lvm-system"
+    - role: install_k8s_provisioners_lvm_sanlock
+      tags: [install_k8s_provisioners_lvm]
+      when: lvm_provisioner_namespace == "csi-lvm-system-sanlock"
+    - role: install_k8s_provisioners_nfs
+      tags: [install_k8s_provisioners_nfs]
+    - role: install_helm
+      tags: [install_helm]
+    - role: staff_operator_postgres
+      tags: [staff_operator_postgres]
+    - role: staff_monitoring
+      tags: [staff_monitoring]
+    - role: staff_logging
+      tags: [staff_logging]
+    - role: staff_operator_rabbitmq
+      tags: [staff_operator_rabbitmq]
+    - role: staff_operator_redis
+      tags: [staff_operator_redis]

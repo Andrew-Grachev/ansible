@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kibana-data-view-mgmt
+  namespace: logging
+spec:
+  template:
+    spec:
+      containers:
+      - name: kibana-data-view-mgmt
+        image: v-ccng-stage-nexus.stage.sphaera.ru:8084/kibana_data_stream_mgmt:0.1
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: LOG_LEVEL
+            value: DEBUG
+          - name: KIBANA_URL
+            value: http://kibana:5601
+          - name: ELASTICSEARCH_URL
+            value: http://elasticsearch:9200
+      restartPolicy: OnFailure
+

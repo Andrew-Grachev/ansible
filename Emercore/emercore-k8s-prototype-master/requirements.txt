@@ -1,0 +1,11 @@
+ansible
+ansible-core
+collection
+jinja2
+PyYAML
+dnspython
+ansible-lint
+requests
+openshift
+kubernetes
+docker

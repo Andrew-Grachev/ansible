@@ -1,0 +1,12 @@
+---
+- name: Create master01
+  community.general.one_vm:
+    api_url: "{{ one_url }}:2633/RPC2"
+    api_username: 'oneadmin'
+    api_password: 'IcKoggyaHap2'
+    template_name: "{{ one_temlate_name }}"
+    vm_start_on_hold: 'True'
+    attributes:
+      name: master##
+    count: 3
+#  become: true

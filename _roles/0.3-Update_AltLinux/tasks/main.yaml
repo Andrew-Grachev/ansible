@@ -1,0 +1,9 @@
+---
+
+- name: Обновление репозиториев AltLinux
+  shell: apt-get update
+
+- name: Обновление AltLinux
+  shell: apt-get dist-upgrade -y
+
+...

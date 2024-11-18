@@ -1,0 +1,32 @@
+[all:vars]
+ansible_ssh_user=user
+ansible_ssh_pass=P@ssw0rd
+
+[all]
+
+#LiveCD    ansible_ssh_host=10.10.10.110
+
+[srv]
+c1n1        ansible_ssh_host=10.10.10.111
+c1n2        ansible_ssh_host=10.10.10.121
+c3n1        ansible_ssh_host=10.10.10.113
+c3n2        ansible_ssh_host=10.10.10.123
+c4n1        ansible_ssh_host=10.10.10.114
+c4n2        ansible_ssh_host=10.10.10.124
+c5n1        ansible_ssh_host=10.10.10.115
+c5n2        ansible_ssh_host=10.10.10.125
+c6n1        ansible_ssh_host=10.10.10.116
+c6n2        ansible_ssh_host=10.10.10.126
+c7n1        ansible_ssh_host=10.10.10.117
+c7n2        ansible_ssh_host=10.10.10.127
+c8n1        ansible_ssh_host=10.10.10.118
+c8n2        ansible_ssh_host=10.10.10.128
+c9n1        ansible_ssh_host=10.10.10.119
+c9n2        ansible_ssh_host=10.10.10.129
+c10n1       ansible_ssh_host=10.10.10.130
+c10n2       ansible_ssh_host=10.10.10.140
+
+[arm]
+arm-abi     ansible_ssh_host=10.10.10.61
+arm-02      ansible_ssh_host=10.10.10.62
+arm-03      ansible_ssh_host=10.10.10.63

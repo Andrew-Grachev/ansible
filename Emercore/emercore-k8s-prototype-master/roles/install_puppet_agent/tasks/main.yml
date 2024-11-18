@@ -1,0 +1,31 @@
+---
+# tasks file for install_keepalive
+- name: install puppet agent
+  apt:
+    update_cache: yes
+    pkg:
+    - puppet-agent
+  become: true
+  become_method: sudo
+
+
+
+- name: puppet agent configuration
+  template: 
+    src: puppet.conf.j2  
+    dest: /etc/puppetlabs/puppet/puppet.conf
+  tags: puppet
+  notify: restart puppet
+#  notify: enable puppet
+  become: true
+  become_method: sudo
+
+
+#- name: Start puppet agent
+#  service: 
+#    name: puppet-agent
+#    state: started
+#    enabled: yes
+#  tags: puppet-agent
+#  become: true
+#  become_method: sudo

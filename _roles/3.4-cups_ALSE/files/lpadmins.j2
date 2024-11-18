@@ -1,0 +1,9 @@
+%lpadmin ALL=(ALL:ALL) NOPASSWD: /usr/bin/systemctl restart cups
+%lpadmin ALL=(ALL:ALL) NOPASSWD: /usr/bin/systemctl stop cups
+%lpadmin ALL=(ALL:ALL) NOPASSWD: /usr/bin/systemctl start cups
+%lpadmin ALL=(ALL:ALL) NOPASSWD: /usr/bin/systemctl status cups
+
+%print_admins ALL=(ALL:ALL) NOPASSWD: /usr/bin/systemctl restart cups
+%print_admins ALL=(ALL:ALL) NOPASSWD: /usr/bin/systemctl stop cups
+%print_admins ALL=(ALL:ALL) NOPASSWD: /usr/bin/systemctl start cups
+%print_admins ALL=(ALL:ALL) NOPASSWD: /usr/bin/systemctl status cups

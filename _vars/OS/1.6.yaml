@@ -1,0 +1,24 @@
+---
+
+_repo:
+  name_iso:
+  - mo
+  - mo-update-14
+  - mo-dev
+  - mo-dev-update-14
+  dist: smolensk
+  res: contrib main non-free
+  build: 1.6.14.1
+  kernel: 4.15.3-177-generic
+  live_cd: smolensk-1.6.14.livecd
+
+nvidia:
+  repo:
+  - ALSE16-NVidia-all-230704
+  pkgs:
+  - nvidia-driver-no-dkms-470
+  - nvidia-detect-470
+  settings:
+  - nvidia-settings-new-version
+
+...

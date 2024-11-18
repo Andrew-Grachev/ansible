@@ -1,0 +1,58 @@
+---
+- name: Конфигурирование RDP серверов
+  block:
+
+  - name: Проверка наличия файла '/etc/xrdp/xrdp.ini'
+    stat:
+      path: /etc/xrdp/xrdp.ini
+    register: rdp_result
+    when: inventory_hostname in rdp.srv
+
+  - name: Создания сервера RDP
+    block:
+
+    - name: Установка пакетов XRDP сервера
+      apt_rpm:
+        update_cache: true
+        package:
+        - xrdp
+        - pulseaudio-module-xrdp
+        state: present
+
+    - name: Корректируем файл '/etc/xrdp/sesman.ini '
+      lineinfile:
+        path: /etc/xrdp/sesman.ini 
+        regexp: "{{item.reg}}"
+        line: "{{item.line}}"
+      with_items:
+      - { reg: '^TerminalServerUsers', line: 'TerminalServerUsers={{ rdp.group }}'}
+      - { reg: '^TerminalServerAdmins', line: '#TerminalServerAdmins=tsadmins'}
+
+    - name: Внесение изменений в '/etc/sssd/sssd.conf '
+      shell: |
+        sed -i '/xrdp-sesman'/d /etc/sssd/sssd.conf
+        sed -i '10 a ad_gpo_map_service = +xrdp-sesman' /etc/sssd/sssd.conf
+
+    - name: Создадим группу '{{ rdp.group }}' в домен FreeIPA
+      become: true
+      become_method: su
+      become_user: admin
+      shell: |
+        ipa group-add {{ rdp.group }}
+        ipa group-add-member {{ rdp.group }} --users=admin
+      vars:
+        ansible_become_pass: '{{ pass.admin }}'
+      ignore_errors: yes  
+      delegate_to: '{{ freeipa.srv }}'
+
+    - name: Перезагрузка сервиса 'xrdp' 
+      service:
+        name: xrdp
+        state: restarted
+        enabled: yes
+
+    when: not rdp_result.stat.exists
+
+  when: inventory_hostname in rdp.srv
+
+...

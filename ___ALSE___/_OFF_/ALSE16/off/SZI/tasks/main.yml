@@ -1,0 +1,50 @@
+---
+- name: SZI | настройка sysctl.conf
+  lineinfile:
+    path: /etc/sysctl.conf
+    regexp: "{{ item.0 }}"
+    line: "{{ item.1 }}"
+    state: present
+  with_together:
+  - ['net.ipv4.conf.all.send_redirects', 'net.ipv4.conf.default.send_redirects', 'net.ipv4.conf.all.accept_redirects', 'net.ipv6.conf.all.accept_redirects', 'net.ipv4.conf.all.log_martians']
+  - ['net.ipv4.conf.all.send_redirects=0', 'net.ipv4.conf.default.send_redirects=0', 'net.ipv4.conf.all.accept_redirects=0', 'net.ipv6.conf.all.accept_redirects=0', 'net.ipv4.conf.all.log_martians=1']
+  when: version.stdout != relis
+  
+- name: SZI | обновление настроек sysctl.conf
+  shell: sysctl -p
+  when: version.stdout != relis
+  
+- name: настройкпа grub в соответствии с контрольным примером
+  lineinfile:
+    path: /etc/default/grub
+    regexp: '#GRUB_DISABLE_RECOVERY="true"'
+    line: 'GRUB_DISABLE_RECOVERY="true"'
+    state: present
+  when: version.stdout != relis
+  
+- name: обновление настроек grub в соответствии  с контрольным примером
+  shell: update-grub
+  when: version.stdout != relis
+  
+- name: настройка afick в соответствии с контрольным примером
+  copy:
+    src: afick.conf
+    dest: /etc/afick.conf
+    mode: 0600
+  when: version.stdout != relis
+  
+- name: выполнение afick в соответствии  с контрольным примером
+  shell: sudo afick -i
+  when: version.stdout != relis
+  
+- name: копирование скрипта настройки безопасности астры
+  copy:
+    src: security.sh
+    dest: /tmp/
+    mode: 0777
+  when: version.stdout != relis
+  
+#- name: Выполнение скрипта безопасности
+#  shell: "cd /tmp && sudo ./security.sh"
+#  when: version.stdout != relis
+  

@@ -1,0 +1,3 @@
+#!/bin/bash
+export PGPASSWORD={{ armabi.pass }}
+psql -q -U {{ armabi.user }} -d {{ armabi.db }} -f /tmp/armabi.scheme

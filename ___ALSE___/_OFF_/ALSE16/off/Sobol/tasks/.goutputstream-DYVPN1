@@ -1,0 +1,37 @@
+---
+- name: Чтение версии установленного ПО
+  shell: cat /opt/distr/software.conf | grep Sobol
+  register: version
+  ignore_errors: yes
+
+- name: Установка необходимых пакетов
+  apt:
+    update_cache: yes
+    name:
+    - libglade2-0
+    state: latest
+    update_cache: yes
+  when: version.stdout != relis
+
+- name: Копирование дистрибутива
+  copy:
+    src: sobol_astra1.6-20200722SE16-signed_amd64.deb
+    dest: /opt/distr/Sobol/
+    mode: '0777'
+    directory_mode: yes
+  when: version.stdout != relis
+
+- name: Инсталляция
+  shell: "dpkg -i /opt/distr/Sobol/sobol_astra1.6-20200722SE16-signed_amd64.deb"
+  when: version.stdout != relis
+
+- name: Запишем версию ПО если ее не разу не было (Install)
+  shell: "echo '{{ relis }}' >> /opt/distr/software.conf"
+  when: version.stdout == ""
+  ignore_errors: yes
+
+- name: RebusSov-client | Запишем новую версию ПО (Update)
+  shell: "sed -i 's/{{version.stdout}}/{{ relis }}/g' /opt/distr/software.conf"
+  when: version.stdout != relis
+  ignore_errors: yes
+

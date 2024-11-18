@@ -1,0 +1,16 @@
+auto {{ interfaces }}
+iface eth0 inet static
+  address {{ ansible_ssh_host }}
+  netmask {{ net.mask }}
+  gateway {{ net.gateway }}
+  dns-domain {{ domain }}
+  dns-nameserver {{ net.bind }}
+  dns-search {{ domain }}
+{% if 'mac' is defined %}
+  hwaddress {{ mac }}
+{% endif %}
+
+#auto eth0.{{ mgmt.vlan }}
+#iface eth0.{{ mgmt.vlan }} inet static
+#  address {{ ansible_ssh_host }}
+#  netmask {{ mgmt.mask }}

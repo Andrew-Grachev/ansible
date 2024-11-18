@@ -1,0 +1,12 @@
+---
+# Source: csi-driver-lvm/templates/storageclasses.yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: "{{ kubernetes_rwo_sc }}"
+provisioner: lvm.csi.metal-stack.io
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+parameters:
+  type: "linear"

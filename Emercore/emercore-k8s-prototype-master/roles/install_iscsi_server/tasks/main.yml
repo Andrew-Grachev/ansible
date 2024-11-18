@@ -1,0 +1,12 @@
+---
+# tasks file for install_iscsi
+- name: install iscsi server
+  apt_rpm:
+    update_cache: yes
+    package:
+      - htop
+      - mc
+      - iftop
+      - scsitarget-utils
+  become: "{{ 'no' if ansible_user == 'root' else 'yes' }}"
+  become_method: sudo

@@ -1,0 +1,40 @@
+---
+
+- name: Настройка узлов кластера
+  block:
+    - import_tasks: Install_Keepalived.yaml
+    - import_tasks: Install_HAProxy.yaml
+  when: inventory_hostname in pve.srv
+
+# - name:
+  # block:
+
+  # - name: Инсталляция PVE сервера
+    # apt_rpm:
+      # pkg:
+        # - pve-manager
+        # - postfix
+        # - control-sshd-permit-root-login
+        # - kernel-modules-xtables-addons-un-def
+        # - kernel-modules-zfs-un-def
+        # - zfs-utils
+        # - alt-issue-server-pve
+        # - pve-backup-restore-image
+        # - openvswitch
+        # - bridge-utils
+        # - ceph-osd
+        # - ceph-mon
+        # - ceph-mgr
+        # - ceph-mgr-zabbix
+        # - ceph-mgr-prometheus
+        # - ceph-mgr-dashboard
+        # - ceph-mgr-influx
+        # - ceph-mgr-restful
+        # - ceph-mgr-telegraf
+      # update_cache: yes
+
+  # - name: Перезагрузка ОС
+    # reboot:
+      # msg: 'Reboot'
+
+...

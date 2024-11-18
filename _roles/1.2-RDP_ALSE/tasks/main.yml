@@ -1,0 +1,242 @@
+---
+- name: Конфигурирование RDP серверов
+  block:
+
+  - name: Проверка наличия файла '/etc/xrdp/xrdp.ini'
+    stat:
+      path: /etc/xrdp/xrdp.ini
+    register: rdp_result
+    when: inventory_hostname in rdp.srv
+
+  - name: Создания сервера RDP
+    block:
+
+    - name: Установка DHCP сервера
+      apt:
+        update_cache: yes
+        name:
+        - xrdp
+        - xorgxrdp
+        state: latest
+
+    - name: Внесение изменений в файл '/etc/xrdp/xrdp.ini'
+      lineinfile:
+        dest: /etc/xrdp/xrdp.ini
+        regexp: fork=true
+        line: fork=false
+
+    - name: Перезагрузка сервиса 'xrdp' 
+      service:
+        name: xrdp
+        state: restarted
+        enabled: yes
+
+    when: not rdp_result.stat.exists
+
+  # - name: Проверка наличия файла '/etc/apache2-preseeds/sites-available/000-default.conf'
+    # stat:
+      # path: /etc/apache2-preseeds/sites-available/000-default.conf
+    # register: apache_result
+
+  # - name: Настройка Apache2@preseeds
+    # block:
+
+    # - name: Получение версии 'PHP'
+      # shell: |
+        # apt-cache show php | grep Depends | awk '{print substr($2,4)}'
+      # register: tmp
+
+    # - name: Запись доступной версии 'PHP' в переменную 'php_version'
+      # set_fact:
+        # php_version: '{{ tmp.stdout_lines[0] }}'
+
+    # - name: Инсталляция сервера 'Apache'
+      # apt:
+        # name:
+        # - apache2
+        # - libapache2-mod-php{{ php_version }}
+        # state: latest
+        # update_cache: yes
+
+    # - name: Удаление папок и файлов 'Apache2@preseeds'
+      # shell: '{{ item }}'
+      # with_items:
+        # - rm -rf /etc/apache2-preseeds
+        # - rm -rf /var/log/apache2-preseeds
+        # - rm -f /usr/local/sbin/*preseeds
+
+    # - name: Модифицируем файлы конфигурации 'Apache2@preseeds'
+      # shell: |
+        # sed -i "s/zero_if_notfound: no/zero_if_notfound: yes/g" /etc/parsec/mswitch.conf
+        # sh /usr/share/doc/apache2/examples/setup-instance preseeds
+        # sed -i "s/# AstraMode on/AstraMode off/g" /etc/apache2-preseeds/apache2.conf
+        # sed -i "s/Listen 80/Listen {{ pxe.port }}/g" /etc/apache2-preseeds/ports.conf
+        # sed -i "s/;date.timezone =/date.timezone = {{ ntp.timezone }}/g" /etc/php/{{ php_version }}/apache2/php.ini
+        # sed -i "s/post_max_size = 8M/post_max_size = 32M/g" /etc/php/{{ php_version }}/apache2/php.ini
+        # sed -i "s/max_execution_time = 30/max_execution_time = 300/g" /etc/php/{{ php_version }}/apache2/php.ini
+        # sed -i "s/max_input_time = 60/max_input_time = 300/g" /etc/php/{{ php_version }}/apache2/php.ini
+
+    # - name: Очистка файла '/etc/apache2-preseeds/sites-available/000-default.conf'
+      # file:
+        # path: /etc/apache2-preseeds/sites-available/000-default.conf
+        # state: '{{ item }}'
+      # with_items:
+        # - absent
+        # - touch
+
+    # - name: Добавление виртуального сервера
+      # blockinfile:
+        # dest: /etc/apache2-preseeds/sites-available/000-default.conf
+        # marker: '### preseeds ###'
+        # block: |
+          # <VirtualHost {{ hostvars[pxe.srv].ansible_ssh_host }}:{{ pxe.port }}>
+            # ServerName {{pxe.srv}}.{{ domain }}
+            # ServerAlias preseeds
+            # ServerAdmin webmaster@localhost
+            # DocumentRoot /var/www/preseeds
+          # </VirtualHost>
+
+    # - name: Создание папки с конфигурациями '/var/www/preseeds'
+      # file:
+        # state: directory
+        # path: '/var/www/preseeds'
+
+    # - name: Перезапуск службы 'Apache2@preseeds'
+      # service:
+        # name: apache2@preseeds
+        # enabled: yes
+        # state: restarted
+
+    # when: not apache_result.stat.exists
+
+  # - name: Создания сервера PXE (ALSE 1.6 1.7)
+    # block:
+
+    # - name: Проверка наличия файла '/srv/tftp/linux'
+      # stat:
+        # path: /srv/tftp/linux
+      # register: linux_result
+
+    # - name: Создания сервера PXE
+      # block:
+  
+      # - name: Установка пакетов для PXE сервера
+        # apt:
+          # name:
+          # - pxelinux
+          # - syslinux
+          # - tftpd-hpa
+          # state: latest
+          # update_cache: yes
+
+      # - name: Копирование файлов загрузчиков Legacy
+        # shell: |
+          # cp /srv/repo/{{ _repo.name_iso[0] }}/netinst/{initrd.gz,pxelinux.0,linux} /srv/tftp/
+          
+      # - name: Копирование файлов загрузчика UEFI
+        # unarchive:
+          # src: netinst.tar.gz
+          # dest: /srv/tftp
+          # mode: '0777'
+
+      # - name: Копирование ISO образа LiveCD AstraLinux
+        # copy:
+          # src: '../../../../../iso/AstraLinux/{{ ansible_facts.lsb.release }}/{{ _repo.live_cd }}.iso'
+          # dest: '/srv/iso/'
+          # force: no
+
+      # - name: Создание папок '/srv/repo/{{ _repo.live_cd }}'
+        # file:
+          # state: directory
+          # path: '/srv/repo/{{ _repo.live_cd }}'
+          # mode: 0755
+        # ignore_errors: yes
+
+      # - name: Монтирование образов ОС
+        # mount:
+          # path: '/srv/repo/{{ _repo.live_cd }}'
+          # src: '/srv/iso/{{ _repo.live_cd }}.iso'
+          # fstype: iso9660
+          # opts: ro,auto
+          # state: mounted
+
+      # - name: Создание папки '/srv/tftp/live'
+        # file:
+          # state: directory
+          # path: '/srv/tftp/live'
+          # mode: 0755
+        # ignore_errors: yes
+
+      # - name: Копирование файлов загрузчиков LiveCD
+        # shell: |
+          # cp /srv/repo/{{ _repo.live_cd }}/live/initrd.img-*-generic /srv/tftp/live/initrd-live
+          # cp /srv/repo/{{ _repo.live_cd }}/live/vmlinuz-*-generic /srv/tftp/live/vmlinuz-live
+
+      # - name: Удаление лишних строк из файла '/srv/tftp/debian-installer/amd64/grub/grub.cfg'
+        # shell: |
+          # cd /srv/tftp/debian-installer/amd64/grub/
+          # sed '1,20! d' grub.cfg > grub.new
+          # mv grub.new grub.cfg
+
+      # - name: Добавление в меню PXE загрузчика UEFI LiveCD
+        # blockinfile:
+          # path: /srv/tftp/debian-installer/amd64/grub/grub.cfg
+          # state: present
+          # block: |
+            ## Запуск ALSE Смоленск LiveCD ###
+            # menuentry 'Start ALSE Smolensk LiveCD' {
+              # set background_color=black
+              # linux /live/vmlinuz-live fetch=http://{{ hostvars[repo.srv].ansible_ssh_host }}:{{ repo.port }}/{{ _repo.live_cd }}/live/filesystem.squashfs boot=live noautologin nox11autologin components username=astra-live locales=en_US.UTF-8,ru_RU.UTF8 keyboard-layout=us,ru keyboard-variants=, keyboard-options=grp:ctrl_shift_toggle,grp_led:scroll
+              # initrd /live/initrd-live
+            # }
+          # marker: "###"
+
+      # - name: Создание файлов с конфигурациями серверов
+        # template:
+          # src: preseed_srv.cfg.j2
+          # dest: '/var/www/preseeds/{{ item }}.cfg'
+          # mode: 0444
+        # loop: "{{ groups['srv'] }}"
+
+  
+      # - name: Модификация файлов 'preseed.cfg'
+        # shell: |
+          # VAR_IP={{ hostvars[item].ansible_ssh_host }}
+          # VAR_SED=s/127.127.127.127/$VAR_IP/g
+          # sed -i "$VAR_SED" /var/www/preseeds/{{ item }}.cfg
+        # loop: "{{ query('inventory_hostnames', 'all') }}"
+
+      # - name: Создание меню PXE загрузчика UEFI
+        # blockinfile:
+          # path: /srv/tftp/debian-installer/amd64/grub/grub.cfg
+          # state: present
+          # block: |
+            ## Установка ALSE Смоленск на хост {{ item }}.{{ domain }} ###
+            # menuentry 'Install ALSE Smolensk {{ item }}.{{ domain }}' {
+              # set background_color=black
+              # linux linux modprobe.blacklist=evbug debian-installer/allow_unauthenticated=true auto=true priority=critical debian-installer/locale=en_US console-keymaps-at/keymap=ru hostname=alse domain={{ domain }} astra-license/license=true url=http://{{ hostvars[pxe.srv].ansible_ssh_host }}:{{ pxe.port }}/{{ item }}.cfg interface=auto netcfg/dhcp_timeout=60 network-console/enable=false nomodeset
+              # initrd initrd.gz
+            # }
+          # marker: "###"
+        # loop: "{{ query('inventory_hostnames', 'all') }}"
+
+      # - name: Перезапуск службы 'tftpd-hpa'
+        # service:
+          # name: 'tftpd-hpa'
+          # state: restarted
+          # enabled: yes
+
+      # when: not linux_result.stat.exists
+
+    # when: ansible_facts.lsb.release == '1.6' or ansible_facts.lsb.release == '1.7_x86-64'
+
+
+
+
+
+
+
+
+  when: inventory_hostname in rdp.srv
+
+...

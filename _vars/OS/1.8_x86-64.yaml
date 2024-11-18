@@ -1,0 +1,16 @@
+---
+
+####################
+### 0.2-Repo     ###
+####################
+_repo:
+  name_iso:
+  - installation-1.8.0.14-25.03.2024_19.45
+  #- extended-1.8.0.14-25.03.2024_19.45
+  #- devel-1.8.0.14-25.03.2024_19.45
+  dist: 1.8_x86-64
+  res: contrib main non-free non-free-firmware
+  build: 1.8.0.14
+  kernel: 5.15.0-33-generic
+
+...

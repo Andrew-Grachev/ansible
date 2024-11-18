@@ -1,0 +1,26 @@
+---
+
+- name: Получение количества элементов в списке 'masters'
+  set_fact:
+    masters_length: "{{ k8s.masters | length }}"
+
+- name: Вывод количества элементов в списке 'masters'
+  debug:
+    msg: "masters_length: {{ masters_length }}"
+
+- name: Получение количества элементов в списке 'workers'
+  set_fact:
+    workers_length: "{{ k8s.workers | length }}"
+
+- name: Вывод количества элементов в списке 'workers'
+  debug:
+    msg: "workers_length: {{ workers_length }}"
+
+- name: Снимаем метку "отталкивания" подов
+  shell: |
+    kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+  when:
+  - masters_length == '1'
+  - workers_length == '0'
+
+...

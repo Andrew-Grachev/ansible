@@ -1,0 +1,130 @@
+---
+
+- name: Проверка наличия '/etc/kubernetes'
+  stat:
+    path: /etc/kubernetes
+  register: kubernetes_result
+  ignore_errors: yes
+
+- name: Установка 'kubernetes'
+  block:
+
+  - name: Установка вспомогательных пакетов
+    dnf:
+      update_cache: true
+      name:
+      - python3-pip
+      - python3-kubernetes
+      - bind-utils
+      - curl
+      - htop
+      - iftop
+      - git
+      - wget
+      - net-tools
+
+  - name: Установка модулей Python
+    pip:
+      executable: pip3
+      extra_args: --no-warn-script-location
+      name:
+      - ansible
+      - ansible-core
+      - ansible-lint
+      - kubernetes
+      - collection
+      - docker
+
+  - name: Создаем файл '/etc/yum.repos.d/kubernetes.repo'
+    file:
+      path: /etc/yum.repos.d/kubernetes.repo
+      mode: 0644
+      state: touch
+
+  - name: Добавление репозитория 'Kubernetes v{{ k8s.ver }}'
+    blockinfile:
+      path: /etc/yum.repos.d/kubernetes.repo
+      block: |
+        [kubernetes]
+        name=Kubernetes
+        baseurl=https://pkgs.k8s.io/core:/stable:/v{{ k8s.ver }}/rpm/
+        enabled=1
+        gpgcheck=1
+        gpgkey=https://pkgs.k8s.io/core:/stable:/v{{ k8s.ver }}/rpm/repodata/repomd.xml.key
+        exclude=kubelet kubeadm kubectl cri-o cri-tools kubernetes-cni
+
+  - name: Обновление репозиториев
+    dnf:
+      update_only: true
+      update_cache: true
+
+  - name: Установка 'Kubernetes v{{ k8s.ver }}'
+    dnf:
+      update_cache: true
+      state: present
+      name:
+      - kubelet
+      - kubeadm
+      - kubectl
+      - cri-o
+      - cri-tools
+      - containerd
+      disable_excludes: all
+      exclude: kubernetes
+
+  - name: Запуск службы 'Сri-O'
+    service: 
+      name: crio
+      state: restarted
+      enabled: yes
+
+  - name: Запуск службы 'kubelet'
+    service: 
+      name: kubelet
+      state: restarted
+      enabled: yes
+
+  - name: Инсталляция диспетчера пакетов 'Helm v3.16.1'
+    shell: |
+      wget https://get.helm.sh/helm-v3.16.1-linux-amd64.tar.gz
+      tar xvf helm-v3.16.1-linux-amd64.tar.gz
+      mv linux-amd64/helm /usr/local/bin
+      rm helm-v3.16.1-linux-amd64.tar.gz
+      rm -rf linux-amd64
+    when: inventory_hostname in k8s.masters
+
+  when: not kubernetes_result.stat.exists
+
+...
+
+  # - name: Перезагрузка ОС
+    # reboot:
+      # msg: 'Reboot'
+
+  # - name: Установка 'Kubernetes'
+    # dnf:
+      # update_cache: true
+      # state: present
+      # name:
+      # - kubernetes
+      # - kubernetes-kubeadm
+      # - cri-o
+      # - cri-tools
+
+  # - name: Настройте проброс портов в 'iptables'
+    # shell: |
+      # iptables -P FORWARD ACCEPT
+
+  # - name: Установите настройки по умолчанию для конфигурации контейнера
+    # shell: |
+      # sed -i '/^\[crio\.runtime\]/a seccomp_profile = "\/etc\/containers\/policy.json"' /etc/crio/crio.conf
+
+  # - name: Настройка имени домена в конфигурации 'kubelet'
+    # shell: sed -i "s/--cluster-domain=cluster.local/--cluster-domain={{ domain }}/" /etc/systemd/system/kubelet.service.d/kubeadm.conf
+
+  # - name: Настройка типа авторизации в конфигурации 'kubelet'
+    # shell: sed -i "s/KUBELET_AUTHZ_ARGS=--authorization-mode=Webhook/KUBELET_AUTHZ_ARGS=--authentication-token-webhook=true --authorization-mode=Webhook/" /etc/systemd/system/kubelet.service.d/kubeadm.conf
+
+
+
+

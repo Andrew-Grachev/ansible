@@ -1,0 +1,13 @@
+---
+
+- name:
+  block:
+
+  - name: Удалить  испорченный 'мастер', чтобы разрешить выполнение рабочих нагрузок на главном сервере
+    shell: "kubectl taint nodes --all node-role.kubernetes.io/control-plane-"
+    when: not worker_nodes
+    ignore_errors: yes
+  
+  when: single_node|bool
+
+...

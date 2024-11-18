@@ -1,0 +1,43 @@
+---
+- name: Create namespace for ingress-nginx
+  tags: ['common','ns']
+  k8s:
+    kubeconfig: "/home/{{ local_admin }}/.kube/config"
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: ingress-nginx
+    state: present
+
+- name: Install ingress-nginx
+  k8s:
+    state: present
+    force: no
+    kubeconfig: "/home/{{ local_admin }}/.kube/config"
+    definition: "{{ lookup('template', '{{ role_path }}/files/ingress.yaml') }}"
+
+- name: Label nodes
+  k8s:
+    state: present
+    force: no
+    kubeconfig: "/home/{{ local_admin }}/.kube/config"
+    definition:
+      apiVersion: v1
+      kind: Node
+      metadata:
+        name: "{{ item }}"
+        labels:
+          node-role.kubernetes.io/ingress: ""
+  with_items: "{{ ingress_nodes }}"
+  
+- name: Remove webhook
+  k8s:
+    state: absent
+    force: no
+    kubeconfig: "/home/{{ local_admin }}/.kube/config"
+    definition:
+      apiVersion: admissionregistration.k8s.io/v1
+      kind: ValidatingWebhookConfiguration
+      metadata:
+        name: ingress-nginx-admission

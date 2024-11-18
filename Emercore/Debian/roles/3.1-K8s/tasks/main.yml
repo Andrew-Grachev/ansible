@@ -1,0 +1,49 @@
+---
+
+- name: Настройка хостов
+  block:
+    - import_tasks: Configure_kernel.yml
+    - import_tasks: Install_Keepalived.yml
+    - import_tasks: Install_Kubernetes.yml
+  when: inventory_hostname in k8s.masters or inventory_hostname in k8s.workers
+
+- name: Создание кластера
+  block:
+    - import_tasks: K8s_Add_Cluster.yml
+    - import_tasks: K8s_Add_Network.yml
+ 
+  when: inventory_hostname == k8s.masters[0]
+
+- name: Регистрация Masters
+  include_tasks: K8s_Add_Master.yml
+  with_items: '{{ k8s.masters }}'
+  when: inventory_hostname == k8s.masters[0]
+
+- name: Регистрация Workers
+  include_tasks: K8s_Add_Worker.yml
+  with_items: '{{ k8s.workers }}'
+  when: inventory_hostname == k8s.masters[0]
+
+- name: Настройка кластера
+  block:
+    - import_tasks: K8s_Add_NodeLocalDNS.yml
+    # - import_tasks: K8s_Add_Provisioners_LVM.yml
+    # - import_tasks: K8s_Add_Provisioners_NFS.yml
+    - import_tasks: Staff_Operator_Postgres.yml
+    # - import_tasks: Staff_Operator_Redis.yml
+    # - import_tasks: Staff_Operator_Rabbitmq.yml
+    # - import_tasks: Staff_Logging.yml
+    # - import_tasks: Staff_Monitoring.yml
+
+    # - import_tasks: Staff_Dashboard.yml
+  when: inventory_hostname == k8s.masters[0]
+
+# - import_tasks: K8s_untain_master.yml 
+# - import_tasks: K8s_Add_Provisioners_LVM_sanlock
+...
+# watch kubectl get pods -A -o wide
+# watch kubectl get nodes -A
+# kubectl exec -it <pod-name> -n <namespace> -- sh
+
+https://github.com/astefanutti/kubebox
+https://k8slens.dev/download

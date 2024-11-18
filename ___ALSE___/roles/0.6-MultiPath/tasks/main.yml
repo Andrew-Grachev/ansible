@@ -1,0 +1,46 @@
+---
+
+- name: Выполняем только для группы 'srv' - сервера
+  block:
+
+  - name: Проверка наличия файла '/etc/multipath.conf'
+    stat:
+      path: /etc/multipath.conf
+    register: multipath_result
+    ignore_errors: yes
+
+  - name: Установка 'multipath-tools'
+    block:
+
+    - name: Установка пакета 'multipath-tools'
+      apt:
+        name: multipath-tools
+        state: latest
+        update_cache: yes
+
+    - name: Создание файла конфигурации '/etc/multipath.conf'
+      copy:
+        src: multipath.j2
+        dest: /etc/multipath.conf
+        follow: yes
+
+    - name: Перезагрузка ОС
+      reboot:
+        msg: "Reboot"
+
+    when: not multipath_result.stat.exists
+
+  - name: Создание скрипта '/tmp/multipath.sh'
+    copy:
+      src: multipath.sh.j2
+      dest: /tmp/multipath.sh
+      mode: 0777
+      owner: root
+      follow: yes
+
+  - name: Запуск скрипта '/tmp/multipath.sh'
+    command: /tmp/multipath.sh
+
+  when: inventory_hostname in groups['srv']
+
+...

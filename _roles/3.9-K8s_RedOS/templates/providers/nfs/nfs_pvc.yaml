@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-provisioner-pvc
+  namespace: "{{ k8s.nfs_provisioner.namespace }}"
+  labels:
+    app: nfs-provisioner
+spec:
+  storageClassName: "{{ k8s.rwo_sc }}""
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage:  "{{ k8s.nfs_provisioner.disk_size }}"
+  volumeMode: Filesystem

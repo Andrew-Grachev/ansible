@@ -1,0 +1,36 @@
+---
+
+- name: Выполняется только на клиентах FreeIPA
+  block:
+
+  - name: Проверка наличия файла '/etc/ipa/default.conf'
+    stat:
+      path: /etc/ipa/default.conf
+    register: freeipa_result
+
+  - name: Регистрация клиентов домена FreeIPA
+    block:
+
+    - name: Установка пакетов необходимых для подключения к контроллеру домена FreeIPA
+      apt:
+        name:
+        - fly-admin-freeipa-client
+        - astra-freeipa-client
+        state: latest
+
+    - name: Удаление лишних пакетов
+      apt:
+        autoremove: yes
+
+    - name: Подключение к домену FreeIPA
+      shell: astra-freeipa-client -d {{ domain }} -u admin -p {{ pass.admin }} -y
+
+    - name: Перезагрузим хост
+      reboot:
+        msg: 'Reboot'
+
+    when: not freeipa_result.stat.exists
+
+  when: inventory_hostname != freeipa.srv
+
+...

@@ -1,0 +1,47 @@
+---
+
+- name: Чтение статуса часового пояса
+  shell: "timedatectl | grep 'Time zone'  | awk '{print  $3'}"
+  register: timezone_status
+
+- name: Установка часового пояса '{{ ntp.timezone }}'
+  timezone:
+    name: '{{ ntp.timezone }}'
+  when: timezone_status.stdout != ntp.timezone
+
+- name: Чтение статуса конфигурирования NTP клиента
+  shell: cat /etc/ntp.conf | grep '{{ ntp.ntp }}'
+  register: ntp_client_status
+  ignore_errors: yes
+
+- name: Настройка NTP клиента
+  block:
+
+  - name: Инсталляция пакета 'ntpsec'
+    dnf:
+      name:
+      - ntpsec
+
+  - name: Создание файла '/etc/ntp.conf'
+    template:
+      src: ntp_c.j2
+      dest: /etc/ntp.conf
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Перезапуск службы NTP
+    service:
+      name: ntpd
+      enabled: yes
+      state: restarted
+
+  - name: Синхронизация времени
+    shell: |
+      ntpdate {{ ntp.ntp }}
+      hwclock --systohc --utc
+      timedatectl set-local-rtc true
+
+  when: ntp_client_status.stdout == ''
+
+...

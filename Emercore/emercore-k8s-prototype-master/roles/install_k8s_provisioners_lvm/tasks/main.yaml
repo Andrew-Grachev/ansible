@@ -1,0 +1,41 @@
+---
+- name: Create namespace for LVM provisioner
+  tags: ['common','ns']
+  kubernetes.core.k8s:
+    kubeconfig: "~/.kube/config"
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ lvm_provisioner_namespace }}"
+        labels:
+          pod-security.kubernetes.io/enforce: privileged
+    state: present
+
+- name: Create LVM provisioner CSIDriver
+  kubernetes.core.k8s:
+    state: present
+    force: no
+    kubeconfig: "~/.kube/config"
+    definition: "{{ lookup('template', '{{ role_path }}/files/lvm_common.yaml') }}"
+
+- name: Create LVM provisioner controller deployment
+  kubernetes.core.k8s:
+    state: present
+    force: no
+    kubeconfig: "~/.kube/config"
+    definition: "{{ lookup('template', '{{ role_path }}/files/lvm_controller.yaml') }}"
+
+- name: Create LVM provisioner plugin deployment
+  kubernetes.core.k8s:
+    state: present
+    force: no
+    kubeconfig: "~/.kube/config"
+    definition: "{{ lookup('template', '{{ role_path }}/files/lvm_plugin.yaml') }}"
+
+- name: Create LVM provisioner StorageClass
+  kubernetes.core.k8s:
+    state: present
+    force: no
+    kubeconfig: "~/.kube/config"
+    definition: "{{ lookup('template', '{{ role_path }}/files/lvm_storageclass.yaml') }}"

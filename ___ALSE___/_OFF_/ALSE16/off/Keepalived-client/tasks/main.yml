@@ -1,0 +1,76 @@
+---
+#- name: Чтение версии установленного ПО
+#  shell: cat /opt/distr/software.conf | grep Keepalived-client
+#  register: version
+#  ignore_errors: yes
+
+- name: Инсталляция необходимых пакетов для клиентов
+  apt:
+    name:
+     - libpam-mount
+     - cifs-utils
+#     - nfs-common
+#     - autofs
+    state: latest
+#  when: version.stdout != relis
+
+#- name: Cоздание папки /etc/auto.master.d
+#  file:
+#    path: '/etc/auto.master.d'
+#    state: directory
+#    mode: '0755'
+#  when: version.stdout != relis
+
+- name: Cоздание папок для монтирования SHD
+  file:
+    path: '{{item}}'
+    state: directory
+    mode: '0755'
+  with_items:
+    - '/opt/vit_data'
+    - '/opt/vit_data/shd_smb'
+#    - '/opt/vit_data/shd_nfs'
+#  when: version.stdout != relis
+
+- name: Установка мандатных прав на папки
+  shell: '{{item}}'
+  with_items:
+   - chmod 777 /opt/vit_data/shd_smb -R
+   - pdpl-file 3:0:-1:CCNRA /opt
+   - pdpl-file 3:0:-1:CCNRA /opt/vit_data
+   - pdpl-file 3:0:-1:CCNRA /opt/vit_data/shd_smb
+  when: version.stdout != relis
+
+#- name: Создание файла /etc/auto.master.d/shd_files.autofs
+#  copy:
+#    src: '{{ ansible_ssh_host.split(".")[2] }}/shd_files.autofs'
+#    dest: '/etc/auto.master.d/'
+#    follow: yes
+#  when: version.stdout != relis
+
+#- name: Создание файла /etc/auto.master.d/shd_files.nfs
+#  copy:
+#    src: '{{ ansible_ssh_host.split(".")[2] }}/shd_files.nfs'
+#    dest: '/etc/auto.master.d/'
+#    follow: yes
+#  when: version.stdout != relis
+
+- name: Создание файла  /etc/security/pam_mount.conf.xml
+  copy:
+    src: '{{ ansible_ssh_host.split(".")[2] }}/pam_mount.conf.xml'
+    dest: '/etc/security/pam_mount.conf.xml'
+    follow: yes
+#  when: version.stdout != relis
+
+#- name: Перезапуск службы autofs
+#  service:
+#    name: autofs
+#    enabled: yes
+#    state: restarted
+#  when: version.stdout != relis
+
+#- name: Запишем новую версию ПО (Update)
+#  become: true
+#  shell: "sed -i '/Keepalived-client/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
+#  when: version.stdout != relis
+#  ignore_errors: yes

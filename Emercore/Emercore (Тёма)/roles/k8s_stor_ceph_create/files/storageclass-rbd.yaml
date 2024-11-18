@@ -1,0 +1,33 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: rbd
+provisioner: rbd.csi.ceph.com
+parameters:
+   clusterID: 87874a0a-ad97-467f-8214-b4aa422699b7
+   pool: kube
+
+   # Set thickProvision to true if you want RBD images to be fully allocated on
+   # creation (thin provisioning is the default).
+   thickProvision: "false"
+   imageFeatures: layering
+
+   csi.storage.k8s.io/provisioner-secret-name: csi-rbd-secret
+   csi.storage.k8s.io/provisioner-secret-namespace: ceph
+   csi.storage.k8s.io/controller-expand-secret-name: csi-rbd-secret
+   csi.storage.k8s.io/controller-expand-secret-namespace: ceph
+   csi.storage.k8s.io/node-stage-secret-name: csi-rbd-secret
+   csi.storage.k8s.io/node-stage-secret-namespace: ceph
+
+   csi.storage.k8s.io/fstype: ext4
+
+   # (optional) Use external key management system for encryption passphrases by
+   # specifying a unique ID matching KMS ConfigMap. The ID is only used for
+   # correlation to configmap entry.
+   # encryptionKMSID: <kms-config-id>
+
+
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+mountOptions:
+   - discard

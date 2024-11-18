@@ -1,0 +1,21 @@
+---
+- hosts: master01
+  remote_user: "{{ local_admin }}"
+  name: Сборка K8s кластера
+  roles:
+    - 01-conf_sysctl
+    - 02-install_kubernetes
+    - 03-add_k8s_cluster
+    - 04-add_k8s_network
+    - 05-untain_master
+    - 06-install_k8s_nodelocaldns
+    - 07-install_k8s_provisioners_lvm
+    - 08-install_k8s_provisioners_lvm_sanlock
+    - 09-install_k8s_provisioners_nfs
+    - 10-install_helm
+    - 11-staff_operator_postgres
+    - 12-staff_monitoring
+    - 13-staff_logging
+    - 14-staff_operator_rabbitmq
+    - 15-staff_operator_redis
+

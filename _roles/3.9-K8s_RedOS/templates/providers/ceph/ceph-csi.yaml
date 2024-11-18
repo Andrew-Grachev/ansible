@@ -1,0 +1,15 @@
+---
+
+csiConfig:
+  - clusterID: 087a538d-b5bc-47c5-ebc6c8162e63
+    monitors:
+      - "192.168.1.207:6789"
+      - "192.168.1.208:6789"
+      - "192.168.1.209:6789"
+
+storageClass:
+  clusterID: 087a538d-b5bc-47c5-ebc6c8162e63
+
+secret:
+  userID: kubernetes
+  userKey: EREREceerERRERrererREERERrererERER==

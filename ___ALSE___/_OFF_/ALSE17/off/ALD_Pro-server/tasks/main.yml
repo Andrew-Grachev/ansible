@@ -1,0 +1,22 @@
+---
+- name: Чтение версии установленного ПО
+  shell: cat /opt/distr/software.conf | grep ALD_Pro-server
+  register: version
+  ignore_errors: yes
+
+- name: Установка первого контроллера домена
+  shell: "DEBIAN_FRONTEND=noninteractive apt-get install -q -y aldpro-mp"
+  when: version.stdout != relis
+
+- name: Настройка первого контроллера домена
+  shell: /opt/rbta/aldpro/mp/bin/aldpro-server-install.sh -d {{ domain }} -n {{ inventory_hostname }} -p {{ pwdadmin }} --ip {{ ansible_ssh_host }} --no-reboot
+  when: version.stdout != relis
+
+- name: Перезагрузим хост
+  reboot:
+    reboot_timeout=300
+  when: version.stdout != relis
+
+- name: Запишем новую версию ПО (Update)
+  shell: "sed -i '/ALD_Pro-server/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
+  when: version.stdout != relis

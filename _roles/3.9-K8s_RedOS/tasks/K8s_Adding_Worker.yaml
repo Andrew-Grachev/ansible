@@ -1,0 +1,47 @@
+---
+
+- name: Ping хоста '{{ item }}'
+  shell: 'ping -c 1 {{ hostvars[item].ansible_ssh_host }} | grep Unreachable'
+  register: ping_result
+  ignore_errors: yes
+  
+- name: Хост доступен
+  block:
+
+  - name: Чтение статуса регистрации хоста '{{ item }}'
+    shell: kubectl get nodes -A | grep '{{ item }}'
+    register: status_reg
+    delegate_to: '{{ k8s.masters[0] }}'
+    become: false
+    ignore_errors: true
+
+  - name: Хост не зарегистрирован
+    block:
+
+    - name: Получение хеша SSL ключа
+      shell: openssl x509 -in /etc/kubernetes/pki/ca.crt -pubkey -noout | openssl pkey -pubin -outform DER | openssl dgst -sha256 | awk '{print $2}'
+      register: k8s_certificate_hash
+    
+    - name: Получение токена кластера Kubernetes
+      shell: kubeadm token create
+      register: k8s_join_token
+
+    - name: Создание 'config.yaml'
+      template:
+        src: config.yaml.j2
+        dest: '/tmp/config.yaml'
+      delegate_to: '{{ item }}'
+       
+    - name: Получение 'config.yaml'
+      shell: kubeadm config images pull --config /tmp/config.yaml
+      delegate_to: '{{ item }}'
+    
+    - name: Добавление воркера в кластер Kubernetes
+      shell: "kubeadm join {{ k8s.keepalived_IP }}:6443 --token {{ k8s_join_token.stdout }} --discovery-token-ca-cert-hash sha256:{{ k8s_certificate_hash.stdout }}"
+      delegate_to: '{{ item }}'
+    
+    when: status_reg.stdout == ''
+
+  when: ping_result.stdout == ''
+
+...

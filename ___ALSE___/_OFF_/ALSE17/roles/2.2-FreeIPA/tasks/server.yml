@@ -1,0 +1,36 @@
+---
+
+- name: Выполняется только на контроллере домена FreeIPA
+  block:
+
+  - name: Проверка наличия файла '/etc/ipa/dnssec/softhsm2.conf'
+    stat:
+      path: /etc/ipa/dnssec/softhsm2.conf
+    register: dnssec_result
+
+  - name: Создание контроллера домена FreeIPA
+    block:
+
+    - name: Установка пакетов необходимых для создания контроллера домена FreeIPA
+      apt:
+        name:
+        - fly-admin-freeipa-server
+        - astra-freeipa-server
+        state: latest
+
+    - name: Удаление лишних пакетов
+      apt:
+        autoremove: yes
+
+    - name: Инициализация домена FreeIPA
+      shell: astra-freeipa-server -d {{ domain }} -n {{ inventory_hostname }} -p {{ freeipa.pass }} -ip {{ ansible_ssh_host }} -o -y
+
+    - name: Перезагрузка сервера
+      reboot:
+        msg: 'Reboot'
+
+    when: not dnssec_result.stat.exists
+
+  when: inventory_hostname == freeipa.srv
+
+...

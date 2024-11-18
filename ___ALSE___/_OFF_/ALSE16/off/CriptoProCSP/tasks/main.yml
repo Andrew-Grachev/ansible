@@ -1,0 +1,43 @@
+---
+- name: CriptoProCSP | Создадим файл версий установленного ПО
+  file:
+    path: /etc/software.conf
+    state: touch
+
+- name: CriptoProCSP | Чтение версии установленного ПО
+  shell: cat /etc/software.conf | grep CriptoProCSP
+  register: version
+  ignore_errors: yes
+  
+- name: CriptoProCSP | Копируем исталяционные файлы
+  copy:
+    src: './files/CriptoProCSP'
+    dest: /tmp/
+    mode: '0777'
+    force: no
+  when: version.stdout != relis
+  
+#- name: CriptoProCSPuninstall
+#  shell: 'cd /tmp/CriptoProCSP/ && ./uninstall.sh'
+#  when: version.stdout != relis
+
+#- name: CriptoProCSPinstall
+#  shell: 'cd /tmp/CriptoProCSP/ && ./install.sh'
+#  when: version.stdout != relis
+ 
+- name: CriptoProCSP | Установка лицензии
+  shell: 'cd /opt/cprocsp/sbin/amd64/ && ./cpconfig -license -set 50508-50000-01XB2-FN0K5-3GEV9'
+  when: version.stdout != relis
+  
+- name: CriptoProCSP | Запишем версию ПО если ее не разу не было (Install)
+  become: true
+  shell: "echo '{{ relis }}' >> /etc/software.conf"
+  when: version.stdout == ""
+  ignore_errors: yes
+
+- name: CriptoProCSP | Запишем новую версию ПО (Update)
+  become: true
+  shell: "sed -i 's/{{version.stdout}}/{{ relis }}/g' /etc/software.conf"
+  when: version.stdout != relis
+  ignore_errors: yes
+

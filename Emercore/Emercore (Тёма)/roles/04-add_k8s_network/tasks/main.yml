@@ -1,0 +1,51 @@
+---
+
+- name: Чтение статуса плагина
+  shell: kubectl get pods -n kube-system | grep 'calico-node' | grep 'Running'
+  register: status_calico
+  become: false
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: Устанавливаем сетевой плагин 'Calico with BGP'
+    kubernetes.core.k8s:
+      state: present
+      force: true
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition: "{{ lookup('template', 'services/network/kube-calico-bgp.yaml') }}"
+
+  - name: Устанавливаем 'calicoctl (3.26.1)'
+    shell: |
+      curl -L https://github.com/projectcalico/calico/releases/download/v3.26.1/calicoctl-linux-amd64 -o calicoctl
+      chmod +x calicoctl
+      mv -f calicoctl /usr/local/bin
+      mkdir /etc/calico
+
+  when: status_calico.stdout == ''
+
+...
+
+# https://www.youtube.com/watch?v=GRlMC-7qZv8
+
+# - name: Устанавливаем 'tigera-operator'
+  # kubernetes.core.k8s:
+    # state: present
+    # force: false
+    # kubeconfig: "/$HOME/.kube/config"
+    # definition: "{{ lookup('template', 'services/network/tigera-operator.yaml') }}"
+
+# - name: Устанавливаем 'calico with vxlan'
+  # kubernetes.core.k8s:
+    # state: present
+    # force: false
+    # kubeconfig: "/$HOME/.kube/config"
+    # definition: "{{ lookup('template', 'services/network/vxlan.yaml') }}"
+
+# - name: Устанавливаем 'flannel'
+  # kubernetes.core.k8s:
+    # state: present
+    # force: no
+    # kubeconfig: "/$HOME/.kube/config"
+    # definition: "{{ lookup('template', 'services/network/kube-flannel.yaml') }}"

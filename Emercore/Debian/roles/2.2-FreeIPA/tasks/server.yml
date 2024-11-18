@@ -1,0 +1,48 @@
+---
+
+- name: Выполняется только на контроллере домена FreeIPA
+  block:
+
+  - name: Проверка наличия файла '/etc/ipa/dnssec/softhsm2.conf'
+    stat:
+      path: /etc/ipa/dnssec/softhsm2.conf
+    register: dnssec_result
+
+  - name: Создание контроллера домена FreeIPA
+    block:
+
+    - name: Установка пакетов необходимых для создания контроллера домена FreeIPA
+      apt_rpm:
+        update_cache: true
+        package:
+        - freeipa-server
+        - freeipa-server-dns
+        state: present
+
+    - name: Инициализация домена FreeIPA
+      shell: ipa-server-install -U --hostname=$(hostname) -n {{ domain }} -r {{ domain | lower }} -p {{ pass.admin }} -a {{ pass.admin }} --setup-dns --auto-forwarders --auto-reverse
+
+    - name: Получить список сетевых интерфейсов
+      shell: |
+        ip link show | grep BROADCAST | awk '{print $2}' | sed 's/.$//'
+      register: device_list
+
+    - name: Создание массива сетевых интерфейсов
+      set_fact:
+        interfaces: "{{ device_list.stdout_lines | list }}"
+
+    - name: Модификация '/etc/net/ifaces/.../resolv.conf'
+      lineinfile:
+        path: '/etc/net/ifaces/{{ item }}/resolv.conf'
+        line: 'nameserver {{ hostvars[freeipa.srv].ansible_ssh_host }}'
+      with_items: "{{ interfaces }}"
+
+    - name: Перезагрузка сервера
+      reboot:
+        msg: 'Reboot'
+
+    when: not dnssec_result.stat.exists
+
+  when: inventory_hostname == freeipa.srv
+
+...
