@@ -1,8 +1,0 @@
-server {{ hostvars[ntp.srv].ansible_ssh_host }} iburst
-makestep 1.0 3
-rtcsync
-allow
-clientloglimit 100000000
-leapsectz right/UTC
-driftfile /var/lib/chrony/drift
-dumpdir /run/chrony

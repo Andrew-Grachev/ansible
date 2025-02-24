@@ -1,7 +1,0 @@
----
-
-- name: Перебор всех кластеров
-  include_tasks: step-1.yml
-  with_items: "{{ clusters }}"
-
-...

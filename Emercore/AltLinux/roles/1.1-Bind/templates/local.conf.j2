@@ -1,8 +1,0 @@
-include "/etc/bind/rfc1912.conf"
-
-zone "{{ domain }}" {
-{% if hostname == "{{ bind.srv[0] }}" %}        type master;
-{% else %}        type slave;
-{% endif %}
-        file "/var/lib/bind/zone/internal.domain.net ";
-};

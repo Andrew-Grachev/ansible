@@ -1,7 +1,0 @@
-#!/bin/bash
-
-sudo ipa-adtrust-install --add-sids --add-agents  -a {{ freeipa.pass }}  --netbios-name={{ domain.split(".")[0] | upper }}<<-EOF
-yes
-yes
-
-EOF

@@ -1,7 +1,0 @@
-server {{ hostvars[ntp.srv].ansible_ssh_host }}
-
-tos maxclock 5
-driftfile VARNTP/drift
-restrict default nomodify noquery
-restrict 127.0.0.1
-restrict ::1

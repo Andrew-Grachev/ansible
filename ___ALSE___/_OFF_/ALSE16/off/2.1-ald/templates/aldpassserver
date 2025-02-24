@@ -1,2 +1,0 @@
-K/M:{{ krb_pass }}
-admin/admin:{{ ald_pass }}
