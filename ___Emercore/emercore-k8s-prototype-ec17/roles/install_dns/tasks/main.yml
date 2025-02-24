@@ -1,0 +1,35 @@
+---
+# tasks file for install_dns
+- name: install bind9
+  apt:
+    update_cache: yes
+    pkg:
+      - bind9
+  become: true
+  become_method: sudo
+
+- name: db.sc.local configuration copy
+  template:
+    src: db.sc.local.j2
+    dest: '/etc/bind/db.{{ net_local_domain }}'
+  tags: bind9
+  become: true
+  become_method: sudo
+
+- name: db.sc.local configuration copy
+  template:
+    src: named.conf.options.j2
+    dest: /etc/bind/named.conf.options
+  tags: bind9
+  become: true
+  become_method: sudo
+
+- name: named.conf.local configuration copy
+  template:
+    src: named.conf.local.j2
+    dest: /etc/bind/named.conf.local
+  tags: bind9
+  notify: restart bind9
+  become: true
+  become_method: sudo
+

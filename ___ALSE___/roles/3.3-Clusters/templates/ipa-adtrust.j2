@@ -1,0 +1,7 @@
+#!/bin/bash
+
+sudo ipa-adtrust-install --add-sids --add-agents  -a {{ pass.admin }}  --netbios-name={{ domain.split(".")[0] | upper }}<<-EOF
+yes
+yes
+
+EOF

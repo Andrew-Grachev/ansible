@@ -1,0 +1,35 @@
+---
+# helm repo add redis-operator https://spotahome.github.io/redis-operator
+# helm repo list
+# helm repo update
+# helm search repo -l redis-operator/redis-operator | head -20
+# helm show values redis-operator/redis-operator --version 3.2.9 > redis-operator.yaml
+
+- name: Чтение статуса 'Redis'
+  shell: kubectl get pods -n staff | grep 'redis' | grep 'Running'
+  register: status_redis
+  become: false
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: Добавление репозитория 'redis-operator' для Helm
+    kubernetes.core.helm_repository:
+      name: redis-operator
+      repo_url: https://spotahome.github.io/redis-operator
+      force_update: true
+    become: false
+
+  - name: Развертывание 'redis-operator (3.2.9)'
+    kubernetes.core.helm:
+      name: redis-operator
+      release_namespace: staff
+      chart_ref: redis-operator/redis-operator
+      chart_version: 3.2.9 
+      force: true
+    become: false
+
+  when: status_redis.stdout == ''
+
+...

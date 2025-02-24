@@ -1,0 +1,86 @@
+---
+
+- name: Получить список сетевых интерфейсов
+  shell: |
+    ip link show | grep BROADCAST | awk '{print $2}' | sed 's/.$//'
+  register: device_list
+
+- name: Создание массива сетевых интерфейсов
+  set_fact:
+    interfaces: "{{ device_list.stdout_lines | list }}"
+
+- name: Получение количества элементов в списке интерфейсов
+  set_fact:
+    interfaces_length: "{{ interfaces | length }}"
+
+- name: Чтение содержимого файла '/etc/NetworkManager/conf.d/dns.conf'
+  shell: cat /etc/NetworkManager/conf.d/dns.conf | grep '{{ net.bind }}'
+  register: dns_status
+  ignore_errors: yes
+
+- name: Настройка 'dns.conf'
+  block:
+
+  - name: Останавливаем  службу 'firewalld' 
+    service:
+      name: firewalld
+      state: stopped
+      enabled: false
+
+  # - name: Останавливаем  службу 'systemd-resolved' 
+    # service:
+      # name: systemd-resolved
+      # state: stopped
+      # masked: true
+      # enabled: false
+
+  - name: Меняем конфигурацию 'resolv.conf'
+    shell: |
+      echo -e "[global-dns-domain-*]\nservers = {{ net.bind }}\n" > /etc/NetworkManager/conf.d/dns.conf
+      rm -f /etc/resolv.conf
+
+  - name: Перезапуск службы 'NetworkManager'
+    service:
+      name: NetworkManager
+      state: restarted
+
+  when:
+    - dns_status.stdout == ''
+
+- name: Чтение содержимого файла '/etc/resolv.conf'
+  shell: cat /etc/resolv.conf | grep '{{ domain }}'
+  register: resolv_status
+  ignore_errors: yes
+
+- name: Чтение статуса конфигурации интерфейса {{ interfaces[0] }}
+  shell: nmcli connection show {{ interfaces[0] }} | grep '{{ domain }}'
+  register: eth0_status
+  ignore_errors: yes
+  
+- name: Создание первого интерфейса если количество интерфейсов однин
+  block:
+
+  - name: Настройка сетевого интерфейса '{{ interfaces[0] }}'
+    nmcli:
+      type: ethernet
+      conn_name: '{{ interfaces[0] }}'
+      ip4: '{{ hostvars[inventory_hostname].ansible_ssh_host }}/{{ net.network.split("/")[1] }}'
+      gw4: '{{ net.gateway }}'
+      dns4 : '{{ net.bind }}'
+      dns4_search: '{{ domain }}'
+      state: present
+
+  - name: Настройка сетевого интерфейса '{{ interfaces[0] }}'
+    shell: |
+      nmcli connection modify "{{ interfaces[0] }}" ipv6.method  disabled
+
+  - name: Перезапуск службы 'NetworkManager'
+    service:
+      name: NetworkManager
+      state: restarted
+
+  when:
+    - interfaces_length == '1'
+    - eth0_status.stdout == ''
+
+...

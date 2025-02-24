@@ -1,0 +1,118 @@
+---
+# https://wiki.astralinux.ru/pages/viewpage.action?pageId=130424502
+
+- name: Установка и настройка CephFS
+  block:
+
+  - name: Проверка наличия установленного CephFS сервер
+    stat:
+      path: /etc/sudoers.d/{{ ceph.user }}
+    register: cephfs_result
+
+  - name: Настройка CephFS серверов
+    block:
+
+    - name: Создание пользователя '{{ ceph.user }}'
+      user:
+        name: '{{ ceph.user }}'
+        state: present
+        password: "{{ ceph.password | password_hash('sha512') }}"
+        comment: 'Администратор CephFS'
+        shell: /bin/bash
+        home: '/home/{{ ceph.user }}'
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: .ssh/id_rsa
+        
+    - name: Создание прав sudo пользователю '{{ ceph.user }}'
+      shell: |
+        echo "{{ ceph.user }} ALL = (root) NOPASSWD:ALL" > /etc/sudoers.d/{{ ceph.user }}
+        chmod 0440 /etc/sudoers.d/{{ ceph.user }}
+        pdpl-user -i 63 {{ ceph.user }}
+
+    - name: Внесение изменений в конфигурационныйе файл '/etc/ssh/ssh_config'
+      shell: |
+        echo '    StrictHostKeyChecking  no' >> /etc/ssh/ssh_config
+
+    - name: Перезагрузка CephFS серверов
+      reboot:
+        msg: 'Reboot'
+
+    - name: Инсталляция необходимых пакетов
+      apt:
+        name:
+        - sshpass
+        - ceph-deploy
+        - python
+        state: latest
+        update_cache: yes
+
+    - name: Копирование ключей на CephFS сервера
+      shell: |
+        {% for item in cephfs.srv %}
+        sshpass -p '{{ ceph.password }}' ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ ceph.user }}@{{ hostvars[item].ansible_ssh_host }}
+        {% endfor %}
+      become: true
+      become_method: su
+      become_user: '{{ ceph.user }}'
+      vars:
+        ansible_become_pass: '{{ ceph.password }}'
+      ignore_errors: yes
+
+    - name:
+      block:
+
+      - name: Создание скрипта '/tmp/ceph-deploy.sh' установки базовых компонентов Ceph на узлах кластера
+        template:
+          src: ceph-deploy.j2
+          dest: /tmp/ceph-deploy.sh
+          mode: 0777
+          owner: '{{ ceph.user }}'
+
+      - name: Установка базовых компонентов Ceph на узлах кластера
+        shell: /tmp/ceph-deploy.sh
+        become: true
+        become_method: su
+        become_user: '{{ ceph.user }}'
+        vars:
+          ansible_become_pass: '{{ ceph.password }}'
+        ignore_errors: yes
+
+      when: inventory_hostname == cephfs.srv[0]
+
+    - name: Перезагрузка CephFS серверов
+      reboot:
+        msg: 'Reboot'
+      when: inventory_hostname in cephfs.srv
+
+    when: not cephfs_result.stat.exists
+
+  - name:
+    block:
+
+    - name: Создание скрипта '/tmp/ceph-deploy.sh' установки базовых компонентов Ceph на узлах кластера
+      template:
+        src: ceph-deploy2.j2
+        dest: /home/{{ ceph.user }}/ceph-deploy.sh
+        mode: 0777
+        owner: '{{ ceph.user }}'
+
+    # - name: Установка базовых компонентов Ceph на узлах кластера
+      # shell: /tmp/ceph-deploy.sh
+      # become: true
+      # become_method: su
+      # become_user: '{{ ceph.user }}'
+      # vars:
+        # ansible_become_pass: '{{ ceph.password }}'
+      # ignore_errors: yes
+
+    when: inventory_hostname == cephfs.srv[0]
+
+  when: inventory_hostname in cephfs.srv
+
+
+
+
+
+
+...

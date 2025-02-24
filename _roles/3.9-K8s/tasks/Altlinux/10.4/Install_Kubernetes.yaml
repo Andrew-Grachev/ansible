@@ -1,0 +1,88 @@
+---
+
+- name: Проверка наличия файла '/etc/kubernetes/config'
+  stat:
+    path: /etc/kubernetes/config
+  register: kubernetes_result
+  ignore_errors: yes
+
+- name: Установка 'kubernetes'
+  block:
+
+  - name: Установка пакетов AltLinux
+    apt_rpm:
+      update_cache: true
+      package:
+        - python3-module-pip
+        - python3-module-kubernetes-client
+        - bind-utils
+        - curl
+        - htop
+        - iftop
+        - git
+        - wget
+        - net-tools
+
+  - name: Установка модулей Python
+    pip:
+      executable: pip3
+      extra_args: --no-warn-script-location
+      name:
+        - ansible
+        - ansible-core
+        - ansible-lint
+        - kubernetes
+        - collection
+        - docker
+    ignore_errors: yes
+
+  - name: Установка Kubernetes 'v{{ k8s.ver }}'
+    apt_rpm:
+      update_cache: true
+      state: present
+      package:
+        - 'kubernetes{{ k8s.ver }}-kubeadm'
+        - 'kubernetes{{ k8s.ver }}-crio'
+        - 'cri-tools{{ k8s.ver }}'
+
+  - name: Запуск службы 'Сri-O'
+    service: 
+      name: crio
+      state: restarted
+      enabled: yes
+
+  - name: Настройка имени домена в конфигурации 'kubelet'
+    shell: sed -i "s/--cluster-domain=cluster.local/--cluster-domain={{ domain }}/" /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+
+  - name: Настройка типа авторизации в конфигурации 'kubelet'
+    shell: sed -i "s/KUBELET_AUTHZ_ARGS=--authorization-mode=Webhook/KUBELET_AUTHZ_ARGS=--authentication-token-webhook=true --authorization-mode=Webhook/" /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+
+  - name: Перезапуск службы 'kubelet'
+    service: 
+      name: kubelet
+      state: restarted
+      enabled: yes
+
+  - name: Инсталляция диспетчера пакетов 'Helm'
+    apt_rpm:
+      update_cache: true
+      pkg: helm
+    when: inventory_hostname in k8s.masters
+
+  # - name: Установка пакетов для создания локального репозитория
+    # apt_rpm:
+      # update_cache: true
+      # package:
+        # - docker
+    # when: k8s.repo
+
+  # - name: Перезапуск службы 'docker'
+    # service:
+      # name: docker
+      # enabled: yes
+      # state: restarted
+    # when: k8s.repo
+
+  when: not kubernetes_result.stat.exists
+
+...

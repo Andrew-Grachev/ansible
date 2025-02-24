@@ -1,0 +1,236 @@
+---
+
+- name: Установка и настройка Zabbix сервер
+  block:
+
+  - name: Проверка наличия установленного Zabbix сервера
+    stat:
+      path: /var/www/webapps/zabbix/ui/conf/zabbix.conf.php
+    register: zabbix_server_result
+    ignore_errors: yes
+    when: inventory_hostname == zabbix.srv
+
+  - name: Установка и настройка Zabbix сервер
+    block:
+
+    - name: Инсталляция Zabbix сервера
+      apt_rpm:
+        pkg:
+          - postgresql13-server
+          - zabbix-server-pgsql
+          - fping
+          - apache2
+          - apache2-mod_php8.1
+          - php8.1
+          - php8.1-mbstring
+          - php8.1-sockets
+          - php8.1-gd
+          - php8.1-xmlreader
+          - php8.1-pgsql
+          - php8.1-ldap
+          - php8.1-openssl
+          - zabbix-phpfrontend-apache2
+          - zabbix-phpfrontend-php8.1
+        update_cache: yes
+
+    - name: Создание системных баз данных
+      shell: /etc/init.d/postgresql initdb
+      ignore_errors: yes
+
+    - name: Включаем службу 'PostgreSQL'
+      service:
+        name: postgresql
+        enabled: yes
+        state: restarted
+
+    - name: Создание БД '{{ zabbix.db.name }}'
+      shell: '{{ item }}'
+      loop:
+        - sudo -u postgres psql -c 'DROP DATABASE IF EXISTS {{ zabbix.db.name }};'
+        - sudo -u postgres psql -c 'DROP ROLE IF EXISTS {{ zabbix.db.user }};'
+        - sudo -u postgres psql -c 'CREATE DATABASE {{ zabbix.db.name }};'
+        - sudo -u postgres psql -c 'CREATE ROLE {{ zabbix.db.user }} WITH LOGIN PASSWORD $${{ zabbix.db.password }}$$;'
+        - sudo -u postgres psql -c 'GRANT ALL ON DATABASE {{ zabbix.db.name }} to {{ zabbix.db.user }};'
+        - sudo -u postgres psql -U {{ zabbix.db.user }} -f /usr/share/doc/zabbix-common-database-pgsql-6.0.33/schema.sql {{ zabbix.db.name }}
+        - sudo -u postgres psql -U {{ zabbix.db.user }} -f /usr/share/doc/zabbix-common-database-pgsql-6.0.33/images.sql {{ zabbix.db.name }}
+        - sudo -u postgres psql -U {{ zabbix.db.user }} -f /usr/share/doc/zabbix-common-database-pgsql-6.0.33/data.sql {{ zabbix.db.name }}
+      become: false
+      ignore_errors: yes
+
+    - name: Добавление виртуального Apache сервера 'Zabbix' 
+      blockinfile:
+        dest: /etc/httpd2/conf/ports-available/http.conf
+        create: yes
+        state: present
+        block: |
+          Listen {{ zabbix.port }}
+
+    - name: Добавление виртуального Apache сервера 'Zabbix' 
+    
+      blockinfile:
+        dest: /etc/httpd2/conf/sites-available/default.conf
+        create: yes
+        state: present
+        block: |
+          <VirtualHost *:{{ zabbix.port }}>
+            ServerAdmin webmasterr@localhost
+            DocumentRoot "/var/www/webapps/zabbix/ui"
+            <Directory />
+                Include conf/include/Directory_root_default.conf
+            </Directory>
+            <Directory "/var/www/webapps/zabbix/ui">
+                Include conf/include/Directory_html_default.conf
+            </Directory>
+            ErrorLog /var/log/httpd2/zabbix_error_log
+            LogLevel warn
+            <IfModule log_config_module>
+                CustomLog /var/log/httpd2/zabbix_access_log common
+            </IfModule>
+            <IfModule alias_module>
+                ScriptAlias /cgi-bin/ "/var/www/cgi-bin/"
+            </IfModule>
+            <Directory "/var/www/cgi-bin">
+                Include conf/include/Directory_cgibin_default.conf
+            </Directory>
+          </VirtualHost>
+
+    - name: Внесение изменений в файл '/etc/php/8.1/apache2-mod_php/php.ini'
+      lineinfile:
+        dest: /etc/php/8.1/apache2-mod_php/php.ini
+        regexp: '{{ item.src }}'
+        line: '{{ item.dest }}'
+      loop:
+        - { src: 'memory_limit =',                 dest: 'memory_limit = 256M' }
+        - { src: 'post_max_size =',                dest: 'post_max_size = 32M' }
+        - { src: 'max_execution_time =',           dest: 'max_execution_time = 600' }
+        - { src: 'max_input_time =',               dest: 'max_input_time = 600' }
+        - { src: ';date.timezone =',               dest: 'date.timezone = {{ ntp.timezone }}' }
+        - { src: ';always_populate_raw_post_data', dest: 'always_populate_raw_post_data = -1' }
+
+    - name: Включить аддоны в apache2
+      file:
+        src: /etc/httpd2/conf/addon.d/A.zabbix.conf
+        dest: /etc/httpd2/conf/extra-enabled/A.zabbix.conf
+        state: link
+
+    - name: Внесение изменений в файл '/etc/zabbix/zabbix_server.conf'
+      lineinfile:
+        dest: /etc/zabbix/zabbix_server.conf
+        regexp: '{{ item.src }}'
+        line: '{{ item.dest }}'
+      loop:
+        - { src: 'DBName=',     dest: 'DBName={{ zabbix.db.name }}' }
+        - { src: 'DBUser=',     dest: 'DBUser={{ zabbix.db.user }}' }
+        - { src: 'DBPassword=', dest: 'DBPassword={{ zabbix.db.password }}' }
+# StartPollers=50
+# StartIPMIPollers=50
+# StartPreprocessors=50
+# StartPollersUnreachable=50
+# StartTrappers=50
+# StartPingers=50
+# StartSNMPTrapper=1
+# SNMPTrapperFile=/var/log/snmptt/snmptt.log
+# CacheSize=1G
+# ValueCacheSize=1G
+# Timeout=4
+
+    - name: Копируем файл конфигурации PHP '/var/www/webapps/zabbix/ui/conf/zabbix.conf.php'
+      template:
+        src: zabbix.conf.php.j2
+        dest: /var/www/webapps/zabbix/ui/conf/zabbix.conf.php
+        mode: 0644
+
+    - name: Включаем и перезапускаем службы
+      service:
+        name: '{{ item }}'
+        state: restarted
+        enabled: yes
+      with_items:
+      - zabbix_pgsql
+      - httpd2
+
+    when: not zabbix_server_result.stat.exists
+
+  when: inventory_hostname == zabbix.srv
+
+#---
+
+- name: Проверка Zabbix агента
+  shell: |
+    cat /etc/zabbix/zabbix_agentd.conf | grep 'Hostname={{ inventory_hostname }}.{{ domain }}'
+  register: zabbix_agentd_result
+  ignore_errors: yes
+
+- name: Установка и настройка Zabbix агента
+  block:
+
+  - name: Установка пакетов Zabbix агента
+    apt_rpm:
+      pkg:
+        - zabbix-agent
+      update_cache: yes
+
+  - name: Внесение изменений в файл '/etc/zabbix/zabbix_agentd.conf'
+    lineinfile:
+      dest: /etc/zabbix/zabbix_agentd.conf
+      regexp: '{{ item.src }}'
+      line: '{{ item.dest }}'
+    loop:
+      - { src: 'Server=',     dest: 'Server={{ hostvars[zabbix.srv].ansible_ssh_host }}' }
+      - { src: 'ServerActive=',     dest: 'ServerActive={{ hostvars[zabbix.srv].ansible_ssh_host }}' }
+      - { src: 'Hostname=', dest: 'Hostname={{ inventory_hostname }}.{{ domain }}' }
+      - { src: 'EnableRemoteCommands=',     dest: 'EnableRemoteCommands=1' }
+      - { src: 'LogRemoteCommands=', dest: 'LogRemoteCommands=1' }
+      - { src: 'Timeout=', dest: 'Timeout=30' }
+
+  - name: Перезапуск службы 'zabbix_agentd'
+    service:
+      name: zabbix_agentd
+      state: restarted
+      enabled: yes
+
+  when: zabbix_agentd_result.stdout == ''
+
+#---
+
+- name: Настройка Zabbix агента на сервера CephFS
+  block:
+
+  - name: Проверка наличия файла '/etc/zabbix/zabbix_ceph/ceph-status.sh'
+    stat:
+      path: /etc/zabbix/zabbix_ceph/ceph-status.sh
+    register: zabbix_ceph_result
+    ignore_errors: yes
+
+  - name: Настройка 'ssh' для пользователя {{ ansible_ssh_user }} на серверах кластера 'CephFS'
+    block:
+
+    - name: Создание папки '/etc/zabbix/zabbix_ceph'
+      file:
+        state: directory
+        path: '/etc/zabbix/zabbix_ceph'
+
+  - name: Копирование файла '/etc/network/interfaces'
+    copy:
+      src: 'zabbix_ceph/{{ item.src }}'
+      dest: '{{ item.dest }}'
+    loop:
+      - { src: 'ceph-status.sh',                dest: '/etc/zabbix/zabbix_ceph/ceph-status.sh' }
+      - { src: 'zabbix_agent_ceph_plugin.conf', dest: '/etc/zabbix/zabbix_agentd.conf.d/zabbix_agent_ceph_plugin.conf' }
+
+  - name: Сделаем файл '/etc/zabbix/zabbix_ceph/ceph-status.sh' исполняемым
+    file:
+      path: /etc/zabbix/zabbix_ceph/ceph-status.sh
+      mode: '0755'
+
+  - name: Перезапуск службы 'zabbix_agentd'
+    service:
+      name: zabbix_agentd
+      state: restarted
+      enabled: yes
+
+    when: not zabbix_ceph_result.stat.exists
+
+  when: inventory_hostname in cephfs.srv
+
+...

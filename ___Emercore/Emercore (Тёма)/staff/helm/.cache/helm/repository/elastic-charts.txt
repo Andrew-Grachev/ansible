@@ -1,0 +1,15 @@
+eck-fleet-server
+eck-kibana
+metricbeat
+apm-server
+eck-agent
+eck-elasticsearch
+elasticsearch
+filebeat
+apm-attacher
+eck-beats
+eck-operator
+eck-operator-crds
+eck-stack
+kibana
+logstash

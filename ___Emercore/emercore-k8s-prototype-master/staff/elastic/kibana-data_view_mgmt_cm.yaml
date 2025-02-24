@@ -1,0 +1,254 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kibana-data-view-mgmt
+  namespace: logging
+data:
+  main.py: |
+    #!/usr/bin/python3
+    
+    import os
+    import sys
+    import requests
+    import urllib3
+    import logging
+    
+    from pythonjsonlogger import jsonlogger
+    
+    
+    urllib3.disable_warnings()
+    
+    
+    def setup_logging(log_level):
+        logger = logging.getLogger(__name__)
+        logger.setLevel(log_level)
+        logHandler = logging.StreamHandler(sys.stdout)
+        formatter = jsonlogger.JsonFormatter(
+            fmt='%(asctime)s | %(levelname)s | %(name)s | %(message)s'
+        )
+        logHandler.setFormatter(formatter)
+        logger.addHandler(logHandler)
+    
+    
+    def get_data_streams_from_elasticsearch(elasticsearch_url, ds_prefix):
+        '''
+        Given an elasticsearch URL and a data stream prefix, returns a list of data streams or
+        False on error.
+        '''
+        try:
+            ds_resp = requests.get(
+                elasticsearch_url + "/_data_stream?format=json", verify=False, timeout=30)
+    
+            if ds_resp.status_code == 200:
+                ds_data = ds_resp.json()
+                ds_list = [ds['name'] for ds in ds_data['data_streams'] if ds['name'].startswith(ds_prefix)]
+                logger.info('Found {} datastreams matching prefix: "{}" in elasticsearch: {}'.format(len(ds_list), ds_prefix, ds_list))
+                return ds_list
+    
+            logger.critical('Failed to fetch data streams list from elasticsearch with status: {} {}'.format(
+                ds_resp.status_code, ds_resp.text))
+            sys.exit(1)
+    
+        except Exception as e:
+            logger.exception('Failed to fetch data streams list from elasticsearch')
+            sys.exit(1)
+    
+    
+    def get_kibana_data_views(data_streams, exact_patterns, last_data_view_character):
+        '''
+        Given a list of elasticsearch data stareams, returns a list of data views to create
+        in Kibana based on whether the user wants to match indexes exactly
+        '''
+        if exact_patterns:
+            logger.info('Returning {} exact data views matches for kibana'.format(len(data_streams)))
+            return data_streams
+    
+        logger.debug('Creating data views with last character match of "{}"'.format(last_data_view_character))
+        data_views = []
+        for data_stream in data_streams:
+            data_view_lastchar_idx = data_stream.rfind(last_data_view_character)
+    
+            if data_view_lastchar_idx != -1:
+                data_view = data_stream[:data_view_lastchar_idx] + last_data_view_character + '*'
+                data_views.append(data_view)
+    
+        data_views = list(dict.fromkeys(data_views))  # Deduplicate the list of patterns
+    
+        logger.info('Found {} data views matches for kibana: {}'.format(len(data_views), data_views))
+    
+        return data_views
+    
+    
+    def get_saved_data_views(kibana_url):
+        '''
+        Returns the existing saved data views objects
+        '''
+        headers = {'kbn-xsrf': 'true'}
+    
+        try:
+            existing_data_views_resp = requests.get(
+                kibana_url + '/api/data_views',
+                headers=headers,
+                verify=False,
+                timeout=30)
+    
+            if existing_data_views_resp.status_code == 200:
+                existing_data_views_data = existing_data_views_resp.json()
+    #            logger.info('Found data views: {}'.format(existing_data_views_data['data_view']))
+                return existing_data_views_data['data_view']
+    
+            logger.critical('Failed to get data views from kibana with status: {} {}'.format(existing_data_views_resp.status_code, existing_data_views_resp.text))
+            sys.exit(1)
+    
+        except Exception as e:
+            logger.exception('Failed to get saved data views from kibana')
+            sys.exit(1)
+    
+    
+    def create_data_views(kibana_url, data_views, saved_data_view_names, dry_run):
+        '''
+        Create data views in kibana for each of our given data view
+        '''
+        headers = {'kbn-xsrf': 'true'}
+    
+        skipped = 0
+        created = 0
+        failed = 0
+    
+        for data_view in data_views:
+            if data_view in saved_data_view_names:
+                logger.debug('Skipping data view: {}'.format(data_view))
+                skipped += 1
+            else:
+                logger.debug('Creating data view: {}'.format(data_view))
+    
+                payload = {
+                    "data_view": {
+                        "title": data_view,
+                        "id": data_view[:-2],
+                        "name": data_view[:-2],
+                        "timeFieldName": "@timestamp"
+                    }
+                }
+                
+                try:
+                    if bool(dry_run) is False:
+                       data_view_create_resp = requests.post(
+                           kibana_url + '/api/data_views/data_view',
+                           json=payload,
+                           headers=headers,
+                           verify=False,
+                           timeout=30)
+    
+                    if bool(dry_run) or data_view_create_resp.status_code == 200:
+                        created += 1
+                    else:
+                        failed += 1
+                        logger.warning('Failed to post data view: {} to Kibana with status: {} {}'.format(data_view, data_view_create_resp.status_code, data_view_create_resp.text))
+    
+                except Exception as e:
+                    logger.exception('Failed to post data view to kibana')
+                    sys.exit(1)
+    
+        logger.info('Created: {}, and skipped: {} data views with {} failures'.format(created, skipped, failed))
+    
+    
+    def delete_data_views(kibana_url, data_streams, saved_data_view_names, last_pattern_character, dry_run):
+        '''
+        Delete data views in kibana if data straem not exists
+        '''
+        headers = {'kbn-xsrf': 'true'}
+    
+        skipped = 0
+        deleted = 0
+        failed = 0
+    
+        data_stream_list = []
+        for data_stream in data_streams:
+            data_view_lastchar_idx = data_stream.rfind(last_data_view_character)
+    
+            if data_view_lastchar_idx != -1:
+                data_view = data_stream[:data_view_lastchar_idx] + last_data_view_character + '*'
+                data_stream_list.append(data_view)
+    
+        data_straems_list = list(dict.fromkeys(data_views))  # Deduplicate the list of patterns
+    
+        for data_view in saved_data_view_names:
+            if data_view in data_straems_list:
+                logger.debug('Skipping data view: {}'.format(data_view[:-2]))
+                skipped += 1
+            else:
+                logger.debug('Deleting data view: {}'.format(data_view[:-2]))
+    
+                try:
+                    if bool(dry_run) is False:
+                       data_view_delete_resp = requests.delete(
+                               kibana_url + '/api/data_views/data_view/' + data_view[:-2],
+                           headers=headers,
+                           verify=False,
+                           timeout=30)
+    
+                    if bool(dry_run) or data_view_delete_resp.status_code == 200:
+                        deleted += 1
+                    else:
+                        failed += 1
+                        logger.warning('Failed to delete data view: {} in Kibana with status: {} {}'.format(data_view, data_view_delete_resp.status_code, data_view_delete_resp.text))
+    
+                except Exception as e:
+                    logger.exception('Failed to delete data view in kibana')
+                    sys.exit(1)
+    
+        logger.info('Deleted: {}, and skipped: {} data views with {} failures'.format(deleted, skipped, failed))
+    
+    
+    if __name__ == "__main__":
+        # Configure JSON logging
+        log_level = os.getenv('LOG_LEVEL', 'INFO')
+        setup_logging(log_level)
+        logger = logging.getLogger(__name__)
+    
+        # URL that this script can access Kibana
+        kibana_url = os.getenv('KIBANA_URL', 'http://kibana:5601/').rstrip('/')
+    
+        # URL that this script can access elasticsearch at
+        elasticsearch_url = os.getenv(
+            'ELASTICSEARCH_URL',
+            'http://elasticsearch:9200/').rstrip('/')
+    
+        # A prefix can be set to match indexes returned by elasticsearch
+        ds_prefix = os.getenv('DATA_STREAM_PREFIX', '')
+    
+        # Should we create exact index patters? We probably want wildcard patterns
+        # by default
+        exact_patterns = os.getenv('EXACT_MATCHES', False)
+    
+        # What is the last instance of a character I want my pattern to be based on?
+        # usually "-" for log related indexes
+        last_data_view_character = os.getenv('LAST_CHARACTER', '-')
+    
+        # Should we refresh field lists on all saved patterns?
+        refresh_fields = os.getenv('REFRESH_FIELDS', False)
+    
+        # Set this to avoid actually creating or updating anything.
+        # Combine with LOG_LEVEL=DEBUG for more output.
+        dry_run = os.getenv('DRY_RUN', False)
+        if bool(dry_run):
+            logger.warning('DRY_RUN set, no changes will be made')
+    
+        # A list of all data streams in Elasticsearch that match the given prefix
+        data_streams = get_data_streams_from_elasticsearch(elasticsearch_url, ds_prefix)
+    
+        # A list of patterns based on the given data straem names and configuration
+        data_views = get_kibana_data_views(data_streams, exact_patterns, last_data_view_character)
+    
+        # We should fetch the current saved data views for Kibana, they are used
+        # to filter out existing data straems and to update field mappings.
+        saved_data_views = get_saved_data_views(kibana_url)
+        saved_data_view_names = [saved_data_view['title'] for saved_data_view in saved_data_views]
+    
+        create_data_views(kibana_url, data_views, saved_data_view_names, dry_run)
+        delete_data_views(kibana_url, data_streams, saved_data_view_names, last_data_view_character, dry_run)
+    
+        logger.info('Done')
+    
+

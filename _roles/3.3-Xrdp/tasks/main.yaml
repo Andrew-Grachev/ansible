@@ -1,0 +1,13 @@
+---
+
+- name: Настройка узлов кластера
+  block:
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/server.yaml'
+  when: inventory_hostname in Xrdp.srv
+
+- name: Настройка узлов кластера
+  block:
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/ipa.yaml'
+  when: inventory_hostname in FreeIPA.srv
+
+...

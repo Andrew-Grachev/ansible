@@ -1,0 +1,55 @@
+---
+
+- name: Проверка наличия файла '/etc/xrdp/xrdp.ini'
+  stat:
+    path: /etc/xrdp/xrdp.ini
+  register: rdp_result
+  ignore_errors: yes
+
+- name: Создание сервера RDP
+  block:
+
+  - name: Установка пакетов 'RDP' сервера
+    dnf:
+      name:
+        - xrdp
+        - xorgxrdp
+        - pipewire-module-xrdp
+
+  - name: Создание файла '/etc/sysconfig/desktop'
+    file:
+      path: /etc/sysconfig/desktop
+      state: '{{ item }}'
+    with_items:
+      - absent
+      - touch
+
+  - name: Заполнение файла '/etc/sysconfig/desktopt'
+    lineinfile:
+      path: /etc/sysconfig/desktop
+      line: 'DESKTOP=MATE'
+      state: present
+
+  - name: Чтение файла '/usr/libexec/xrdp/startwm.sh'
+    shell: |
+      cat /usr/libexec/xrdp/startwm.sh | grep 'export $(dbus-launch)'
+    register: export_status
+    ignore_errors: yes
+
+  - name: Настройка '/usr/libexec/xrdp/startwm.sh'
+    shell: |
+      sed -i '82 a export $(dbus-launch)' /usr/libexec/xrdp/startwm.sh
+    when: export_status.stdout == ''
+
+  - name: Включаем и перезапускаем службы
+    service:
+      name: '{{ item }}'
+      state: restarted
+      enabled: yes
+    with_items:
+      - xrdp
+
+  when: not rdp_result.stat.exists
+
+...
+# https://redos.red-soft.ru/base/redos-8_0/8_0-remote-access/

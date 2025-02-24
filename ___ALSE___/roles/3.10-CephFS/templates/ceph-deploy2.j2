@@ -1,0 +1,30 @@
+#!/bin/sh
+
+### #!/usr/bin/expect -f
+### set timeout 1
+###set PASS "{{ ceph.password }}"
+
+#spawn
+sudo ceph-deploy --username {{ ceph.user }} install --mgr {{ cephfs.srv | join(' ') }}
+# 6
+
+sudo ceph-deploy --username {{ ceph.user }} new {{ cephfs.srv | join(' ') }}
+sudo ceph-deploy --username {{ ceph.user }} mon create-initial
+sudo ceph-deploy --username {{ ceph.user }} mgr create {{ cephfs.srv | join(' ') }}
+sudo ceph-deploy --username {{ ceph.user }} osd create --data /dev/vdb {{ cephfs.srv[0] }}
+sudo ceph-deploy --username {{ ceph.user }} osd create --data /dev/vdb {{ cephfs.srv[1] }}
+sudo ceph-deploy --username {{ ceph.user }} osd create --data /dev/vdb {{ cephfs.srv[2] }}
+sudo ceph-deploy --username {{ ceph.user }} install --cli {{ cephfs.srv[0] }}
+sudo ceph-deploy admin {{ cephfs.srv[0] }}
+sudo ceph-deploy --username {{ ceph.user }} install --mds {{ cephfs.srv | join(' ') }}
+sudo ceph-deploy --username {{ ceph.user }} mds create {{ cephfs.srv | join(' ') }}
+#sudo ceph config set mon auth_allow_insecure_global_id_reclaim false
+# sudo ceph config set mon mon_warn_on_insecure_global_id_reclaim false
+# sudo ceph config set mon mon_warn_on_insecure_global_id_reclaim_allowed false
+# sudo ceph osd pool create kubernetes 32
+# sudo ceph osd pool create k8sfs_data 32
+# sudo ceph osd pool create k8sfs_metadata 32
+
+#expect "password:"
+#send "$PASS\r"
+#expect eof

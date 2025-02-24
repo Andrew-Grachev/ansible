@@ -1,0 +1,34 @@
+masters:
+  hosts:
+    master01:
+      ansible_host: localhost
+kube:
+  children:
+    masters:
+
+ec:
+  children:
+    masters:
+    workers:
+    ceph:
+
+ingress_nodes:
+  children:
+    masters:
+
+all:
+  children:
+    masters:
+    workers:
+    registry:
+    ceph:
+
+  vars:
+    ansible_user: 'root'
+    ansible_python_interpreter: '/usr/bin/python3'
+#    ansible_password: 'Sph@era92'
+
+    ### Перезагрузка системы
+    reboot_system: 1
+    #reboot_system=1 - перезагрузить систему (система требует пезагрузки после первичной настройки).
+    #reboot_system=0 - отключить перезагрузку

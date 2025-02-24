@@ -1,0 +1,37 @@
+---
+# tasks file for install_keepalive
+- name: install keepalived apt doistr
+  apt:
+    update_cache: yes
+    pkg:
+    - keepalived
+  become: true
+  become_method: sudo
+  when: ansible_facts.os_family == 'Debian' or ansible_facts.os_family == 'Ubuntu'
+
+- name: install keepalived alt linux
+  apt_rpm:
+    update_cache: yes
+    pkg:
+    - keepalived
+  become: true
+  become_method: sudo
+  when: ansible_facts.os_family == 'Altlinux'
+
+- name: Start keepalived
+  service: 
+    name: keepalived
+    state: started
+    enabled: yes
+  tags: keepalived
+  become: true
+  become_method: sudo
+
+- name: Keepalived configuration
+  template: 
+    src: keepalived.conf.j2  
+    dest: /etc/keepalived/keepalived.conf
+  tags: keepalived
+  notify: restart keepalived
+  become: true
+  become_method: sudo

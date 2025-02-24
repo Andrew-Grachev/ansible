@@ -1,0 +1,14 @@
+---
+csiConfig:
+  - clusterID: "{{ ceph_cluster_id.stdout }}"
+    monitors:
+      - "{{ hostvars[Ceph.nodes[0]].ansible_ssh_host }}:6789"
+      - "{{ hostvars[Ceph.nodes[1]].ansible_ssh_host }}:6789"
+      - "{{ hostvars[Ceph.nodes[2]].ansible_ssh_host }}:6789"
+
+nodeplugin:
+  httpMetrics:
+    containerPort: 8091
+
+provisioner:
+  replicaCount: {{ k8s.ceph_csi }}

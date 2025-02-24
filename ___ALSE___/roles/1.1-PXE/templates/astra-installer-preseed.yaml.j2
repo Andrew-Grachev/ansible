@@ -1,0 +1,79 @@
+license: true
+mode: 2
+
+locales:
+  - ru_RU
+  - en_U
+
+layouts:
+  - ru
+  - us
+
+layout_switch_keys:
+  - alt_shift_toggle
+
+timezone: {{ ntp.timezone }}
+
+ntp_settings:
+  ntp_server: '{{ ntp.srv }}.{{ domain }}'
+  ntp_state: false
+
+user:
+  username: {{ ansible_ssh_user }}
+  password: {{ ansible_ssh_pass }}
+
+additional_users: None
+
+host:
+  hostname: astra-34215
+  generate_sub_name: true
+
+repos:
+  debootstrap: 'http://{{ hostvars[repo.srv].ansible_ssh_host }}:{{ repo.port }}/{{ repo.name_iso[0] }}'
+
+kernel-package: linux-6.1-generic
+
+tasks:
+  - Base
+  - Fly
+  - hidden
+# - Internet
+# - Office
+# - Graphics
+# - Multimedia
+# - Fly-virtualization
+# - Games
+# - Ufw
+# - Fly-qml
+#  - Fly-ssh
+
+features:
+  - astra-mac-control # Мандатное управление доступом
+  - astra-mic-control # Мандатный контроль целостности
+#- astra-ptrace-lock # Запрет трассировки ptrace
+#- astra-sudo-control # Запрос пароля для команды sudo
+# - astra-digsig-control # Замкнутая программная среда
+# - astra-secdel-swapwiper # Очистка освобождаемой внешней памяти
+# - astra-nobootmenu-control # Запрет вывода меню загрузчика
+# - astra-nochmodx-lock # Запрет установки бита исполнения
+# - astra-interpreters-lock # Запрет исполнения скриптов пользователя
+# - astra-macros-lock # Запрет исполнения макросов пользователя
+# - astra-console-lock # Запрет консоли
+# - astra-ulimits-control # Системные ограничения ulimits
+# - astra-installer-localtime-control # Местное время для системных часов
+
+#В данном примере разметка будет выполнена в соответствии с заранее прописанным шаблоном из указанного файла
+#storage:
+# # Device is enought. Default template will be used.
+# device: /dev/sdb # Диск, к которому будет применена разметка, и на который будет установлена система
+# template: default_template.txt # Файл шаблона разметки
+# # gpt: True # Создать таблицу разделов GPT
+# # bios: True # Произвести установку системы в режиме совместимости с BIOS
+# В данном примере полностью описывается шаблон разметки
+# Формат шаблона ? Kickstart (см. https://pykickstart.readthedocs.io/en/latest/kickstart-docs.html)
+# Является аналогом ручной разметки
+# При установке в режиме UEFI требуется описать разделы, необходимые для данного режима
+# Строки шаблона должны быть разделены последовательностью из двух символов "\n" (новая строка)
+
+storage:
+  template: auto

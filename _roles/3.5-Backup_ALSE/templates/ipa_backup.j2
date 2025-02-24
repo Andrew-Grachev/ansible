@@ -1,0 +1,34 @@
+#!/bin/sh
+
+# Переменные
+BACKUP_DIR="{{ backup.path }}/{{ inventory_hostname }}/FreeIPA"
+DATE=$(date "+%Y-%m-%d %H:%M:%S")
+LOG="/{{ backup.log }}"
+
+echo "" >> $LOG
+
+# Проверка доступности директорий. Если отсутствует, то создаются с необходимыми правами.
+if [ ! -d "$BACKUP_DIR" ]; then
+  install -d $BACKUP_DIR
+  echo "$DATE [{{ inventory_hostname }}] Создана папка $BACKUP_DIR" >> $LOG
+fi
+chmod -R 777 $BACKUP_DIR
+
+# Запуск процедуры бекапа
+sudo ipa-backup
+
+# Проверка кода возврата
+if [ $? -eq 0 ]; then
+  # Если код возврата равен 0 (успех), записываем сообщение в лог файл
+  echo "$DATE [{{ inventory_hostname }}] Резервное копирование FreeIPA успешно завершено." >> $LOG
+else
+  # Если код возврата не равен 0 (ошибка), записываем сообщение в лог файл
+  echo "$DATE [{{ inventory_hostname }}] Ошибка при создании резервной копии FreeIPA." >> $LOG
+  exit 1
+fi
+
+# Переноси бекап на СХД
+mv /var/lib/ipa/backup/* $BACKUP_DIR
+
+# Удаление бекапов старше 180 дней
+find $BACKUP_DIR -type f -mtime +180 -print0 | xargs -0 -I {} echo rm {}

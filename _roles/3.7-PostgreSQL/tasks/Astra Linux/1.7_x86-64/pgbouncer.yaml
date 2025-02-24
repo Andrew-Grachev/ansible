@@ -1,0 +1,22 @@
+---
+
+- name: Проверка наличия файла '/etc/pgbouncer/pgbouncer.ini'
+  stat:
+    path: /etc/pgbouncer/pgbouncer.ini
+  register: pgbouncer_result
+
+- name: Создания серверов
+  block:
+
+  - name: Установка пакетов
+    apt:
+      update_cache: yes
+      name:
+        - pgbouncer
+      state: latest
+
+
+
+  when: not pgbouncer_result.stat.exists
+
+...

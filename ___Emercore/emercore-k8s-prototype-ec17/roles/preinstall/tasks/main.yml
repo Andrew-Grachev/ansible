@@ -1,0 +1,99 @@
+---
+- name: print facts
+  debug:
+    var: ansible_facts.distribution_version, ansible_facts.distribution_release, ansible_facts.os_family
+
+- name: copy sources.list 1.6
+  copy:
+      src: '{{ role_path }}/files/sources16.list'
+      dest: /etc/apt/sources.list
+      owner: root
+      group: root
+      mode: '0644'
+  become: true
+  become_method: sudo
+  when: ansible_facts['distribution_version'] == "1.6" and (ansible_facts['distribution_release'] == "smolensk" or ansible_facts['distribution_release'] == "astra")
+
+- name: copy sources.list 1.7
+  template: 
+      src: sources.list.j2  
+      dest: /etc/apt/sources.list
+      owner: root
+      group: root
+      mode: '0644'
+  become: true
+  become_method: sudo
+  when: ansible_facts['distribution_version'] == "1.7_x86-64" and ( ansible_facts['distribution_release'] == "astra" or ansible_facts['distribution_release'] == "Astra Linux" or ansible_facts['distribution_release'] == "1.7_x86-64" ) 
+ 
+- name: copy hosts
+  template: 
+      src: hosts.j2  
+      dest: /etc/hosts
+      owner: root
+      group: root
+      mode: '0644'
+  become: true
+  become_method: sudo
+
+- name: add resolv.config
+  shell: echo "nameserver {{ net_dns_server }}" > /etc/resolv.conf
+  become: true
+  become_method: sudo
+  when: ansible_facts.os_family == 'Debian' or ansible_facts.os_family == 'Ubuntu'
+
+- name: update system
+  apt:
+    update_cache: yes
+    upgrade: dist
+  become: true
+  become_method: sudo
+  when: ansible_facts.os_family == 'Debian' or ansible_facts.os_family == 'Ubuntu'
+
+- name: install soft apt distr
+  apt:
+    update_cache: yes
+    pkg:
+      - mc
+      - htop
+      - iftop
+      - iperf
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg2
+      - chrony
+  become: true
+  become_method: sudo
+  when: ansible_facts.os_family == 'Debian' or ansible_facts.os_family == 'Ubuntu'
+
+- name: install soft apt-rpm distr
+  apt_rpm:
+    update_cache: yes
+    pkg:
+      - mc
+      - htop
+      - iftop
+      - iperf
+      - nano
+      - chrony
+  become: true
+  become_method: sudo
+  when: ansible_facts.os_family == 'Altlinux'
+
+- name: delete soft
+  apt:
+    state: absent
+    pkg:
+      - ufw
+  become: true
+  become_method: sudo
+  when: ansible_facts.os_family == 'Debian' or ansible_facts.os_family == 'Ubuntu'
+
+- name: Start chrony
+  service: 
+    name: chronyd
+    state: started
+    enabled: yes
+  tags: chronyd
+  become: true
+  become_method: sudo

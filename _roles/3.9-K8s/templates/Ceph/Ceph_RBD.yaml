@@ -1,0 +1,10 @@
+---
+csiConfig:
+  - clusterID: "{{ ceph_cluster_id.stdout }}"
+    monitors:
+      - "v2:{{ hostvars[Ceph.nodes[0]].ansible_ssh_host }}:3300/0,v1:{{ hostvars[Ceph.nodes[0]].ansible_ssh_host }}:6789/0"
+      - "v2:{{ hostvars[Ceph.nodes[1]].ansible_ssh_host }}:3300/0,v1:{{ hostvars[Ceph.nodes[1]].ansible_ssh_host }}:6789/0"
+      - "v2:{{ hostvars[Ceph.nodes[2]].ansible_ssh_host }}:3300/0,v1:{{ hostvars[Ceph.nodes[2]].ansible_ssh_host }}:6789/0"
+
+provisioner:
+  replicaCount: {{ k8s.ceph_csi }}

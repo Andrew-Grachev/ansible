@@ -1,0 +1,63 @@
+---
+# tasks file for install_crio
+- name: Install dependencies
+  apt:
+    update_cache: true
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg2
+  become: true
+  become_method: sudo
+
+- name: Create directory for key
+  file:
+    path: /usr/share/keyrings
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+  become_method: sudo
+
+#- name: Add key crio repo
+#  shell: |
+#      curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/{{ kubernetes_os }}/Release.key |\
+#      gpg --batch --yes --dearmor -o /usr/share/keyrings/libcontainers-archive-keyring.gpg
+#      curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/{{ kubernetes_version }}/{{ kubernetes_os }}/Release.key |\
+#      gpg --batch --yes --dearmor -o /usr/share/keyrings/libcontainers-crio-archive-keyring.gpg
+#  become: true
+#  become_method: sudo
+
+- name: Add cri-o repo
+  shell: |
+      curl -fsSL https://pkgs.k8s.io/addons:/cri-o:/stable:/v{{ kubernetes_version }}/deb/Release.key | \
+      gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg --yes
+      echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/stable:/v{{ kubernetes_version }}/deb/ /" | \
+      tee /etc/apt/sources.list.d/cri-o.list
+  become: true
+  become_method: sudo
+
+- name: Install crio-o
+  apt:
+    update_cache: true
+    name: cri-o
+  become: true
+  become_method: sudo
+
+#- name: registries configuration copy
+#  template:
+#    src: registries.j2
+#    dest: '/etc/containers/registries.conf.d/{{ net_local_domain }}.conf'
+#  become: true
+#  become_method: sudo
+
+- name: Enable service cri-o
+  systemd:
+    name: crio.service
+    state: restarted
+    daemon_reload: true
+    enabled: true
+  become: true
+  become_method: sudo

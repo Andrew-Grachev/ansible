@@ -1,0 +1,16 @@
+version: "2.1"
+services:
+  nginx:
+    restart: always
+    container_name: nginx_repo
+    image: nginx:latest
+    ports:
+      - "{{ repo.port }}:80"
+    volumes:
+      - {{ repo.path }}/redos8_base_src:/usr/share/nginx/html
+      - {{ repo.path }}/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - proxy-network
+
+networks:
+  proxy-network:

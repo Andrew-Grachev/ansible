@@ -1,0 +1,17 @@
+---
+
+- name: Чтение статуса плагина
+  shell: kubectl get pods -n kube-system | grep 'node-local-dns' | grep 'Running'
+  register: status_dns
+  become: false
+  ignore_errors: yes
+
+- name: Создаем локальный сервер DNS
+  kubernetes.core.k8s:
+    state: present
+    force: true
+    kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+    definition: "{{ lookup('template', 'services/dns/node_local_dns.yaml') }}"
+  when: status_dns.stdout == ''
+
+...

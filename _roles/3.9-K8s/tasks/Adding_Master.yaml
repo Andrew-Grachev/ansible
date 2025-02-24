@@ -1,0 +1,64 @@
+---
+
+- name: Ping хоста {{ item }}
+  shell: 'ping -c 1 {{ hostvars[item].ansible_ssh_host }} | grep Unreachable'
+  register: ping_result
+  ignore_errors: true
+  
+- name: Хост доступен
+  block:
+
+  - name: Чтение статуса регистрации хоста '{{ item }}'
+    shell: kubectl get nodes -A | grep '{{ item }}'
+    register: status_reg
+    become: false
+    ignore_errors: true
+
+  - name: Хост не зарегистрирован
+    block:
+
+    - name: Получение 'certificate-key'
+      shell: kubeadm init phase upload-certs --upload-certs | grep -v 'upload-certs'
+      register: k8s_certificate_key
+
+    - name: Получение хеша SSL ключа
+      shell: openssl x509 -in /etc/kubernetes/pki/ca.crt -pubkey -noout | openssl pkey -pubin -outform DER | openssl dgst -sha256 | awk '{print $2}'
+      register: k8s_certificate_hash
+
+    - name: Получение токена кластера Kubernetes
+      shell: kubeadm token create
+      register: k8s_join_token
+
+    - name: Создание 'config.yaml'
+      template:
+        src: config.j2
+        dest: '/tmp/config.yaml'
+      delegate_to: '{{ item }}'
+      
+    - name: Получение 'config.yaml'
+      shell: kubeadm config images pull --config /tmp/config.yaml
+      delegate_to: '{{ item }}'
+      
+    - name: Добавление мастера в кластер Kubernetes
+      shell: "kubeadm join {{ k8s.keepalived_IP }}:{{ k8s.haproxy_port }} --token {{ k8s_join_token.stdout }} --discovery-token-ca-cert-hash sha256:{{ k8s_certificate_hash.stdout }} --control-plane --certificate-key {{ k8s_certificate_key.stdout }}"
+      delegate_to: '{{ item }}'
+
+    - name: Создаем директорию '/home/{{ ansible_ssh_user }}/.kube'
+      file:
+        path: '/home/{{ ansible_ssh_user }}/.kube'
+        state: directory
+        mode: 0755
+      delegate_to: '{{ item }}'
+
+    - name: Копируем конфигурацию кластера в домашний каталог администратора '{{ ansible_ssh_user }}'
+      copy:
+        src: '/etc/kubernetes/admin.conf'
+        dest: '/home/{{ ansible_ssh_user }}/.kube/config'
+        remote_src: true
+      delegate_to: '{{ item }}'
+
+    when: status_reg.stdout == ''
+
+  when: ping_result.stdout == ''
+
+...

@@ -1,0 +1,78 @@
+---
+- name: Чтение версии установленного ПО
+  shell: cat /opt/dist/software.conf | grep ASM-solutions
+  register: version
+  ignore_errors: yes
+
+- name: Установка пакетов
+  apt:
+    name:
+      - libfftw3-3
+      - libgsl2
+      - libgfortran3
+      - libmozjs-24-bin
+      - libboost-log1.62.0
+  when: version.stdout != relis
+
+- name: Copy install files
+  copy:
+    src: ASM_solutions
+    dest: /opt/dist/ASM
+    force: yes
+    mode: 777
+    directory_mode: yes
+  when: version.stdout != relis
+
+- name: Инсталляция ASM с поддержкой GPU
+  shell: "dpkg -i --force-overwrite /opt/dist/ASM/ASM_solutions/{{ item }}.deb"
+  with_items:
+    - "asm-stt3_3.3.4gpu.20211219-0.astra1.6_amd64"
+    - "asm-stt3-bio_3.3.4.20220418-0.astra1.6_amd64"
+    - "asm-stt3-lis_3.3.4.20220418-0.astra1.6_amd64"
+  when: version.stdout != relis and inventory_hostname in groups['PV']
+
+- name: Инсталляция ASM без поддержки GPU
+  shell: "dpkg -i --force-overwrite /opt/dist/ASM/ASM_solutions/{{ item }}.deb"
+  with_items:
+    - "asm-stt3_3.3.4.20220418-0.astra1.6_amd64"
+    - "asm-stt3-bio_3.3.4.20220418-0.astra1.6_amd64"
+    - "asm-stt3-lis_3.3.4.20220418-0.astra1.6_amd64"
+  when: version.stdout != relis and inventory_hostname not in groups['PV']
+
+- name: Копированиеных пакетов языков для CPU
+  copy:
+    src: ASM_lang
+    dest: /opt/dist/ASM
+    force: no
+    mode: 777
+    directory_mode: yes
+  when: version.stdout != relis
+
+- name: Установка пакетов языков для CPU
+  shell: "cd /opt/dist/ASM/ASM_lang && dpkg -i --force-overwrite *.deb"
+  when: version.stdout != relis
+
+- name: Копированиеных пакетов языков для GPU
+  copy:
+    src: ASM_lang_gpu
+    dest: /opt/dist/ASM
+    force: no
+    mode: 777
+    directory_mode: yes
+  when: version.stdout != relis and inventory_hostname in groups['PV']
+
+- name: Установка пакетов языков для GPU
+  shell: "cd /opt/dist/ASM/ASM_lang_gpu && dpkg -i --force-overwrite *.deb"
+  when: version.stdout != relis and inventory_hostname in groups['PV']
+
+- name: Запишем версию ПО если ее не разу не было (Install)
+  become: true
+  shell: "echo '{{ relis }}' >> /opt/dist/software.conf"
+  when: version.stdout == ""
+  ignore_errors: yes
+
+- name: ASM-solutions | Запишем новую версию ПО (Update)
+  become: true
+  shell: "sed -i 's/{{version.stdout}}/{{ relis }}/g' /opt/dist/software.conf"
+  when: version.stdout != relis
+  ignore_errors: yes

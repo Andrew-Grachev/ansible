@@ -1,0 +1,65 @@
+---
+
+- name: Проверка наличия установленного Zabbix агента
+  stat:
+    path: /etc/zabbix/zabbix_agentd.conf.d/zabbix_agent.conf
+  register: zabbix_result
+
+- name: Установка и настройка Zabbix агента
+  block:
+
+  - name: Установка пакетов Zabbix агента
+    apt:
+      name:
+      - zabbix-agent
+      - smartmontools
+      - iperf
+      state: latest
+      update_cache: yes
+
+  - name: Добавляем пользователя zabbix как sudoers
+    shell: |
+      echo 'zabbix ALL=(ALL:ALL) NOPASSWD: /etc/zabbix/scripts/*' > /etc/sudoers.d/zabbix
+
+  - name: Копирование файла 'UserParameters.conf'
+    copy:
+      src: UserParameters.conf.j2
+      dest: /etc/zabbix/zabbix_agentd.conf.d/UserParameters.conf
+      mode: 0644
+      force: yes
+
+  - name: Создадим папки для хранения скриптов '/etc/zabbix/scripts'
+    file:
+      state: directory
+      mode: 0755
+      recurse: yes
+      path: /etc/zabbix/scripts
+
+  # - name: Копирование скриптов для шаблонов
+    # copy:
+      # src: 'scripts/{{ item }}'
+      # dest: '/etc/zabbix/scripts/{{ item }}'
+      # force: yes
+      # mode: 0755
+    # with_items:
+      # - bacula_discovery.sh
+      # - bacula_check_job.sh
+      # - get_gpus_info.sh
+      # - bind_stats.py
+
+  - name: Копирование файла конфигурации 'zabbix_agent.conf'
+    template:
+      src: zabbix_agent.conf.j2
+      dest: /etc/zabbix/zabbix_agentd.conf.d/zabbix_agent.conf
+      mode: 0644
+      force: yes
+
+  - name: Перезапуск службы 'zabbix-agent'
+    service:
+      name: zabbix-agent
+      state: restarted
+      enabled: yes
+
+  when: not zabbix_result.stat.exists
+
+...

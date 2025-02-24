@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: emercore-service
+  name: entrypoint
+data:
+  entrypoint.sh: |-
+    #!/bin/sh
+    set -eu pipefail
+    echo "Generate ConnectionStrings__DatabaseConnection string..."
+    export ConnectionStrings__DatabaseConnection="Host=${DBHost};Port=${DBPort};Database=${DBName};Username=${DBUser};Password=${DBPassword};"
+    echo "Run dotnet ${EntrypointExecDll}"
+    exec dotnet ${EntrypointExecDll}
+

@@ -1,0 +1,157 @@
+---
+
+# - name: Настройки домена FreeIPA
+  # block:
+
+  # - name: Создание доменной группы 'print_admins' для общих задач администрирования
+    # become: true
+    # become_method: su
+    # become_user: admin
+    # command: 'ipa group-add print_admins'
+    # vars:
+      # ansible_become_pass: '{{ freeipa.pass }}'
+    # ignore_errors: yes
+
+  # - name: Создание доменной группы 'lpmac_ald' для маркировки заданий
+    # become: true
+    # become_method: su
+    # become_user: admin
+    # command: 'ipa group-add lpmac_ald'
+    # vars:
+      # ansible_become_pass: '{{ freeipa.pass }}'
+    # ignore_errors: yes
+
+  # - name: Создание доменных пользователей, которые будут выполнять функции администратора печати
+    # become: true
+    # become_method: su
+    # become_user: admin
+    # command: 'ipa user-add {{ item }} --first Администратор --last Печати'
+    # vars:
+      # ansible_become_pass: '{{ freeipa.pass }}'
+    # ignore_errors: yes
+    # with_items: '{{ cups.admins }}'
+
+  # - name: Дбавление пользователей, в доменную группу 'print_admins'
+    # become: true
+    # become_method: su
+    # become_user: admin
+    # command: 'ipa group-add-member --users={{ item }} print_admins'
+    # vars:
+      # ansible_become_pass: '{{ freeipa.pass }}'
+    # ignore_errors: yes
+    # with_items: '{{ cups.admins }}'
+
+  # - name: Дбавление пользователей, в доменную группу 'lpmac_ald'
+    # become: true
+    # become_method: su
+    # become_user: admin
+    # command: 'ipa group-add-member --users={{ item }} lpmac_ald'
+    # vars:
+      # ansible_become_pass: '{{ freeipa.pass }}'
+    # ignore_errors: yes
+    # with_items: '{{ cups.admins }}'
+
+  # - name: Реегистрация доменной службы печати ipp
+    # become: true
+    # become_method: su
+    # become_user: admin
+    # command: 'ipa service-add ipp/{{ cups.srv }}.{{ domain }}'
+    # vars:
+      # ansible_become_pass: '{{ freeipa.pass }}'
+    # ignore_errors: yes
+
+  # - name: Реегистрация доменной службы HTTP
+    # become: true
+    # become_method: su
+    # become_user: admin
+    # command: 'ipa service-add HTTP/{{ cups.srv }}.{{ domain }}'
+    # vars:
+      # ansible_become_pass: '{{ freeipa.pass }}'
+    # ignore_errors: yes
+
+  # when: 
+    # - inventory_hostname == freeipa.srv
+
+
+- name: Настройки на сервере печати
+  block:
+
+  - name: Инсталляция пакетов сервера печати
+    apt:
+      name:
+      - cups
+      - parsec-cups
+      - fly-admin-printer
+      state: latest
+      update_cache: yes
+
+  - name: Предоставление пользователям прав на перезапуск служб печати
+    copy:
+      src: lpadmins.j2
+      dest: /etc/sudoers.d/lpadmins
+
+  - name: Включение удаленного администрирования сервера печати
+    shell: sudo cupsctl --remote-admin
+
+  - name: Включение удаленного использования принтеров
+    shell: sudo cupsctl --share-printers --remote-any ServerAlias=`{{ inventory_hostname }}.{{ domain }}`
+
+
+  # - name: Получение таблицы ключей для зарегистрированных доменных служб и сохранение их в файле /etc/krb5.keytab
+    # become: true
+    # become_method: su
+    # become_user: admin
+    # command: 'sudo ipa-getkeytab -p ipp/{{ cups.srv }}.{{ domain }}@{{ domain|upper }} -k /etc/krb5.keytab'
+    # vars:
+      # ansible_become_pass: '{{ freeipa.pass }}'
+
+  # - name: Для использования аутентификации в web-интерфейсе cups (если сервер печати находится на отдельном сервере)
+    # become: true
+    # become_method: su
+    # become_user: admin
+    # command: 'sudo ipa-getkeytab -p HTTP/{{ cups.srv }}.{{ domain }}@{{ domain|upper }} -k /etc/krb5.keytab'
+    # vars:
+      # ansible_become_pass: '{{ freeipa.pass }}'
+
+#Если сервер печати находится на контроллере домена, то получить копию существующих ключей доменной службы HTTP (обязательно использовать ключ -r):
+#sudo ipa service-allow-retrieve-keytab HTTP/dc.domain.ipa --groups=admins
+#sudo ipa-getkeytab -p HTTP/dc.domain.ipa@DOMAIN.IPA -k /etc/krb5.keytab -r
+#sudo ipa service-disallow-retrieve-keytab HTTP/dc.domain.ipa/ --groups=admins
+
+  # - name: Внесение изменений в /etc/cups/cups-files.conf
+    # lineinfile: 
+      # dest: /etc/cups/cups-files.conf
+      # regexp: '^SystemGroup'
+      # insertbefore: BOF
+      # line: 'SystemGroup lpadmin print_admins'
+    # loop_control:
+      # loop_var: line
+
+  # - name: Для использования аутентификации в web-интерфейсе cups (если сервер печати находится на отдельном сервере)
+    # become: true
+    # become_method: su
+    # become_user: admin
+    # command: 'sudo cupsctl DefaultPolicy=authenticated ServerName={{ cups.srv }}.{{ domain }} MacEnable=On DefaultAuthType=Negotiate'
+    # vars:
+      # ansible_become_pass: '{{ freeipa.pass }}'
+
+  # - name: Перезапуск службы 'cups'
+    # service:
+      # name: cups
+      # enabled: yes
+      # state: restarted
+
+  when:
+  - inventory_hostname in cups.srv
+
+
+
+
+#### http://10.10.10.113:631/admin
+
+# - name:
+  # command: shutdown
+
+
+
+...

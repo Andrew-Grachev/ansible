@@ -1,0 +1,12 @@
+---
+# handlers file for install_keepalive
+
+- name: restart puppet
+  service: name=puppet state=restarted
+  become: true
+  become_method: sudo
+
+- name: enable puppet
+  service: name=puppet state=enable
+  become: true
+  become_method: sudo

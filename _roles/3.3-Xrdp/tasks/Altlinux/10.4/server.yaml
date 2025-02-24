@@ -1,0 +1,69 @@
+---
+
+- name: Проверка наличия файла '/etc/xrdp/xrdp.ini'
+  stat:
+    path: /etc/xrdp/xrdp.ini
+  register: rdp_result
+
+- name: Создание сервера RDP
+  block:
+
+  - name: Установка пакетов 'RDP' сервера
+    apt_rpm:
+      update_cache: yes
+      pkg:
+        - xrdp
+        - pulseaudio-module-xrdp
+        - xrdp-usb-session
+        - lightdm
+        - theme-mate-windows
+        # - mate-default
+        # - mate-session
+        # - mate-minimal
+
+
+
+# apt-get install xorg-server xinit accountsservice kernel-modules-drm-v beesu bash-completion mc
+# make-initrd
+# systemctl set-default graphical.target
+# Настройка локали
+# mcedit /etc/locale.conf
+# Добавляем строчку:
+
+# LANG=ru_RU.UTF-8
+# Установка шрифтов
+# apt-get install fonts-ttf-dejavu fonts-ttf-google-crosextra* fonts-ttf-google-droid* fonts-ttf-google-noto* fonts-ttf-material-icons
+# Установка значков
+# apt-get install gnome-icon-theme icon-theme-breeze icon-theme-hicolor icon-theme-oxygen
+
+
+
+
+
+
+
+
+
+
+
+
+  - name: Внесение изменений в '/etc/sssd/sssd.conf'
+    shell: |
+      sed -i '2 a ad_gpo_map_service = +xrdp-sesman' /etc/sssd/sssd.conf
+
+  - name: Внесение изменений в '/etc/xrdp/sesman.ini'
+    shell: |
+      sed -i 's/TerminalServerUsers=tsusers/TerminalServerUsers=/g' /etc/xrdp/sesman.ini
+
+  - name: Включаем и перезапускаем службы
+    service:
+      name: '{{ item }}'
+      state: restarted
+      enabled: yes
+    with_items:
+    - xrdp
+    - xrdp-sesman
+
+  # when: not rdp_result.stat.exists
+
+...

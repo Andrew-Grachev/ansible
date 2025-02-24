@@ -1,0 +1,280 @@
+---
+
+- name: Установка DHCP-сервера
+  block:
+
+  - name: Установка пакетов
+    apt_rpm:
+      update_cache: yes
+      pkg:
+        - dhcp-server
+        - vsftpd
+        - tftp-server-xinetd
+        - syslinux
+
+  - name: Очистка файла '/etc/dhcp/dhcpd.conf'
+    file:
+      path: /etc/dhcp/dhcpd.conf
+      state: '{{ item }}'
+    with_items:
+    - absent
+    - touch
+
+  - name: Внесение изменений в файл '/etc/dhcp/dhcpd.conf'
+    blockinfile:
+      path: /etc/dhcp/dhcpd.conf
+      create: yes
+      state: present
+      block: |
+        option arch code 93 = unsigned integer 16;
+        if option arch = 00:06 {
+          filename "shimx64.efi";
+          } else if option arch = 00:07 {
+          filename "shimx64.efi";
+          } else if option arch = 00:09 {
+          filename "shimx64.efi";
+          } else {
+          filename "pxelinux.0";
+        }
+        
+        subnet {{ net.network }} netmask {{ net.mask }} {
+          next-server {{ hostvars[pxe.srv].ansible_ssh_host }};
+          range {{ net.network.split(".")[0] }}.{{ net.network.split(".")[1] }}.{{ net.network.split(".")[2] }}.{{ pxe.dhcp[0] }} {{ net.network.split(".")[0] }}.{{ net.network.split(".")[1] }}.{{ net.network.split(".")[2] }}.{{ pxe.dhcp[1] }};
+          option root-path "/srv/public/netinst/mnt";
+          option routers {{ net.gateway }};
+          option domain-name-servers {{ net.bind }};
+          option domain-name "{{ domain }}";
+          default-lease-time 3600;
+          max-lease-time 3600;
+        }
+      marker: ""
+
+  - name: Внесение изменений в файл '/etc/sysconfig/dhcpd'
+    lineinfile:
+      dest: /etc/sysconfig/dhcpd
+      regexp: 'DHCPDARGS='
+      line: 'DHCPDARGS={{ ansible_default_ipv4.interface }}'
+
+
+
+
+- name: Настройка TFTP
+  block:
+
+  - name: Очистка файла '/etc/xinetd.d/tftp'
+    file:
+      path: /etc/xinetd.d/tftp
+      state: '{{ item }}'
+      mode: 0640
+    with_items:
+    - absent
+    - touch
+
+  - name: Внесение изменений в файл '/etc/xinetd.d/tftp'
+    blockinfile:
+      path: /etc/xinetd.d/tftp
+      create: yes
+      state: present
+      block: |
+        service tftp
+          {
+          disable = no
+          only_from = {{net.network}}/{{net.prefix}}
+          socket_type = dgram
+          protocol = udp
+          wait = yes
+          user = root
+          server = /usr/sbin/in.tftpd
+          server_args = -u tftp -s /var/lib/tftpboot
+          }
+      marker: ""
+
+  - name: Очистка файла '/etc/xinetd.conf'
+    file:
+      path: /etc/xinetd.conf
+      state: '{{ item }}'
+      mode: 0640
+    with_items:
+    - absent
+    - touch
+
+  - name: Внесение изменений в файл '/xinetd.conf'
+    blockinfile:
+      path: /etc/xinetd.conf
+      create: yes
+      state: present
+      block: |
+        defaults
+          {
+          log_type = SYSLOG authpriv info
+          log_on_success = PID HOST DURATION
+          log_on_failure = HOST
+          instances = 100
+          per_source = 5
+          }
+      marker: ""
+
+  - name: Создание папок репозиториев
+    file:
+      state: directory
+      path: '{{ item }}'
+      mode: 0755
+    with_items:
+    - /srv/public/netinst
+    - /srv/public/netinst/mnt
+    - /srv/iso
+    ignore_errors: yes
+
+  - name: Копирование ISO образа Altlinux
+    copy:
+      src: '../../../../../../iso/Altlinux/alt-server-10.2-x86_64.iso'
+      dest: '/srv/iso/'
+      force: no
+
+  - name: Монтирование образов ОС
+    mount:
+      path: '/srv/public/netinst/mnt'
+      src: '/srv/iso/alt-server-10.2-x86_64.iso'
+      fstype: iso9660
+      opts: ro,auto
+      state: mounted
+ 
+  - name: Копирование файлов загрузчиков
+    shell: |
+      cp -r /srv/public/netinst/mnt/boot/ /var/lib/tftpboot/
+      mkdir -p /var/lib/tftpboot/pxelinux.cfg
+      cp /usr/lib/syslinux/pxelinux.0 /var/lib/tftpboot/
+      cp /usr/lib64/efi/shimx64.efi /var/lib/tftpboot
+      cp /usr/lib64/efi/grubx64.efi /var/lib/tftpboot
+
+  - name: Очистка файла '/var/lib/tftpboot/pxelinux.cfg/default'
+    file:
+      path: /var/lib/tftpboot/pxelinux.cfg/default
+      state: '{{ item }}'
+      mode: 0644
+    with_items:
+    - absent
+    - touch
+
+  - name: Создание меню PXE загрузчика UEFI
+    blockinfile:
+      path: /var/lib/tftpboot/grub.cfg
+      state: present
+      block: |
+        timeout 10
+        prompt 1
+        default local
+        display pxelinux.cfg/default.msg
+        
+        label local
+          localboot -2
+        
+        label ftp
+          kernel /boot/vmlinuz
+          append initrd=/boot/initrd.img fastboot changedisk automatic=method:ftp,network:dhcp,server:10.150.0.100,directory:/netinst/mnt/ stagename=altinst ramdisk_size=669397 showopts nosplash mpath lang=ru_RU
+        
+        label memtest
+          menu label ^Memory Test
+          linux /boot/memtest.bin
+      marker: ""
+
+  - name: Очистка файла '/var/lib/tftpboot/grub.cfg'
+    file:
+      path: /var/lib/tftpboot/grub.cfg
+      state: '{{ item }}'
+      mode: 0644
+    with_items:
+    - absent
+    - touch
+
+  - name: Создание меню PXE загрузчика UEFI
+    blockinfile:
+      path: /var/lib/tftpboot/grub.cfg
+      state: present
+      block: |
+        set timeout=10
+        set default=ftp
+        menuentry $"Install FTP "'ALT Server 10.1 x86_64'--id 'ftp' {
+          echo $"Loading Linux vmlinuz ..."
+          linux /boot/vmlinuz fastboot changedisk automatic=method:ftp,network:dhcp,server:10.150.0.100,directory:/netinst/mnt/ stagename=altinst ramdisk_size=669397 vga=normal mpath lang=ru_RU 
+          echo $"Loading initial ramdisk ..."
+          initrd /boot/initrd.img
+        }
+        menuentry $"Memory Test (may not work with Secure Boot)" --id 'memtest' { linux /boot/memtest.efi }
+        
+        menuentry $"Memory Test (may not work with Secure Boot)" --id 'memtest' {
+          linux /boot/memtest.efi
+        }
+      marker: ""
+
+  # - name: Создание меню PXE загрузчика UEFI
+    # blockinfile:
+      # path: /var/lib/tftpboot/grub.cfg
+      # state: present
+      # block: |
+        ## Установка AltLinux на хост {{ item }}.{{ domain }} ###
+        # menuentry 'Install AltLinux {{ item }}.{{ domain }}' {
+              # set background_color=black
+              # linux linux modprobe.blacklist=evbug debian-installer/allow_unauthenticated=true auto=true priority=critical debian-installer/locale=en_US console-keymaps-at/keymap=ru hostname=alse domain={{ domain }} astra-license/license=true url=http://{{ hostvars[pxe.srv].ansible_ssh_host }}:{{ pxe.port }}/{{ item }}.cfg interface=auto netcfg/dhcp_timeout=60 network-console/enable=false nomodeset
+              # initrd initrd.gz
+            # }
+          # marker: "###"
+    # loop: "{{ query('inventory_hostnames', 'all') }}"
+
+- name: Настройка FTP
+  block:
+
+  - name: Очистка файла '/etc/xinetd.d/vsftpd'
+    file:
+      path: /etc/xinetd.d/vsftpd
+      state: '{{ item }}'
+      mode: 0640
+    with_items:
+    - absent
+    - touch
+
+  - name: Внесение изменений в файл '/etc/xinetd.d/vsftpd'
+    blockinfile:
+      path: /etc/xinetd.d/vsftpd
+      create: yes
+      state: present
+      block: |
+        service ftp
+          {
+          disable       = no
+          socket_type   = stream
+          protocol      = tcp
+          wait          = no
+          user          = root
+          nice          = 10
+          rlimit_as     = 200M
+          server        = /usr/sbin/vsftpd
+          }
+      marker: ""
+
+  - name: Создание ссылки на '/srv/public'
+    shell: |
+      ln -s /srv/public /var/ftp
+
+
+
+
+
+
+
+
+  - name: Запускаем службу 'dhcpd'
+    service:
+      name: dhcpd
+      state: restarted
+      enabled: yes
+
+  - name: Запускаем службу 'xinetd'
+    service:
+      name: xinetd
+      state: restarted
+      enabled: yes
+
+# https://www.altlinux.org/NetInstall
+# https://5house.win/linux-unix-bsd/%D1%81%D0%B5%D1%82%D0%B5%D0%B2%D0%B0%D1%8F-%D1%83%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0-%D0%BE%D1%81-%D0%B0%D0%BB%D1%8C%D1%82-alt-server-netinst-pxe/
+...

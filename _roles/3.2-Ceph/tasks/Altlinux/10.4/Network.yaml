@@ -1,0 +1,65 @@
+---
+
+- name: Проверка наличия интерфейса '{{ Ceph.net.interface }}'
+  stat:
+    path: /etc/net/ifaces/{{ Ceph.net.interface }}/ipv4address
+  register: interface_result
+  ignore_errors: yes
+
+- name: Создание интерфейса
+  block:
+
+  - name: Создание папки '/etc/net/ifaces/{{ Ceph.net.interface }}'
+    file:
+      state: directory
+      path: '/etc/net/ifaces/{{ Ceph.net.interface }}'
+
+  - name: Очистка файла '/etc/net/ifaces/{{ Ceph.net.interface }}/ipv4address'
+    file:
+      path: '/etc/net/ifaces/{{ Ceph.net.interface }}/ipv4address'
+      state: '{{ item }}'
+    with_items:
+      - absent
+      - touch
+
+  - name: Внесение изменений в файл '/etc/net/ifaces/{{ Ceph.net.interface }}/ipv4address'
+    blockinfile:
+      path: '/etc/net/ifaces/{{ Ceph.net.interface }}/ipv4address'
+      create: yes
+      state: present
+      marker: ""
+      block: |
+        {{ Ceph.net.network.split(".")[0] }}.{{ Ceph.net.network.split(".")[1] }}.{{ Ceph.net.network.split(".")[2] }}.{{ hostvars[inventory_hostname].ansible_ssh_host.split(".")[3] }}/{{ Ceph.net.network.split("/")[1] }}
+
+  - name: Очистка файла '/etc/net/ifaces/{{ Ceph.net.interface }}/options'
+    file:
+      path: '/etc/net/ifaces/{{ Ceph.net.interface }}/options'
+      state: '{{ item }}'
+    with_items:
+      - absent
+      - touch
+
+  - name: Внесение изменений в файл '/etc/net/ifaces/{{ Ceph.net.interface }}/options'
+    blockinfile:
+      path: '/etc/net/ifaces/{{ Ceph.net.interface }}/options'
+      create: yes
+      state: present
+      marker: ""
+      block: |
+        TYPE=eth
+        BOOTPROTO=static
+        SYSTEMD_BOOTPROTO=static
+        CONFIG_IPV4=yes
+        CONFIG_IPV6=no
+        CONFIG_WIRELESS=no
+        DISABLED=no
+        NM_CONTROLLED=no
+
+  - name: Перезапуск службы 'network'
+    service:
+      name: network
+      state: restarted
+
+  when: not interface_result.stat.exists
+
+...

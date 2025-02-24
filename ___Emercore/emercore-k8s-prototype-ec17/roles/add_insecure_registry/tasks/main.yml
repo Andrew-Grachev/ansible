@@ -1,0 +1,24 @@
+---
+# tasks file for insecure registry
+- name: registries configuration copy
+  template:
+    src: registries.j2
+    dest: '/etc/containers/registries.conf'
+  become: true
+  become_method: sudo
+
+- name: reload service cri-o
+  systemd:
+    name: crio.service
+    state: reloaded
+    enabled: true
+  become: true
+  become_method: sudo
+
+- name: restart service cri-o
+  systemd:
+    name: crio.service
+    state: restarted
+    enabled: true
+  become: true
+  become_method: sudo

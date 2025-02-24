@@ -1,0 +1,7 @@
+---
+
+- include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/server.yaml'
+# - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/client.yaml'
+# - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/replica.yaml'
+
+...

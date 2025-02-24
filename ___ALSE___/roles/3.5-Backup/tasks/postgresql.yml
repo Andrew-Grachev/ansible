@@ -1,0 +1,61 @@
+---
+
+- name: Запускаем на серверах
+  block:
+
+  - name: Получение версии 'PostgreSQL'
+    shell: |
+      apt-cache show postgresql | grep Depends | awk '{print substr($2,12)}'
+    register: tmp
+
+  - name: Запись доступной версии 'PostgreSQL' в переменную 'postgresql_version'
+    set_fact:
+      postgresql_version: '{{ tmp.stdout_lines[0] }}'
+
+  - name: Проверить, установлен ли PostgreSQL
+    stat:
+      path: /etc/postgresql/{{ postgresql_version }}/main/postgresql.conf
+    register: postgresql_installed
+
+  - name: Создание заданий бекапа PostgreSQL
+    block:
+
+    - name: Проверка наличия файла '/etc/cron.d/postgresql_cron'
+      stat:
+        path: /etc/cron.d/postgresql_cron
+      register: cron_result
+
+    - name: Подготовка скриптов бекапа
+      block:
+
+      - name: Копирование скриптов 'backup/restore'
+        template:
+          src: '{{ item }}.j2'
+          dest: '/usr/local/bin/{{ item }}.sh'
+          owner: root
+          group: root
+          mode: 0744
+        with_items:
+        - 'postgresql_backup'
+        - 'postgresql_restore'
+
+      - name: Создание расписания запуска бекапа
+        template:
+          src: postgresql_cron.j2
+          dest: /etc/cron.d/postgresql_cron
+          owner: root
+          group: root
+          mode: 0644
+
+      - name: Перезапуск службы Cron
+        service:
+          name: cron
+          state: restarted
+
+      when: not cron_result.stat.exists
+
+    when:  postgresql_installed.stat.exists
+
+  when: inventory_hostname in groups['srv']
+
+...

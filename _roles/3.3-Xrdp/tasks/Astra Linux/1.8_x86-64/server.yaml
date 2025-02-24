@@ -1,0 +1,124 @@
+---
+
+- name: Проверка наличия файла '/etc/xrdp/xrdp.ini'
+  stat:
+    path: /etc/xrdp/xrdp.ini
+  register: rdp_result
+
+- name: Создания сервера RDP
+  block:
+
+  - name: Установка 'xrdp' сервера
+    apt:
+      update_cache: yes
+      name:
+        - xrdp
+        - xorgxrdp
+      state: latest
+
+  - name: Перезагрузка сервиса 'xrdp' 
+    service:
+      name: xrdp
+      state: restarted
+      enabled: yes
+
+  when: not rdp_result.stat.exists
+
+- name: Добавление сервиса 'xrdp-sesman' в правило 'xrdp-sesman-rule'
+  become: true
+  become_method: su
+  become_user: admin
+  command: ipa group-find {{ Xrdp.group }} | grep 'ID'
+  vars:
+    ansible_become_pass: '{{ FreeIPA.pass }}'
+  ignore_errors: yes
+  register: status_group
+
+- name: Подготовка контроллера домена
+  block:
+
+  - name: Создание группы '{{ Xrdp.group }}' с правами доступа по протоколу 'rdp'
+    become: true
+    become_method: su
+    become_user: admin
+    shell: ipa group-add {{ Xrdp.group }} --desc="Пользователи Xrdp"
+    vars:
+      ansible_become_pass: '{{ FreeIPA.pass }}'
+    ignore_errors: yes
+    delegate_to: '{{ FreeIPA.srv }}'
+
+  - name: Добавим пользователя 'admin' в группу '{{ Xrdp.group }}'
+    become: true
+    become_method: su
+    become_user: admin
+    shell: ipa group-add-member {{ Xrdp.group }} --users=admin
+    vars:
+      ansible_become_pass: '{{ FreeIPA.pass }}'
+    ignore_errors: yes
+    delegate_to: '{{ FreeIPA.srv }}'
+
+  - name: Добавление сервиса 'xrdp-sesman' на контроллере домена для серверов кластера '{{ item.name }}'
+    become: true
+    become_method: su
+    become_user: admin
+    command: sudo ipa service-add xrdp-sesman/{{ inventory_hostname }}.{{ domain }}
+    vars:
+      ansible_become_pass: '{{ FreeIPA.pass }}'
+    ignore_errors: yes
+    delegate_to: '{{ FreeIPA.srv }}'
+
+  - name: Создание службы HBAC 'sesman-rule' на контроллере
+    become: true
+    become_method: su
+    become_user: admin
+    command: sudo ipa hbacsvc-add xrdp-sesman --desc=xrdp-sesman
+    vars:
+      ansible_become_pass: '{{ FreeIPA.pass }}'
+    ignore_errors: yes
+    delegate_to: '{{ FreeIPA.srv }}'
+
+  - name: Создание правила 'xrdp-sesman-rule' на контроллере
+    become: true
+    become_method: su
+    become_user: admin
+    command: sudo ipa hbacrule-add xrdp-sesman-rule --desc=xrdp-sesman
+    vars:
+      ansible_become_pass: '{{ FreeIPA.pass }}'
+    ignore_errors: yes
+    delegate_to: '{{ FreeIPA.srv }}'
+
+  - name: Добавление узлов в правило 'xrdp-sesman-rule'
+    become: true
+    become_method: su
+    become_user: admin
+    command: sudo ipa hbacrule-add-host xrdp-sesman-rule --hosts={{ Xrdp.srv | join(' ') }}
+    vars:
+      ansible_become_pass: '{{ FreeIPA.pass }}'
+    ignore_errors: yes
+    delegate_to: '{{ FreeIPA.srv }}'
+
+  - name: Добавление пользователей в правило 'xrdp-sesman-rule'
+    become: true
+    become_method: su
+    become_user: admin
+    command: sudo ipa hbacrule-add-user xrdp-sesman-rule --groups={{ Xrdp.group }}
+    vars:
+      ansible_become_pass: '{{ FreeIPA.pass }}'
+    ignore_errors: yes
+    delegate_to: '{{ FreeIPA.srv }}'
+
+  - name: Добавление сервиса 'xrdp-sesman' в правило 'xrdp-sesman-rule'
+    become: true
+    become_method: su
+    become_user: admin
+    command: sudo ipa hbacrule-add-service xrdp-sesman-rule --hbacsvcs=xrdp-sesman
+    vars:
+      ansible_become_pass: '{{ FreeIPA.pass }}'
+    ignore_errors: yes
+    delegate_to: '{{ FreeIPA.srv }}'
+
+  when:
+    - inventory_hostname == Xrdp.srv[0]
+    # - status_group.stdout != ''
+
+...

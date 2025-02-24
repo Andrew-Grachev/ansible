@@ -1,0 +1,77 @@
+---
+
+- name: Проверка наличия '{{ k8s.repo_path }}'
+  stat:
+    path: '{{ k8s.repo_path }}'
+  register: repo_result
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: Создание папок
+    file:
+      path: '{{ item }}'
+      state: directory
+      mode: 0777
+      recurse: True
+    with_items:
+      - '{{ k8s.repo_path }}/registry'
+      - '{{ k8s.repo_path }}/nginx'
+      - '{{ k8s.repo_path }}/helm'
+
+  - name: Создание файла 'docker-compose.yaml'
+    template:
+      src: repo/docker-compose.j2
+      dest: /tmp/docker-compose.yaml
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Создание файла 'nginx.conf'
+    template:
+      src: repo/nginx.j2
+      dest: '{{ k8s.repo_path }}/nginx/nginx.conf'
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Перезапуск службы 'docker'
+    service:
+      name: docker
+      enabled: yes
+      state: restarted
+
+  - name: Запуск 'docker-compose'
+    shell: |
+      cd /tmp && docker-compose up -d
+
+  - name: Создание файла 'helm.sh'
+    template:
+      src: repo/helm.j2
+      dest: /tmp/helm.sh
+      owner: root
+      group: root
+      mode: 0744
+
+  - name: Запуск 'helm.sh'
+    shell: |
+      cd /tmp
+      ./helm.sh
+
+  - name: Создание файла 'images.sh'
+    template:
+      src: repo/images.j2
+      dest: /tmp/images.sh
+      owner: root
+      group: root
+      mode: 0744
+
+  - name: Запуск 'images.sh'
+    shell: |
+      cd /tmp
+      ./images.sh
+
+  when: not repo_result.stat.exists
+
+...

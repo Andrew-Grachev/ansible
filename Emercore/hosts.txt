@@ -1,0 +1,28 @@
+[all]
+[srv]
+master01  ansible_ssh_host=10.150.0.101
+master02  ansible_ssh_host=10.150.0.102
+master03  ansible_ssh_host=10.150.0.103
+
+storage01  ansible_ssh_host=10.150.0.104
+storage02  ansible_ssh_host=10.150.0.105
+storage03  ansible_ssh_host=10.150.0.106
+
+worker01  ansible_ssh_host=10.150.0.107
+worker02  ansible_ssh_host=10.150.0.108
+worker03  ansible_ssh_host=10.150.0.109
+
+# haproxy 10.150.0.110
+
+postgres01  ansible_ssh_host=10.150.0.111
+postgres02  ansible_ssh_host=10.150.0.112
+
+# postgresql 10.150.0.113
+
+etcd01  ansible_ssh_host=10.150.0.114
+etcd02  ansible_ssh_host=10.150.0.115
+etcd03  ansible_ssh_host=10.150.0.116
+
+
+
+zabbix  ansible_ssh_host=10.150.0.115

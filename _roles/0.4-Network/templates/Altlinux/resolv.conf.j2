@@ -1,0 +1,5 @@
+nameserver {{ net.bind }}
+{% if freeipa.srv is defined %}
+nameserver {{ hostvars[freeipa.srv].ansible_ssh_host }}
+{% endif %}
+search {{ domain }}

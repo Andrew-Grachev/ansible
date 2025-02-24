@@ -1,0 +1,2 @@
+configKubernetes:
+  cluster_domain: {{ domain }}

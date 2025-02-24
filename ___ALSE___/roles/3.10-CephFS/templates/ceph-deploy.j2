@@ -1,0 +1,25 @@
+#!/usr/bin/expect -f
+set timeout 1
+set PASS "{{ ceph.password }}"
+
+spawn sudo ceph-deploy --username {{ ceph.user }} install --mon --osd {{ cephfs.srv | join(' ') }}
+
+expect "password:"
+send "$PASS\r"
+expect "password:"
+send "$PASS\r"
+expect "password:"
+send "$PASS\r"
+expect "password:"
+send "$PASS\r"
+expect "password:"
+send "$PASS\r"
+expect "password:"
+send "$PASS\r"
+expect "password:"
+send "$PASS\r"
+expect "password:"
+send "$PASS\r"
+
+
+expect eof

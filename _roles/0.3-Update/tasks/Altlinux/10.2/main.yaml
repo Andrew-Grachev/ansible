@@ -1,0 +1,14 @@
+---
+
+- name: Обновление репозиториев AltLinux
+  shell: apt-get update
+
+- name: Обновление AltLinux
+  shell: apt-get dist-upgrade -y
+
+- name: Перезагрузка ОС
+  reboot:
+    msg: "Reboot"
+  when: ansible_distribution_version != '10.2'
+
+...

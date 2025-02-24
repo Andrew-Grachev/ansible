@@ -1,0 +1,44 @@
+---
+
+- name: Чтение статуса 'RabbitMQ'
+  shell: kubectl get pods -n staff | grep 'rabbitmq' | grep 'Running'
+  register: status_rabbitmq
+  become: false
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: Создание пространства имен 'staff'
+    kubernetes.core.k8s:
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: staff
+          labels:
+            pod-security.kubernetes.io/enforce: privileged
+      state: present
+
+  - name: Добавление репозитория 'rabbitmq-operator' для Helm
+    kubernetes.core.helm_repository:
+      name: rabbitmq-operator
+      repo_url: https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami
+      # https://charts.bitnami.com/bitnami
+      force_update: true
+    become: false
+
+  - name: Развертывание 'rabbitmq-operator v3.2.8'
+    kubernetes.core.helm:
+      name: rabbitmq-operator
+      release_namespace: staff
+      chart_ref: rabbitmq-operator/rabbitmq-cluster-operator
+      chart_version: 3.2.8
+      values: "{{ lookup('template', 'Helm_Charts/rabbitmq-cluster-operator.yaml') | from_yaml }}"
+      force: true
+    become: false
+
+  when: status_rabbitmq.stdout == ''
+
+...

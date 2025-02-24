@@ -1,0 +1,10 @@
+127.0.0.1       localhost
+{{ net_address_master01 }}   master01.bg.sirius-ft.ru     master01
+{{ net_address_master02 }}   master02.bg.sirius-ft.ru     master02
+{{ net_address_master03 }}   master03.bg.sirius-ft.ru     master03
+{{ net_address_worker01 }}   worker01.bg.sirius-ft.ru     worker01
+{{ net_address_worker02 }}   worker02.bg.sirius-ft.ru     worker02
+{{ net_address_worker03 }}   worker03.bg.sirius-ft.ru     worker03
+{{ keepalived_shared_ip }}   k8s.bg.sirius-ft.ru          k8s
+#repo01.bg.sirius-ft.ru       repo01
+  

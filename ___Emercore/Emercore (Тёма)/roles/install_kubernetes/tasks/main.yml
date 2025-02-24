@@ -1,0 +1,60 @@
+---
+# install kubernetes
+- name: Install dependencies
+  apt:
+    update_cache: true
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg2
+  become: true
+  become_method: sudo
+
+- name: Create directory for key
+  file:
+    path: /usr/share/keyrings
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+  become_method: sudo
+
+- name: Add key repo kubernetes
+  shell: |
+      curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+  become: true
+  become_method: sudo
+
+- name: Add repo kubernetes
+  shell: |
+      echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" |\
+      tee /etc/apt/sources.list.d/kubernetes.list
+  become: true
+  become_method: sudo
+
+- name: Update cache
+  apt:
+    update_cache: true
+  become: true
+  become_method: sudo
+
+- name: Install kubernetes
+  apt:
+    update_cache: true
+    state: present
+#    allow_downgrade: true
+    name:
+      - kubelet={{ kubernetes_version_full }}
+      - kubeadm={{ kubernetes_version_full }}
+      - kubectl={{ kubernetes_version_full }}
+  become: true
+  become_method: sudo
+
+- name: Hold kubernetse
+  shell: |
+      apt-mark hold kubelet kubeadm kubectl
+  become: true
+  become_method: sudo
+

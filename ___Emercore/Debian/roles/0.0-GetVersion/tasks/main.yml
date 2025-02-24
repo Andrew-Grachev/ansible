@@ -1,0 +1,11 @@
+---
+
+- name: Вывод значения переменной
+  debug:
+    msg: "{{ ansible_facts }}"
+
+# - name: Подключение файла переменных в зависимости от версии операционной системы
+  # include_vars:
+    # file: vars/OS/{{ ansible_facts.lsb.release }}.yml
+
+...

@@ -1,0 +1,8 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ k8s.rwx_sc }}
+provisioner: kubernetes.io/nfs
+parameters:
+  server: {{ k8s.nfs_provisioner.server_ip }}
+  path: {{ k8s.nfs_provisioner.path }}

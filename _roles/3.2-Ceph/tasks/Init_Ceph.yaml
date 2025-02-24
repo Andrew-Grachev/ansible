@@ -1,0 +1,204 @@
+---
+
+- name: Проверка наличия файла '/etc/sudoers.d/{{ Ceph.user }}'
+  stat:
+    path: /etc/sudoers.d/{{ Ceph.user }}
+  register: sudo_result
+  ignore_errors: yes
+
+# - name: Создание пользователя и настройка его прав
+  # block:
+
+  # - name: Добавим группу '{{ Ceph.user }}'
+    # group:
+      # name: '{{ Ceph.user }}'
+
+  # - name: Добавим пользователя '{{ Ceph.user }}'
+    # user:
+      # name: '{{ Ceph.user }}'
+      # comment: '{{ Ceph.user }}'
+      # password: '{{ Ceph.password | password_hash("sha512") }}'
+      # group: '{{ Ceph.user }}'
+
+
+  # - name: Создание прав sudo пользователю '{{ Ceph.user }}'
+    # shell: |
+      # echo "{{ Ceph.user }} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/{{ Ceph.user }}
+      # chmod 0440 /etc/sudoers.d/{{ Ceph.user }}
+    # pdpl-user -i 63 {{ Ceph.user }}
+
+  # - name: Обмен ключами между узлами кластера
+    # shell: |
+      # {% for item in ansible_play_batch %}
+      # sshpass -p '{{ Ceph.password }}' ssh-copy-id -i /home/{{ Ceph.user }}/.ssh/id_rsa.pub -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ Ceph.user }}@{{ hostvars[item].ansible_ssh_host }}
+      # {% endfor %}
+
+  # when:
+    # - not sudo_result.stat.exists
+
+- name: Проверка наличия 'Ceph'
+  stat:
+    path: /etc/ceph/ceph.conf
+  register: ceph_result
+  ignore_errors: yes
+  when: inventory_hostname in Ceph.nodes
+
+- name: Установка и настройка Ceph
+  block:
+
+  - name: Инсталляция служб Ceph на узлах кластера
+    shell: '{{ item }}'
+    loop:
+      - ceph-deploy install --mon {{ inventory_hostname }}
+      - ceph-deploy install --osd {{ inventory_hostname }}
+      - ceph-deploy install --mgr {{ inventory_hostname }}
+      - ceph-deploy install --mds {{ inventory_hostname }}
+      - ceph-deploy install --cli {{ inventory_hostname }}
+      
+  - name: Перезагрузка узлов кластера
+    reboot:
+      msg: 'Reboot'
+
+  - name: Настройка 'Ceph' кластера
+    block:
+
+    - name: Создание кластера
+      shell: '{{ item }}'
+      loop:
+        # - ceph-deploy new --cluster-network {{ Ceph.net.network }} --public-network {{ net.network }} {{ Ceph.nodes | join(' ') }}
+
+    - name: Создание мониторов
+      shell: '{{ item }}'
+      loop:
+        # - ceph-deploy --overwrite-conf mon create {{ Ceph.nodes | join(' ') }}
+        - sleep 120
+
+    - name: Обмен ключами
+      shell: '{{ item }}'
+      loop:
+        - ceph-deploy gatherkeys {{ Ceph.nodes | join(' ') }}
+
+    - name: Регистрация MGR службы диспетчера Ceph на узлах кластера
+      shell: '{{ item }}'
+      loop:
+        # - ceph-deploy --overwrite-conf mgr create {{ Ceph.nodes | join(' ') }}
+
+    - name: Регистрация Metadata Server Daemon (MSD) - сервер метаданных
+      shell: '{{ item }}'
+      loop:
+        # - ceph-deploy --overwrite-conf mds create {{ Ceph.nodes | join(' ') }}
+
+    - name: Регистрация OSD на дисках узлов и добавление их в кластер
+      shell: |
+        DEV0=$(ssh {{ item }} lsblk | grep {{ Ceph.dev[0] }} | awk '{print $1}')
+        ceph-deploy osd create --data /dev/$DEV0 {{ item }}
+      with_items: '{{ Ceph.nodes }}'
+
+    - name: Копирование ключей в '/etc/ceph/'
+      shell: '{{ item }}'
+      loop:
+        - cp /home/{{ ansible_ssh_user }}/ceph.*.keyring /etc/ceph/
+
+    - name: Настройка безопасности
+      shell: '{{ item }}'
+      loop:
+        - ceph config set mon auth_allow_insecure_global_id_reclaim false
+        - ceph config set mon mon_warn_on_insecure_global_id_reclaim false
+        - ceph config set mon mon_warn_on_insecure_global_id_reclaim_allowed false
+
+    - name: Выключение RESTful API
+      shell: '{{ item }}'
+      loop:
+        - ceph mgr module disable restful
+
+    - name: Создаем пулы
+      shell: '{{ item }}'
+      loop:
+        - ceph osd pool create kube 64 --autoscale-mode=on
+        - ceph osd pool set kube min_size 1
+        - ceph osd pool set kube size 2
+        - ceph osd pool application enable kube rbd
+        - rbd pool init kube
+        - ceph auth get-or-create client.rbd mon 'allow r, allow command "osd blacklist"' osd 'allow rwx pool=kube' -o /etc/ceph/ceph.client.rbd.keyring
+        - ceph osd pool create cephfs_data 64 --autoscale-mode=on
+        - ceph osd pool set cephfs_data min_size 1
+        - ceph osd pool set cephfs_data size 2
+        - ceph osd pool create cephfs_metadata 64 --autoscale-mode=on
+        - ceph osd pool set cephfs_metadata min_size 1
+        - ceph osd pool set cephfs_metadata size 2
+        - ceph fs new cephfs cephfs_metadata cephfs_data
+        - ceph osd pool application enable cephfs_metadata cephfs
+        - ceph fs subvolumegroup create cephfs csi
+        - ceph auth get-or-create client.fs mon 'allow r' mgr 'allow rw' mds 'allow rw' osd 'allow rw pool=cephfs_data, allow rw pool=cephfs_metadata' -o /etc/ceph/ceph.client.fs.keyring
+
+    - name: Запишем конфиг на все хосты кластера
+      shell: '{{ item }}'
+      loop:
+        # - ceph-deploy admin {{ Ceph.nodes | join(' ') }}
+
+    - name: Получение ключей 'Ceph'
+      fetch:
+        src: '/etc/ceph/ceph.{{ item }}.keyring'
+        dest: /tmp
+      loop:
+        - 'bootstrap-mds'
+        - 'bootstrap-osd'
+        - 'client.admin'
+        - 'client.fs'
+        - 'client.rbd'
+        - 'mon'
+        - 'bootstrap-mgr'
+        - 'bootstrap-rgw'
+
+    # - name: Установить Web-админку
+      # shell: '{{ item }}'
+      # loop:
+        # - ceph mgr module enable dashboard
+        # - ceph dashboard create-self-signed-cert
+        # - ceph dashboard set-login-credentials <username> <password>
+        # - ceph config set mgr mgr/dashboard/server_addr {{ hostvars[inventory_hostname].ansible_ssh_host }}
+        # - ceph config set mgr mgr/dashboard/server_port 8080
+        # - ceph config set mgr mgr/dashboard/ssl false
+
+    when: inventory_hostname == Ceph.nodes[0]
+
+  - name: Отправка ключей 'Ceph'
+    copy:
+      src: '/tmp/{{ Ceph.nodes[0] }}/etc/ceph/ceph.{{ item }}.keyring'
+      dest: '/etc/ceph/ceph.{{ item }}.keyring'
+    loop:
+      - 'bootstrap-mds'
+      - 'bootstrap-osd'
+      - 'client.admin'
+      - 'client.fs'
+      - 'client.rbd'
+      - 'mon'
+      - 'bootstrap-mgr'
+      - 'bootstrap-rgw'  
+    when: inventory_hostname != Ceph.nodes[0]
+
+  - name: Создание папки монтирования CephFS
+    file:
+      state: directory
+      path: '{{ item }}'
+      mode: 0755
+    with_items:
+      - /mnt/CephFS
+
+  - name: Создание ключа доступа пользователя 'admin'
+    shell: |
+      ceph auth get-key client.admin > /etc/ceph/secret.key
+    register: ceph_key_admin
+
+  - name: Монтирование CephFS
+    mount:
+      path: '/mnt/CephFS'
+      src: '{{ hostvars[inventory_hostname].ansible_ssh_host }}:6789:/'
+      fstype: ceph
+      opts: 'name=admin,secretfile=/etc/ceph/secret.key,noatime,_netdev'
+      state: mounted
+
+  when:
+    - not ceph_result.stat.exists
+
+...

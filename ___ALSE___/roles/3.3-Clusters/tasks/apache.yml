@@ -1,0 +1,66 @@
+---
+
+- name: Развертывание кластера Apache2
+  block:
+
+  - name: Инсталляция пакетов Apache2
+    apt:
+      name: apache2
+
+  - name: Конфигурирование 'Apache2'
+    shell: |
+      sed -i "1i ServerName $(hostname)" /etc/apache2/sites-available/000-default.conf
+      sudo sed -i 's/^\s*#\?\s*AstraMode.*/AstraMode off/' /etc/apache2/apache2.conf
+
+  - name: Включаем службу 'Apache2'
+    service:
+      name: apache2
+      state: restarted
+      enabled: no
+
+  - name: Настройка кластера 'Apache2'
+    block:
+
+    - name: Подготовка тестового макета
+      shell: |
+        mount {{ item.apache.dev}} /var/www/html
+        echo "Test Site" | sudo tee /var/www/html/index.html
+        umount /var/www/html
+
+    # - name: Добавление виртуального IP-адреса кластера {{ item.apache.ip }} как ресурс 'Apache2_IP_V4'
+      # shell: |
+        # pcs resource delete Apache2_IP_V4
+        # pcs resource create Apache2_IP_V4 ocf:heartbeat:IPaddr2 ip={{ item.apache.ip }}
+        # pcs resource enable Apache2_IP_V4
+
+    - name: Инициализация кластерной службы 'Apache2'
+      shell: pcs resource delete Apache2
+      ignore_errors: yes
+
+    - name: Создаем ресурс с именем 'Apache2'
+      shell: pcs resource create Apache2 ocf:heartbeat:apache configfile=/etc/apache2/apache2.conf
+
+    - name: Добавить дисковоро ресурса кластера расположенного на '{{ item.apache.dev }}' как ресурс 'Apache2_Data'
+      shell: |
+        pcs resource delete Apache2_Data
+        pcs resource create Apache2_Data ocf:heartbeat:Filesystem directory=/var/www/html device={{ item.apache.dev }} fstype=ext4
+
+    - name: Объявление зависимости 'Apache2_Data' от 'Apache2_IP_V4'
+      shell: |
+        pcs constraint colocation add Apache2_Data with Apache2_IP_V4 INFINITY
+        pcs constraint order Apache2_IP_V4 then Apache2_Data
+        pcs cluster start --all
+
+    - name: Объявление зависимости 'Apache2' от 'Apache2_Data'
+      shell: |
+        pcs constraint colocation add Apache2 with Apache2_Data INFINITY
+        pcs constraint order Apache2_Data then Apache2
+        pcs cluster start --all
+
+    when: inventory_hostname == item.srv[0]
+
+  when:
+  - item.apache is defined
+  - inventory_hostname in item.srv
+
+...

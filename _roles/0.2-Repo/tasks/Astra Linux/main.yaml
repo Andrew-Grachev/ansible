@@ -1,0 +1,194 @@
+---
+
+- name: Проверка наличия файла '/etc/apt/sources.list.d/sources.list'
+  stat:
+    path: /etc/apt/sources.list.d/sources.list
+  register: sources_result
+
+- name: Создания локального репозитория
+  block:
+
+  - name: Создание папок репозиториев
+    file:
+      state: directory
+      path: '{{ item }}'
+      mode: 0755
+    with_items:
+    - /srv
+    - /srv/iso
+    - /srv/repo
+    
+  - name: Копирование ISO образов AstraLinux
+    copy:
+      src: '../../../../iso/AstraLinux/{{ ansible_facts.lsb.release }}/{{ item }}.iso'
+      dest: '/srv/iso/'
+      force: no
+    with_items:
+    - '{{ _repo.name_iso }}'
+
+  - name: Создание папок репозитория
+    file:
+      state: directory
+      path: '/srv/repo/{{ item }}'
+      mode: 0755
+    with_items:
+    - '{{ _repo.name_iso }}'
+    ignore_errors: yes
+  
+  - name: Монтирование образов ОС
+    mount:
+      path: '/srv/repo/{{ item }}'
+      src: '/srv/iso/{{ item }}.iso'
+      fstype: iso9660
+      opts: ro,auto
+      state: mounted
+    with_items:
+    - '{{ _repo.name_iso }}'
+
+  - name: Удаление содержимого файла '/etc/apt/sources.list'
+    file:
+      path: /etc/apt/sources.list
+      state: '{{ item }}'
+    with_items:
+    - absent
+    - touch
+
+  - name: Создание файла '/etc/apt/sources.list.d/sources.list'
+    file:
+      path: /etc/apt/sources.list.d/sources.list
+      state: '{{ item }}'
+    with_items:
+    - absent
+    - touch
+
+  - name: Заполнение файла '/etc/apt/sources.list.d/sources.list'
+    lineinfile:
+      path: /etc/apt/sources.list.d/sources.list
+      line: 'deb file:///srv/repo/{{ item}} {{ _repo.dist }} {{ _repo.res }}'
+      state: present
+    with_items:
+    - '{{ _repo.name_iso }}'
+    
+  when:
+  - inventory_hostname == repo.srv 
+  - not sources_result.stat.exists
+
+- name: Проверка наличия файла '/etc/apache2-repo/sites-available/000-default.conf'
+  stat:
+    path: /etc/apache2-repo/sites-available/000-default.conf
+  register: stat_result
+
+- name: Настройка Apache2@repo
+  block:
+
+  - name: Обновление репозиториев
+    apt:
+      update_cache: yes
+
+  - name: Получение версии 'PHP'
+    shell: |
+      apt-cache show php | grep Depends | awk '{print substr($2,4)}'
+    register: tmp
+
+  - name: Запись доступной версии 'PHP' в переменную 'php_version'
+    set_fact:
+      php_version: '{{ tmp.stdout_lines[0] }}'
+
+  - name: Инсталляция сервера 'Apache'
+    apt:
+      name:
+      - apache2
+      - libapache2-mod-php{{ php_version }}
+      state: latest
+      update_cache: yes
+
+  - name: Удаление папок и файлов 'Apache2@Repo'
+    shell: '{{ item }}'
+    with_items:
+      - rm -rf /etc/apache2-repo
+      - rm -rf /var/log/apache2-repo
+      - rm -f /usr/local/sbin/*repo
+
+  - name: Модифицируем файлы конфигурации 'Apache2@Repo'
+    shell: |
+      sed -i "s/zero_if_notfound: no/zero_if_notfound: yes/g" /etc/parsec/mswitch.conf
+      sh /usr/share/doc/apache2/examples/setup-instance repo
+      sed -i "s/# AstraMode on/AstraMode off/g" /etc/apache2-repo/apache2.conf
+      sed -i "s/Listen 80/Listen {{ repo.port }}/g" /etc/apache2-repo/ports.conf
+      sed -i "s/;date.timezone =/date.timezone = {{ ntp.timezone }}/g" /etc/php/{{ php_version }}/apache2/php.ini
+      sed -i "s/post_max_size = 8M/post_max_size = 32M/g" /etc/php/{{ php_version }}/apache2/php.ini
+      sed -i "s/max_execution_time = 30/max_execution_time = 300/g" /etc/php/{{ php_version }}/apache2/php.ini
+      sed -i "s/max_input_time = 60/max_input_time = 300/g" /etc/php/{{ php_version }}/apache2/php.ini
+
+  - name: Очистка файла '/etc/apache2-repo/sites-available/000-default.conf'
+    file:
+      path: /etc/apache2-repo/sites-available/000-default.conf
+      state: '{{ item }}'
+    with_items:
+    - absent
+    - touch
+
+  - name: Добавление виртуального сервера 'Apache2@Repo'
+    blockinfile:
+      dest: /etc/apache2-repo/sites-available/000-default.conf
+      marker: '### repo ###'
+      block: |
+        <VirtualHost {{ hostvars[repo.srv].ansible_ssh_host }}:{{ repo.port }}>
+           ServerName {{repo.srv}}.{{ domain }}
+           ServerAlias repo
+           ServerAdmin webmaster@localhost
+           DocumentRoot /var/www/repo
+        </VirtualHost>
+
+  - name: Создание символьной ссылки на репозиторий
+    file:
+      src: /srv/repo
+      dest: /var/www/repo
+      state: link
+
+  - name: Перезапуск службы 'Apache2@Repo'
+    service:
+      name: apache2@repo
+      enabled: yes
+      state: restarted
+
+  when:
+  - inventory_hostname == repo.srv
+  - not stat_result.stat.exists
+  
+- name: Подключение к сетевому репозиторию
+  block:
+
+  - name: Удаление файла '/etc/apt/sources.list'
+    file:
+      path: /etc/apt/sources.list
+      state: '{{ item }}'
+    with_items:
+    - absent
+    - touch
+
+  - name: Удаление файла '/etc/apt/sources.list.d/sources.list'
+    file:
+      path: /etc/apt/sources.list.d/sources.list
+      state: '{{ item }}'
+    with_items:
+    - absent
+    - touch
+
+  - name: Заполняем файл '/etc/apt/sources.list.d/sources.list'
+    lineinfile:
+      path: /etc/apt/sources.list.d/sources.list
+      line: 'deb http://{{ hostvars[repo.srv].ansible_ssh_host }}:{{ repo.port }}/{{ item}} {{ _repo.dist }} {{ _repo.res }}'
+      state: present
+    with_items:
+    - '{{ _repo.name_iso }}'
+
+  - name: Обновление репозиториев
+    apt:
+      update_cache: yes
+
+  when:
+  - inventory_hostname != repo.srv
+  - not sources_result.stat.exists
+
+...

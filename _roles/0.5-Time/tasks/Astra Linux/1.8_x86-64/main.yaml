@@ -1,0 +1,62 @@
+---
+
+- name: Чтение статуса часового пояса
+  shell: cat /etc/timezone
+  register: timezone_status
+
+- name: Установка часового пояса '{{ ntp.timezone }}'
+  shell: |
+    timedatectl set-timezone {{ ntp.timezone }}
+    timedatectl set-local-rtc 0
+  when: timezone_status.stdout != ntp.timezone
+
+- name: Чтение статуса конфигурирования 'chrony'
+  shell: cat /etc/chrony/conf.d/chrony.conf | grep '{{ ntp.ntp }}'
+  register: chrony_status
+  ignore_errors: yes
+
+- name: Настройка 'Chrony'
+  block:
+
+  - name: Удаление пакета 'ntp'
+    apt:
+      name:
+      - ntp
+      - ntpdate
+      autoremove: yes
+      purge: true
+    ignore_errors: yes
+
+  - name: Установка пакета 'chrony'
+    apt:
+      name: chrony
+      state: latest
+
+  - name: Очистка файла '/etc/chrony/conf.d/chrony.conf'
+    file:
+      path: /etc/chrony/conf.d/chrony.conf
+      state: '{{ item }}'
+    with_items:
+      - absent
+      - touch
+
+  - name: Внесение изменений в файл '/etc/chrony/conf.d/chrony.conf'
+    blockinfile:
+      path: /etc/chrony/conf.d/chrony.conf
+      create: yes
+      state: present
+      marker: ""
+      block: |
+        server {{ ntp.ntp }} iburst
+
+  - name: Перезапуск службы 'chrony'
+    service:
+      name: chrony
+      enabled: yes
+      state: restarted
+
+  when: chrony_status.stdout == ''
+
+...
+
+# chronyc sources

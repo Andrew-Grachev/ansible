@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Объявляем массив
+declare -a my_array
+
+# Читаем WWID строки и сохраняем их в массив
+multipath -l | grep "(" | sed 's/).*//' | sed 's/.*(//' > /tmp/tmp.txt
+readarray -t my_array < /tmp/tmp.txt
+
+# Выводим содержимое массива в файл конфигурации
+for i in "${my_array[@]}"; do
+  grep -q "$i" /etc/multipath.conf
+  if [ $? -ne 0 ]; then
+    sed -i '$ d' /etc/multipath.conf
+    echo "  multipath {" >> /etc/multipath.conf
+    echo "    wwid $i" >> /etc/multipath.conf
+    echo "    alias shd_xxx" >> /etc/multipath.conf
+    echo "  }" >> /etc/multipath.conf
+    echo "}" >> /etc/multipath.conf
+  fi
+done

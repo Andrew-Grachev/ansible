@@ -1,0 +1,208 @@
+---
+
+- name: Проверка наличия установленного Zabbix
+  stat:
+    path: /etc/zabbix/zabbix_server.conf.d/zabbix_server.conf
+  register: zabbix_result
+
+- name: Установка и настройка Zabbix сервер
+  block:
+
+  - name: Настройка конфигурации Parsec
+    shell: 'sed -i "s/zero_if_notfound: no/zero_if_notfound: yes/g" /etc/parsec/mswitch.conf'
+
+  - name: Установка локали en_US.UTF-8
+    shell: |
+      sed -i "s/^#\s*\(en_US.UTF-8 UTF-8\)/\1/" /etc/locale.gen
+      locale-gen en_US.UTF-8
+      update-locale en_US.UTF-8
+
+  - name: Обновление репозиториев
+    apt:
+      update_cache: yes
+
+  - name: Получение версии 'PHP'
+    shell: |
+      apt-cache show php | grep Depends | awk '{print substr($2,4)}'
+    register: tmp
+
+  - name: Запись доступной версии 'PHP' в переменную 'php_version'
+    set_fact:
+      php_version: '{{ tmp.stdout_lines[0] }}'
+
+  - name: Получение версии 'PostgreSQL'
+    shell: |
+      apt-cache show postgresql | grep Depends | awk '{print substr($2,12)}'
+    register: tmp
+
+  - name: Запись доступной версии 'PostgreSQL' в переменную 'postgresql_version'
+    set_fact:
+      postgresql_version: '{{ tmp.stdout_lines[0] }}'
+
+  - name: Инсталляция необходимых пакетов для Zabbix сервера
+    apt:
+      name:
+      - apache2
+      - postgresql-{{ postgresql_version }}
+      - postgresql-se-test-{{ postgresql_version }}
+      - php{{ php_version }}-pgsql
+      - libapache2-mod-php{{ php_version }}
+      - zabbix-server-pgsql
+      - zabbix-frontend-php
+      - ipmitool
+      - ldap-utils
+      - snmp
+      - snmpd
+      - snmptt
+      - snmptrapd
+      - iperf
+      state: latest
+      update_cache: yes
+
+  - name: Предоставить пользователю postgres права читать мандатные метки и категории
+    shell: |
+      pdpl-user -l 0:0 postgres
+      pdpl-user -i 63 postgres
+      pdpl-user -l 0:0 zabbix
+      setfacl -d -m u:postgres:r /etc/parsec/{macdb,capdb}
+      setfacl -R -m u:postgres:r /etc/parsec/{macdb,capdb}
+      setfacl -m u:postgres:rx /etc/parsec/{macdb,capdb}
+#      usermod -a -Gshadow postgres
+#      pdpl-user -l 0:0 {{ Zabbix.db.user }}
+
+  - name: Удаление папок и файлов
+    shell: |
+      rm -rf /etc/apache2-zabbix
+      rm -rf /var/log/apache2-zabbix
+      rm -f /usr/local/sbin/*zabbix
+
+    # - name: Модифицируем файл '/etc/default/snmptrapd'
+      # shell: sed -i "s/TRAPDRUN=no/TRAPDRUN=yes/g" /etc/default/snmptrapd
+
+  - name: Изменение конфигурации SNMPTrap /etc/snmp/snmptrapd.conf
+    blockinfile:
+      dest: /etc/snmp/snmptrapd.conf
+      marker: '### zabbix ###'
+      block: |
+        authCommunity log,execute,net public
+        traphandle default /usr/sbin/snmptthandler
+
+  - name: Внесение изменений в конфигурационныйе файл '/etc/snmp/snmptt.ini'
+    shell: |
+      sed -i 's/mode = standalone/mode = daemon/g' /etc/snmp/snmptt.ini
+      sed -i 's/net_snmp_perl_enable = 0/net_snmp_perl_enable = 1/g' /etc/snmp/snmptt.ini
+      sed -i 's/unknown_trap_log_enable = 0/unknown_trap_log_enable = 0/g' /etc/snmp/snmptt.ini
+#          mibs_environment = ALL
+#          date_time_format = %H:%M:%S %Y/%m/%d
+
+  - name: Изменение конфигурации SNMPTrap /etc/snmp/snmptt.conf
+    blockinfile:
+      dest: /etc/snmp/snmptt.conf
+      marker: '### Zabbix ###'
+      block: |
+        #
+        #
+        EVENT general .* "General event" Normal
+        FORMAT ZBXTRAP $aA $1 $2 $3
+
+  - name: Модифицируем файлы конфигурации Apache2 и PHP
+    shell: |
+      sh /usr/share/doc/apache2/examples/setup-instance zabbix
+      sed -i "s/Listen 80/Listen {{ Zabbix.port }}/g" /etc/apache2-zabbix/ports.conf
+      sed -i "s/post_max_size = 8M/post_max_size = 32M/g" /etc/php/{{ php_version }}/apache2/php.ini
+      sed -i "s/max_execution_time = 30/max_execution_time = 300/g" /etc/php/{{ php_version }}/apache2/php.ini
+      sed -i "s/max_input_time = 60/max_input_time = 300/g" /etc/php/{{ php_version }}/apache2/php.ini
+      sed -i "s/;date.timezone =/date.timezone = {{ ntp.timezone }}/g" /etc/php/{{ php_version }}/apache2/php.ini
+      sed -i "s/# AstraMode on/AstraMode off/g" /etc/apache2-zabbix/apache2.conf
+
+  - name: Добавление виртуального Apache сервера 'Zabbix' 
+    blockinfile:
+      dest: /etc/apache2-zabbix/sites-available/000-default.conf
+      marker: '### Zabbix ###'
+      block: |
+        <VirtualHost {{ hostvars[Zabbix.srv].ansible_ssh_host }}:{{ Zabbix.port }}>
+           ServerName zabbix.{{ domain }}
+           ServerAlias zabbix
+           ServerAdmin webmaster@localhost
+           DocumentRoot /usr/share/zabbix
+        </VirtualHost>
+
+  - name: Внесение изменений в '/etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf'
+    shell: |
+      sed -i '/Zabbix'/d /etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf
+      sed -i '76 a host     {{ Zabbix.db.name }}     {{ Zabbix.db.user }}     127.0.0.1/32     trust    # Настройки для Zabbix' /etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf
+      sed -i '76 a local    {{ Zabbix.db.name }}     {{ Zabbix.db.user }}                      trust    # Настройки для Zabbix' /etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf
+
+  - name: Внесение изменений в '/etc/postgresql/{{ postgresql_version }}/main/postgresql.conf'
+    shell: |
+      sed -i 's/shared_buffers = 128 MB/shared_buffers = 1GB/g' /etc/postgresql/{{ postgresql_version }}/main/postgresql.conf
+
+  - name: Включаем и перезапускаем службу 'PostgreSQL'
+    service:
+      name: postgresql
+      enabled: yes
+      state: restarted
+
+  - name: Удаление БД '{{ Zabbix.db.name }}'
+    shell: |
+      sudo -u postgres psql -c "DROP DATABASE IF EXISTS {{ Zabbix.db.name }};"
+      sudo -u postgres psql -c "DROP ROLE IF EXISTS {{ Zabbix.db.name }};"
+
+  - name: Создание БД '{{ Zabbix.db.name }}'
+    shell: |
+      sudo -u postgres psql -c "CREATE DATABASE {{ Zabbix.db.name }};"
+      sudo -u postgres psql -c "CREATE USER {{ Zabbix.db.user }} WITH ENCRYPTED PASSWORD '{{ Zabbix.db.password }}';"  
+      sudo -u postgres psql -c "GRANT ALL ON DATABASE {{ Zabbix.db.name }} TO {{ Zabbix.db.user }};"
+      sudo -u postgres psql -c "ALTER DATABASE {{ Zabbix.db.name }} OWNER TO {{ Zabbix.db.user }};"
+
+  - name: Наполнение БД '{{ Zabbix.db.name }}'
+    shell: zcat /usr/share/zabbix-server-pgsql/{schema,images,data}.sql.gz | psql -h localhost {{ Zabbix.db.name }} {{ Zabbix.db.user }}
+
+  - name: Внесение изменений в файл '/etc/apache2/conf-enabled/zabbix-frontend-php.conf'
+    shell: |
+      sed -i 's/# php_value date.timezone Europe\\/Riga/php_value date.timezone {{ ntp.timezone }}/g' /etc/apache2/conf-available/zabbix-frontend-php.conf
+      ln -sf /etc/apache2/conf-available/zabbix-frontend-php.conf /etc/apache2/conf-enabled/zabbix-frontend-php.conf
+
+  - name: Включаем и перезапускаем службу 'apache2@zabbix'
+    service:
+      name: apache2@zabbix
+      enabled: yes
+      state: restarted
+
+  - name: Копируем файл конфигурации '/etc/zabbix/zabbix_server.conf.d/zabbix_server.conf'
+    template:
+      src: zabbix_server.j2
+      dest: /etc/zabbix/zabbix_server.conf.d/zabbix_server.conf
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Копируем файл конфигурации PHP '/etc/zabbix/zabbix.conf.php'
+    template:
+      src: zabbix.conf.php.j2
+      dest: /etc/zabbix/zabbix.conf.php
+      mode: 0644
+
+  - name: Включаем и перезапускаем службы
+    service:
+      name: '{{ item }}'
+      state: restarted
+      enabled: yes
+    with_items:
+    - zabbix-server
+    - snmpd
+    - snmptt
+    - snmptrapd
+
+  # - name: Добавим 'A' запись 'zabbix' в DNS домена
+    # become: true
+    # become_method: su
+    # become_user: admin
+    # command: 'ipa dnsrecord-add {{ domain }} zabbix --a-rec {{ hostvars[Zabbix.srv].ansible_ssh_host }}'
+    # vars:
+      # ansible_become_pass: '{{ FreeIPA.pass }}'
+    # ignore_errors: yes
+
+  when: not zabbix_result.stat.exists
+
+...

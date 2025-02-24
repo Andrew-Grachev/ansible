@@ -1,0 +1,31 @@
+{% for interface in interfaces.split(',') %}
+auto {{ interface }}
+iface {{ interface }} inet manual
+    bond-master bond0
+    bond-primary {{ interfaces.split(',')[0] }}
+    bond-mode active-backup
+
+{% endfor %}
+
+auto bond0
+iface bond0 inet static
+    address {{ ansible_ssh_host }}
+    netmask {{ net.mask }}
+    gateway {{ net.gateway }}
+    bond-primary {{ interfaces.split(',')[0] }}
+    bond-slaves none #{{ interfaces.split(',') | join(' ') }}
+    bond-mode active-backup
+    bond-miimon 100
+    bond-downdelay 200
+    bond-updelay 150
+    dns-domain {{ domain }}
+    dns-nameserver {{ net.bind }}
+    dns-search {{ domain }}
+    hwaddress {{ mac }}
+#   resend_igmp 2 # для работы телевидения (2 и более)
+
+
+#auto bond0.{{ mgmt.vlan }}
+#iface bond0.{{ mgmt.vlan }} inet static
+#    address {{ ansible_ssh_host }}
+#    netmask {{ mgmt.mask }}

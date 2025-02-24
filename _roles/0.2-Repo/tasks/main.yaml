@@ -1,0 +1,26 @@
+---
+
+- name: Внешних репозиториев
+  block:
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/web.yaml'
+  when: repo.srv is not defined
+
+- name: Локальный репозиторий
+  block:
+
+  - name: Создание локального репозитория
+    block:
+      - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/server.yaml'
+    when:
+      - inventory_hostname == repo.srv
+  
+  - name: Подключение к сетевому репозиторию
+    block:
+      - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/client.yaml'
+    when:
+      - inventory_hostname != repo.srv
+
+  when: repo.srv is defined
+
+
+...

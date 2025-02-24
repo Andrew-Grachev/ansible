@@ -1,0 +1,167 @@
+---
+
+- name: Очистка конфигурации
+  tags:
+  - clear
+  - never
+  block:
+
+  - name: Удаление пакетов
+    apt:
+      autoremove: yes
+      purge: true
+      state: absent
+      name: '{{ cluster.pkgs }}'
+
+  when:
+  - inventory_hostname in item.srv
+
+# Подготовка домена к развертыванию кластера
+- name: Проверка наличия файла '/etc/samba/samba.keytab'
+  stat:
+    path: /etc/samba/samba.keytab
+  register: samba_result
+  when: inventory_hostname == freeipa.srv
+
+- name: Подготовка домена к развертыванию кластера
+  block:
+
+  - name: Создание скрипта '/tmp/ipa-adtrust.sh' на хосте '{{ freeipa.srv }}'
+    template:
+      src: ipa-adtrust.j2
+      dest: /tmp/ipa-adtrust.sh
+      mode: 0777
+      owner: admin
+    when: not samba_result.stat.exists
+
+  - name: Настройка SMB на контроллере домена '{{ freeipa.srv }}'
+    become: true
+    become_method: su
+    become_user: admin
+    command: '/tmp/ipa-adtrust.sh'
+    vars:
+      ansible_become_pass: '{{ freeipa.pass }}'
+    when: not samba_result.stat.exists
+
+  - name: Получить на контроллере домена идентификатор безопасности (SID) домена
+    shell: |
+      net getdomainsid | sed 's/.*: //g'
+    register: domainsid
+
+  - name: Получение диапазона идентификаторов
+    shell: |
+      RANGE=$(sudo ipa idrange-find --raw | grep ipabaseid | sed 's/.*: //g')
+      SIZE=$(sudo ipa idrange-find --raw | grep ipaidrangesize | sed 's/.*: //g')
+      #echo $RANGE - $(($RANGE+$SIZE-1))
+    register: idrange
+
+  - name: Перезагрузка ОС
+    reboot:
+      msg: 'Reboot'
+    when: not samba_result.stat.exists
+
+  when:
+    - inventory_hostname == freeipa.srv
+    - item.samba is defined
+
+# Развертывание кластера
+- name: Выполняем только для группы 'srv' - сервера
+  block:
+
+  - name: Проверка наличия файла '/etc/corosync/corosync.conf'
+    stat:
+      path: /etc/corosync/corosync.conf
+    register: corosync_result
+
+  - name: Развертывание кластера '{{ item.name }}' на хостах '{{ item.srv }}'
+    block:
+
+    - name: Инсталляция пакетов на серверах кластера '{{ item.name }}'
+      apt:
+        name: '{{ cluster.pkgs }}'
+
+    - name: Создание группы '{{ cluster.group }}'
+      group:
+        name: '{{ cluster.group }}'
+        state: present
+
+    - name: Создание пользователя '{{ cluster.user }}'
+      user:
+        name: '{{ cluster.user }}'
+        state: present
+        password: "{{ cluster.pass | password_hash('sha512') }}"
+        groups: '{{ cluster.group }}'
+        comment: 'Администратор кластера'
+
+    - name: Запускаем службы
+      service:
+        name: '{{ service }}'
+        enabled: yes
+        state: started
+      with_items:
+        - pcsd
+        - corosync
+        - pacemaker
+      loop_control:
+        loop_var: service
+
+    - name: Инициализация кластера pacemaker
+      block:
+
+      - name: Инициализация кластера
+        shell: pcs cluster destroy --name {{ item.name }}
+        ignore_errors: yes
+
+      - name: Определяем авторизацию на узлах кластера
+        shell: pcs cluster auth {{ item.srv | join(' ') }} -u {{ cluster.user }} -p {{ cluster.pass }}
+
+      - name: Создаем кластер с именем '{{ item.name }}'
+        shell: pcs cluster setup --force --name {{ item.name }} {{ item.srv | join(' ') }}
+
+      - name: Запуск кластера
+        shell: |
+          pcs cluster enable --all
+          pcs cluster start --all
+
+      - name: Добавление виртуального IP-адреса кластера '{{ item.ip }}' как ресурс '{{ item.name }}_IP_V4'
+        shell: |
+          pcs resource create {{ item.name }}_IP_V4 ocf:heartbeat:IPaddr2 ip={{ item.ip }}
+          pcs resource enable {{ item.name }}_IP_V4
+
+      - name: Выключение stonith
+        shell: pcs property set stonith-enabled=false
+
+      - name: Игнорируем кворум
+        shell: pcs property set no-quorum-policy=ignore
+
+      when:
+        - inventory_hostname == item.srv[0]
+
+    when:
+    - inventory_hostname in item.srv
+    - not corosync_result.stat.exists
+
+
+  - name: Инициализация специализированных служб кластера
+    block:
+
+  # - import_tasks: apache.yml
+  # - import_tasks: postgresql.yml
+    - import_tasks: samba-srv.yml
+
+    when: inventory_hostname in item.srv
+
+  when: inventory_hostname in groups['srv']
+
+
+
+- name: Развертывание клиентов кластера Samba
+  block:
+
+  - import_tasks: samba-cli.yml
+
+  when: 
+  - inventory_hostname in groups['arm']
+  - item.samba is defined
+
+...

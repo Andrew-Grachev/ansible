@@ -1,0 +1,6 @@
+[all]
+[srv]
+repo    ansible_ssh_host=10.150.0.199
+ipa     ansible_ssh_host=10.150.0.200
+xrdp    ansible_ssh_host=10.150.0.201
+zabbix  ansible_ssh_host=10.150.0.40

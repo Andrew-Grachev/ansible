@@ -1,0 +1,7 @@
+---
+
+- include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/main.yaml'
+
+...
+
+

@@ -1,0 +1,42 @@
+---
+
+- name: Создание заданий бекапа контроллера домена FreeIPA
+  block:
+
+  - name: Проверка наличия файла '/etc/cron.d/ipa_cron'
+    stat:
+      path: /etc/cron.d/ipa_cron
+    register: backup_result
+
+  - name: Подготовка контроллера домена FreeIPA для бекапа
+    block:
+
+    - name: Копирование скриптов 'backup/restore'
+      template:
+        src: '{{ item }}.j2'
+        dest: '/usr/local/bin/{{ item }}.sh'
+        owner: root
+        group: root
+        mode: 0744
+      with_items:
+      - 'ipa_backup'
+      - 'ipa_restore'
+
+    - name: Создание расписания запуска бекапа
+      template:
+        src: ipa_cron.j2
+        dest: /etc/cron.d/ipa_cron
+        owner: root
+        group: root
+        mode: 0644
+        
+    - name: Перезапуск службы Cron
+      service:
+        name: cron
+        state: restarted
+
+    when: not backup_result.stat.exists
+
+  when: inventory_hostname == freeipa.srv or inventory_hostname == freeipa.replica
+
+...

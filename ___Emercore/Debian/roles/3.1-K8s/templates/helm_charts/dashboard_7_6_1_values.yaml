@@ -1,0 +1,303 @@
+app:
+  mode: 'dashboard'
+  image:
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+  scheduling:
+    nodeSelector: {}
+  security:
+    csrfKey: ~
+    securityContext:
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsUser: 1001
+      runAsGroup: 2001
+      capabilities:
+        drop: ["ALL"]
+    podDisruptionBudget:
+      enabled: false
+      minAvailable: 0
+      maxUnavailable: 0
+    networkPolicy:
+      enabled: false
+      ingressDenyAll: false
+      # spec:
+      #   egress:
+      #     - ports:
+      #         - port: 123
+      spec: {}
+  labels: {}
+  annotations: {}
+  priorityClassName: null
+  settings:
+    global:
+    #  clusterName: ""
+    #  itemsPerPage: 10
+    #  logsAutoRefreshTimeInterval: 5
+    #  resourceAutoRefreshTimeInterval: 5
+    #  disableAccessDeniedNotifications: false
+    pinnedResources: []
+    # - kind: customresourcedefinition
+    #  name: prometheus.monitoring.coreos.com
+    #  displayName: Prometheus
+    #  namespaced: true
+  ingress:
+    enabled: true
+    hosts:
+      # https://localhost:8443
+      # - localhost
+      - dashboard.{{ domain }}
+    ingressClassName: nginx
+    useDefaultIngressClass: false
+    #    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    #    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    #    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    useDefaultAnnotations: true
+    pathType: ImplementationSpecific
+    path: /
+    issuer:
+      name: selfsigned
+      # - default - adds 'cert-manager.io/issuer'
+      # - cluster - adds 'cert-manager.io/cluster-issuer'
+      # - disabled - disables cert-manager annotations
+      scope: default
+    tls:
+      enabled: true
+      secretName: ""
+    labels: {}
+    annotations: {}
+  # - key: node-role.kubernetes.io/control-plane
+  tolerations: []
+  affinity: {}
+
+auth:
+  role: auth
+  image:
+    repository: docker.io/kubernetesui/dashboard-auth
+    tag: 1.1.3
+  scaling:
+    replicas: 1
+    revisionHistoryLimit: 10
+  containers:
+    ports:
+      - name: auth
+        containerPort: 8000
+        protocol: TCP
+    args: []
+    env: []
+    volumeMounts:
+      - mountPath: /tmp
+        name: tmp-volume
+    resources:
+      requests:
+        cpu: 100m
+        memory: 200Mi
+      limits:
+        cpu: 250m
+        memory: 400Mi
+  automountServiceAccountToken: true
+  volumes:
+    - name: tmp-volume
+      emptyDir: {}
+  nodeSelector: {}
+  labels: {}
+  annotations: {}
+
+api:
+  role: api
+  image:
+    repository: docker.io/kubernetesui/dashboard-api
+    tag: 1.8.1
+  scaling:
+    replicas: 1
+    revisionHistoryLimit: 10
+  containers:
+    ports:
+      - name: api
+        containerPort: 8000
+        protocol: TCP
+    # args:
+    # - --system-banner="Welcome to the Kubernetes Dashboard"
+    args: []
+    # env:
+    # - name: SOME_VAR
+    #   value: 'some value'
+    env: []
+    # - mountPath: /kubeconfig
+    #   name: dashboard-kubeconfig
+    #   readOnly: true
+    volumeMounts:
+      - mountPath: /tmp
+        name: tmp-volume
+    resources:
+      requests:
+        cpu: 100m
+        memory: 200Mi
+      limits:
+        cpu: 250m
+        memory: 400Mi
+  automountServiceAccountToken: true
+  # - name: dashboard-kubeconfig
+  #   secret:
+  #     defaultMode: 420
+  #     secretName: dashboard-kubeconfig
+  volumes:
+    - name: tmp-volume
+      emptyDir: {}
+  nodeSelector: {}
+  labels: {}
+  annotations: {}
+
+web:
+  role: web
+  image:
+    repository: docker.io/kubernetesui/dashboard-web
+    tag: 1.4.0
+  scaling:
+    replicas: 1
+    revisionHistoryLimit: 10
+  containers:
+    ports:
+      - name: web
+        containerPort: 8000
+        protocol: TCP
+    # args:
+    # - --system-banner="Welcome to the Kubernetes Dashboard"
+    args: []
+    # env:
+    # - name: SOME_VAR
+    #   value: 'some value'
+    env: []
+    # - mountPath: /kubeconfig
+    #   name: dashboard-kubeconfig
+    #   readOnly: true
+    volumeMounts:
+      - mountPath: /tmp
+        name: tmp-volume
+    resources:
+      requests:
+        cpu: 100m
+        memory: 200Mi
+      limits:
+        cpu: 250m
+        memory: 400Mi
+  automountServiceAccountToken: true
+  # - name: dashboard-kubeconfig
+  #   secret:
+  #     defaultMode: 420
+  #     secretName: dashboard-kubeconfig
+  volumes:
+    - name: tmp-volume
+      emptyDir: {}
+  nodeSelector: {}
+  labels: {}
+  annotations: {}
+
+metricsScraper:
+  enabled: true
+  role: metrics-scraper
+  image:
+    repository: docker.io/kubernetesui/dashboard-metrics-scraper
+    tag: 1.1.1
+  scaling:
+    replicas: 1
+    revisionHistoryLimit: 10
+  containers:
+    ports:
+      - containerPort: 8000
+        protocol: TCP
+    args: []
+    # env:
+    # - name: SOME_VAR
+    #   value: 'some value'
+    env: []
+    # - mountPath: /kubeconfig
+    #   name: dashboard-kubeconfig
+    #   readOnly: true
+    volumeMounts:
+      - mountPath: /tmp
+        name: tmp-volume
+    resources:
+      requests:
+        cpu: 100m
+        memory: 200Mi
+      limits:
+        cpu: 250m
+        memory: 400Mi
+    livenessProbe:
+      httpGet:
+        scheme: HTTP
+        path: /
+        port: 8000
+      initialDelaySeconds: 30
+      timeoutSeconds: 30
+  automountServiceAccountToken: true
+  # - name: dashboard-kubeconfig
+  #   secret:
+  #     defaultMode: 420
+  #     secretName: dashboard-kubeconfig
+  volumes:
+    - name: tmp-volume
+      emptyDir: {}
+  nodeSelector: {}
+  labels: {}
+  annotations: {}
+
+metrics-server:
+  enabled: false
+  args:
+    - --kubelet-preferred-address-types=InternalIP
+    - --kubelet-insecure-tls
+
+kong:
+  enabled: true
+  env:
+    dns_order: LAST,A,CNAME,AAAA,SRV
+    plugins: 'off'
+    nginx_worker_processes: 1
+  ingressController:
+    enabled: false
+  dblessConfig:
+    configMap: kong-dbless-config
+  proxy:
+    type: ClusterIP
+    http:
+      enabled: false
+
+cert-manager:
+  enabled: false
+  installCRDs: true
+
+nginx:
+  enabled: false
+  controller:
+    electionID: ingress-controller-leader
+    ingressClassResource:
+      name: internal-nginx
+      default: false
+      controllerValue: k8s.io/internal-ingress-nginx
+    service:
+      type: ClusterIP
+
+extras:
+  # manifests:
+  # - apiVersion: v1
+  #   kind: ConfigMap
+  #   metadata:
+  #     name: additional-configmap
+  #   data:
+  #     mykey: myvalue
+  manifests: []
+  serviceMonitor:
+    enabled: false
+    labels: {}
+    annotations: {}
+    metricRelabelings: []
+    relabelings: []
+    scheme: https
+    tlsConfig:
+      insecureSkipVerify: true

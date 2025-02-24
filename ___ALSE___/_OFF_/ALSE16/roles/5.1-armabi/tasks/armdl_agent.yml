@@ -1,0 +1,124 @@
+---
+
+- name: Поиск в файле '/etc/armdl.conf' строки '{{ armabi.ip }}'
+  shell: 'cat /etc/armdl.conf | grep {{ armabi.ip }}'
+  register: current_status
+  ignore_errors: yes
+
+- name: Установка клиента ARMABI
+  block:
+
+  - name: Создадим папки для АРМ АБИ
+    file:
+      state: directory
+      mode: 0755
+      recurse: yes
+      path: '{{ item }}'
+    with_items:
+      - /opt/ArmAbi
+      - /opt/ArmAbi/system
+      - /etc/digsig/keys/legacy/armabi
+
+  - name: Установка пакетов необходимых для инсталяции агента АРМ АБИ
+    apt:
+      name:
+      - fping
+      - libpq5
+      - ald-admin-common
+      state: latest
+      update_cache: yes
+      dpkg_options: 'force-confdef'
+
+  - name: Копирование файлов для инсталяции агента АРМ АБИ
+    copy:
+      src: '../../../../software/arm_abi/PsArmAbi/{{ item.src }}'
+      dest: '{{ item.dest }}'
+    loop:
+    - { src: supply/libqt5sql5-psql_5.11.0-0astra6_amd64.deb, dest: /tmp/ }
+    - { src: /bin/system/common.sh, dest: /opt/ArmAbi/system/ }
+    - { src: /bin/system/common.conf, dest: /opt/ArmAbi/system/ }
+    - { src: /supply/admin_login.sh, dest: /opt/ArmAbi/system/ }
+    - { src: /supply/admin_logout.sh, dest: /opt/ArmAbi/system/ }
+    - { src: /supply/chkhrdw.sh, dest: /opt/ArmAbi/system/ }
+    - { src: /supply/chkusb.sh, dest: /opt/ArmAbi/system/ }
+    - { src: /supply/armdl.conf, dest: /etc/armdl.conf }
+    - { src: /supply/15-drweb.conf, dest: /etc/rsyslog.d/15-drweb.conf }
+    - { src: /supply/25-dpkg.conf, dest: /etc/rsyslog.d/25-dpkg.conf }
+    - { src: /supply/afick-test.conf, dest: /etc/afick-test.conf }
+    - { src: /bin/ArmDl, dest: /opt/ArmAbi/ }
+    - { src: supply/rbt-tver_pub.key, dest: /etc/digsig/keys/rbt-tver_pub.key }
+    - { src: supply/rbt-tver_pub.key, dest: /etc/digsig/keys/legacy/armabi/rbt-tver_pub.key }
+    - { src: supply/rc.local, dest: /tmp/rc.local }
+    - { src: supply/rsyslog.conf, dest: /etc/rsyslog.conf }
+    - { src: supply/armdl, dest: /etc/init.d/armdl }
+    - { src: supply/armdl.service, dest: /lib/systemd/system/armdl.service }
+    - { src: supply/chkdl, dest: /etc/cron.d/chkdl }
+    - { src: supply/chkhrdw, dest: /etc/cron.d/chkhrdw }
+    - { src: supply/chic, dest: /etc/cron.d/chic }
+    - { src: supply/abi-alarm.sh, dest: /usr/bin/abi-alarm.sh }
+
+  - name: Установка .deb пакетов
+    apt:
+      deb: /tmp/libqt5sql5-psql_5.11.0-0astra6_amd64.deb
+
+  - name: Проверка наличия файла '/etc/ipa/custodia/server.keys' Это контроллер домена FreeIPA?
+    stat:
+      path: /etc/ipa/custodia/server.keys
+    register: dnssec_result
+
+  - name: Внесение изменений в конфигурационныйе файл '/etc/armdl.conf'. Шаг 1 из 4
+    shell: |
+      sed -i 's/DOMAINCTRL/isDomainContr=1/g' /etc/armdl.conf
+      sed -i 's/OSSECSRV/{{ hostvars[ossec.srv].ansible_ssh_host }}/g' /etc/armdl.conf
+      sed -i 's/NAMEBD/{{ ossec.db }}/g' /etc/armdl.conf
+      sed -i 's/USERBD/{{ ossec.user }}/g' /etc/armdl.conf
+      sed -i 's/PASSWD/{{ ossec.pass }}/g' /etc/armdl.conf
+    when: dnssec_result.stat.exists
+
+  - name: Внесение изменений в конфигурационныйе файл '/etc/armdl.conf'. Шаг 2 из 4
+    shell: |
+      sed -i 's/DOMAINCTRL/ /g' /etc/armdl.conf
+      sed -i 's/OSSECSRV/ /g' /etc/armdl.conf
+      sed -i 's/NAMEBD/ /g' /etc/armdl.conf
+      sed -i 's/USERBD/ /g' /etc/armdl.conf
+      sed -i 's/PASSWD/ /g' /etc/armdl.conf
+    when: not dnssec_result.stat.exists
+
+  - name: Внесение изменений в конфигурационныйе файл '/etc/armdl.conf'. Шаг 3 из 4
+    shell: "sed -i 's/eth0/{{ interfaces[0] }}/g' /etc/armdl.conf"
+    when: interfaces.split(',')|length == 1
+
+  - name: Внесение изменений в конфигурационныйе файл '/etc/armdl.conf'. Шаг 4 из 4
+    shell: "sed -i 's/eth0/bond0/' /etc/armdl.conf"
+    when: interfaces.split(',')|length != 1
+
+  - name: Создание скрипта установки клиента '/tmp/armdl.sh'
+    template:
+      src: armdl.j2
+      dest: /tmp/armdl.sh
+      mode: 0777
+      owner: root
+
+  - name: Установка клиента
+    command: /tmp/armdl.sh
+
+  - name: Удаление лишних пакетов
+    apt:
+      autoremove: yes
+
+  - name: Инициализация установленных ключей
+    shell: update-initramfs -u -k all
+
+  - name: Перезагрузим сервер
+    reboot:
+      msg: 'Reboot'
+      connect_timeout: 5
+      reboot_timeout: 600
+      pre_reboot_delay: 0
+      post_reboot_delay: 60
+
+  when:
+  - current_status.stdout == ''
+  - inventory_hostname in groups['all']
+
+...

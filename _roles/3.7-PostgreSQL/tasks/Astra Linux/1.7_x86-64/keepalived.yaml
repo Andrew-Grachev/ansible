@@ -1,0 +1,47 @@
+---
+
+- name: Проверка наличия файла '/etc/keepalived/keepalived.conf'
+  stat:
+    path: /etc/keepalived/keepalived.conf
+  register: keepalived_result
+  ignore_errors: yes
+
+- name: Установка 'keepalived'
+  block:
+
+  - name: Установка пакета 'Keepalived'
+    apt:
+      pkg:
+        - keepalived
+        - curl
+
+  - name: Копирование файла конфигурации '/usr/local/bin/patroni_restapi_check.sh'
+    template:
+      src: '{{ ansible_distribution }}/patroni_restapi_check.sh.j2'
+      dest: /usr/local/bin/patroni_restapi_check.sh
+      mode: 0755
+
+  - name: Копирование файла конфигурации '/etc/keepalived/keepalived.conf'
+    template:
+      src: '{{ ansible_distribution }}/keepalived.conf.j2'
+      dest: /etc/keepalived/keepalived.conf
+      mode: 0644
+      owner: root
+
+  - name: Внесение изменений в файл '/etc/keepalived/keepalived.conf'
+    lineinfile:
+      dest: /etc/keepalived/keepalived.conf
+      regexp: 'state BACKUP'
+      line: '  state MASTER'
+    when: inventory_hostname == PostgreSQL.pg_srv[0]
+
+  - name: Запускаем службу 'Keepalived'
+    service:
+      name: keepalived
+      state: restarted
+      enabled: yes
+
+  when:
+    - not keepalived_result.stat.exists
+
+...

@@ -1,0 +1,23 @@
+image:
+  repository: dockerreg.sphaera.ru/spotahome/redis-operator
+
+imageCredentials:
+  registry: dockerreg.sphaera.ru
+  username: sphaera
+  password: sphaeraPuller
+
+fullnameOverride: "redis-operator"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+monitoring:
+  enabled: true
+  serviceMonitor: true
+labels:
+  release: prometheus

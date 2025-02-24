@@ -1,0 +1,49 @@
+---
+
+- name: Проверка наличия файла '/var/lib/etcd/default/member/snap/db'
+  stat:
+    path: /var/lib/etcd/default/member/snap/db
+  register: etcd_result
+
+- name: Создания серверов
+  block:
+
+  - name: Установка пакетов
+    apt:
+      update_cache: yes
+      name:
+        - etcd-server
+        - etcd-client
+        - curl
+      state: latest
+
+  - name: Удаление данных из '/var/lib/etcd/*'
+    shell: rm -rf /var/lib/etcd/*
+
+  - name: Копирование файла конфигурации '/etc/default/etcd'
+    template:
+      src: '{{ ansible_distribution }}/etcd.j2'
+      dest: /etc/default/etcd
+      mode: 0644
+      owner: root
+
+  - name: Перезагрузка сервиса 'etcd' 
+    service:
+      name: etcd
+      state: restarted
+      enabled: yes
+
+  - name: Внесение изменений в конфигурационныйе файл '/etc/default/etcd'
+    shell: |
+      sleep 30
+      sed -i 's/ETCD_INITIAL_CLUSTER_STATE="new"/ETCD_INITIAL_CLUSTER_STATE="existing"/g' /etc/default/etcd
+
+  - name: Перезагрузка сервиса 'etcd' 
+    service:
+      name: etcd
+      state: restarted
+      enabled: yes
+
+  when: not etcd_result.stat.exists
+
+...

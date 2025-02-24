@@ -1,0 +1,53 @@
+---
+
+- name: Выполняется только на контроллере домена FreeIPA
+  block:
+
+  - name: Проверка наличия файла '/etc/ipa/dnssec/softhsm2.conf'
+    stat:
+      path: /etc/ipa/dnssec/softhsm2.conf
+    register: dnssec_result
+
+  - name: Создание контроллера домена FreeIPA
+    block:
+
+    - name: Установка пакетов необходимых для создания контроллера домена FreeIPA
+      apt:
+        name:
+          - fly-admin-freeipa-server
+          - astra-freeipa-server
+        state: latest
+
+    - name: Удаление лишних пакетов
+      apt:
+        autoremove: yes
+
+    - name: Инициализация домена FreeIPA
+      shell: |
+        astra-freeipa-server \
+        -d {{ domain }} \
+        -n {{ inventory_hostname }} \
+        -p {{ FreeIPA.pass }} \
+        -ip {{ ansible_ssh_host }} \
+        -o \
+        -y
+
+    - name: Перезагрузка сервера
+      reboot:
+        msg: 'Reboot'
+
+    - name: Добавим 'SRV' запись '_ntp._udp' в DNS домена
+      become: true
+      become_method: su
+      become_user: admin
+      command: 'ipa dnsrecord-add {{ domain }} _ntp._udp --srv-rec="0 100 123 {{ item }}"'
+      vars:
+        ansible_become_pass: '{{ FreeIPA.pass }}'
+      ignore_errors: yes
+      with_items: '{{ ntp.srv }}'
+
+    when: not dnssec_result.stat.exists
+
+  when: inventory_hostname == FreeIPA.srv
+
+...

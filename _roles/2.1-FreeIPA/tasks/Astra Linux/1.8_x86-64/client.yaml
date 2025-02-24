@@ -1,0 +1,5 @@
+---
+
+- include_tasks: '../1.7_x86-64/client.yaml'
+
+...

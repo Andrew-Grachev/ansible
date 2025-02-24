@@ -1,0 +1,108 @@
+---
+# helm repo add kibana https://charts.bitnami.com/bitnami
+# helm repo add helm https://fluent.github.io/helm-charts
+# helm repo list
+# helm repo update
+# helm search repo -l bitnami/elasticsearch | head -20
+# helm show values bitnami/elasticsearch --version 21.3.18 > elasticsearch.yaml
+# helm search repo -l bitnami/kibana | head -20
+# helm show values bitnami/kibana --version 11.2.23 > kibana.yaml
+# helm search repo -l fluent/fluent-bit | head -20
+# helm show values fluent/fluent-bit --version  0.47.10 > fluent-bit.yaml
+
+- name: Чтение статуса 'Logging'
+  shell: kubectl get pods -n logging | grep 'elasticsearch' | grep 'Running'
+  register: status_logging
+  become: false
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: Create namespace for logging
+    kubernetes.core.k8s:
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: "logging"
+          labels:
+            pod-security.kubernetes.io/enforce: privileged
+      state: present
+
+  - name: Добавление репозитория 'elasticsearch' для Helm
+    kubernetes.core.helm_repository:
+      name: elasticsearch
+      repo_url: https://helm.elastic.co
+      force_update: true
+    become: false
+
+  - name: Добавление репозитория 'bitnami' для Helm
+    kubernetes.core.helm_repository:
+      name: bitnami
+      repo_url: https://charts.bitnami.com/bitnami
+      force_update: true
+    become: false
+
+  - name: Добавление репозитория 'fluent' для Helm
+    kubernetes.core.helm_repository:
+      name: fluent
+      repo_url: https://fluent.github.io/helm-charts
+      force_update: true
+    become: false
+
+  - name: Install templates cm
+    kubernetes.core.k8s:
+      state: present
+      namespace: logging
+      force: false
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition: 
+        - "{{ lookup('file', 'templates/helm_charts/elasticsearch-ilm-and-index-templates.yaml') | from_yaml }}"
+
+  - name: Развертывание 'elasticsearch (21.3.18)'
+    kubernetes.core.helm:
+      name: elasticsearch
+      release_namespace: logging
+      chart_ref: bitnami/elasticsearch
+      chart_version: 21.3.18
+      values: "{{ lookup('template', 'helm_charts/elasticsearch.yaml') | from_yaml }}"
+      force: true
+    become: false
+
+  - name: Создание пространства имен для 'Monitoring'
+    kubernetes.core.k8s:
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: monitoring
+          labels:
+            pod-security.kubernetes.io/enforce: privileged
+      state: present
+
+  - name: Развертывание 'fluent-bit (0.47.10)'
+    kubernetes.core.helm:
+      name: fluent-bit
+      release_namespace: logging
+      chart_ref: fluent/fluent-bit
+      chart_version: 0.47.10
+      values: "{{ lookup('template', 'helm_charts/fluent-bit.yaml') | from_yaml }}"
+      force: true
+    become: false
+
+  - name: Развертывание 'kibana (11.2.23)'
+    kubernetes.core.helm:
+      name: kibana
+      release_namespace: logging
+      chart_ref: bitnami/kibana
+      chart_version: 11.2.23
+      values: "{{ lookup('template', 'helm_charts/kibana.yaml') | from_yaml }}"
+      force: true
+    become: false
+
+  when: status_logging.stdout == ''
+
+...

@@ -1,0 +1,74 @@
+---
+- name: Создание папки дистрибутивов
+  file:
+    path: /opt/distr/
+    state: directory
+    recurse: yes
+
+- name: Изменим права доступа к папке
+  shell: "chmod -R 777 /opt/distr"
+
+- name: Создадим файл версий установленного ПО
+  file:
+    path: /opt/distr/software.conf
+    mode: '0777'
+    state: touch
+
+- name: Чтение версии установленного ПО
+  shell: cat /opt/distr/software.conf | grep Astra-start
+  register: version
+  ignore_errors: yes
+
+- name: Зададим имя хоста
+  template:
+    src: hostname
+    dest: /etc/hostname
+    mode: 0644
+    owner: root
+  when: version.stdout != relis
+
+- name: Сздадим файл hosts
+  template:
+    src: hosts.j2
+    dest: /etc/hosts
+    mode: 0644
+    owner: root
+  when: version.stdout != relis
+
+- name: Копирование файла interfaces
+  template:
+    src: interfaces
+    dest: /etc/network/interfaces
+    owner: "root"
+    group: "root"
+    mode: "u=rw,g=r,o=r"
+  when: version.stdout != relis
+
+- name: Удалим файл resolv.conf
+  file:
+    path: /etc/resolv.conf
+    state: "{{ item }}"
+  with_items:
+  - absent
+  - touch
+  when: version.stdout != relis
+
+- name: Сздадим файл resolv.conf
+  lineinfile:
+    path: /etc/resolv.conf
+    line: "{{ item }}"
+  with_items:
+    - nameserver {{ bind }}
+    - search {{ domain }}
+  when: version.stdout != relis
+
+  # Маршрутизация ?
+
+#- name: Перезагрузим хост
+#  reboot:
+#    reboot_timeout=300
+#  when: version.stdout != relis
+
+- name: Запишем новую версию ПО (Update)
+  shell: "sed -i '/Astra-start/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
+  when: version.stdout != relis

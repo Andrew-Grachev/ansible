@@ -1,0 +1,189 @@
+---
+
+- name: Установка и настройка CephFS
+  block:
+
+  - name: Проверка наличия 'ssh' ключа '/home/{{ ansible_ssh_user }}/.ssh/id_rsa'
+    stat:
+      path: /home/{{ ansible_ssh_user }}/.ssh/id_rsa
+    register: ssh_result
+    ignore_errors: yes
+
+  - name: Настройка 'ssh' для пользователя {{ ansible_ssh_user }} на серверах кластера 'CephFS'
+    block:
+
+    - name: Инсталляция пакета 'sshpass'
+      apt_rpm:
+        name: sshpass
+        update_cache: yes
+
+    - name: Внесение изменений в конфигурационныйе файл '/etc/openssh/ssh_config'
+      lineinfile:
+        dest: /etc/openssh/ssh_config
+        regexp: 'StrictHostKeyChecking'
+        line: '    StrictHostKeyChecking  no'
+
+    - name: Перезапуск службы 'sshd'
+      service:
+        name: sshd
+        enabled: yes
+        state: restarted
+
+    - name: Удаление ssh ключей
+      shell: rm -Rf /home/{{ ansible_ssh_user }}/.ssh/id_rsa*
+      ignore_errors: yes
+
+    - name: Генерация ssh ключа '/home/{{ ansible_ssh_user }}/.ssh/id_rsa'
+      shell: echo -e "\n" | ssh-keygen -q -t rsa -f /home/{{ ansible_ssh_user }}/.ssh/id_rsa -C "" -N ""
+      become: no
+  
+    - name: Обмен ключами между узлами кластера
+      shell: |
+        {% for item in cephfs.srv %}
+        sshpass -p '{{ ansible_ssh_pass }}' ssh-copy-id -i /home/{{ ansible_ssh_user }}/.ssh/id_rsa.pub -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ ansible_ssh_user }}@{{ hostvars[item].ansible_ssh_host }}
+        {% endfor %}
+      ignore_errors: yes
+
+    when: not ssh_result.stat.exists
+
+  - name: Инсталляция 'Ceph' на узлах кластера
+    block:
+
+    - name: Инсталляция пакета 'ceph-deploy'
+      apt_rpm:
+        name:
+        - ceph-deploy
+        - ceph-mgr-dashboard
+        update_cache: yes
+
+    - name: Инсталляция Ceph на узлах кластера
+      shell: '{{ item }}'
+      loop:
+        - ceph-deploy install --mon --osd --mgr {{ cephfs.srv | join(' ') }}
+      when: inventory_hostname == cephfs.srv[0]
+      become: no
+
+    - name: Перезагрузка узлов кластера
+      reboot:
+        msg: 'Reboot'
+
+  - name: Настройка 'Ceph' кластера
+    block:
+
+    - name: Создаем конфигурационный файл '/home/{{ ansible_ssh_user }}/ceph.conf'
+      shell: '{{ item }}'
+      loop:
+        - ceph-deploy new {{ cephfs.srv | join(' ') }}
+      become: no
+
+    - name: Добавление сетей в конфигурацию кластера '/home/{{ ansible_ssh_user }}/ceph.conf'
+      blockinfile:
+        dest: '/home/{{ ansible_ssh_user }}/ceph.conf'
+        block: |
+          public_network = {{ net.network }}
+          cluster_network = {{ cephfs.cluster_network }}
+      become: no
+
+    - name: Создание мониторов
+      shell: '{{ item }}'
+      loop:
+        - ceph-deploy mon create {{ cephfs.srv | join(' ') }}
+        - sleep 10
+      become: no
+
+    - name: Обмен ключами
+      shell: '{{ item }}'
+      loop:
+        - ceph-deploy gatherkeys {{ cephfs.srv | join(' ') }}
+      become: no
+
+    - name: Регистрация MGR службы диспетчера Ceph на узлах кластера
+      shell: '{{ item }}'
+      loop:
+        - ceph-deploy mgr create {{ cephfs.srv | join(' ') }}
+      become: no
+
+    - name: Инсталляция Metadata Server Daemon (MSD) - сервер метаданных
+      shell: '{{ item }}'
+      loop:
+        - ceph-deploy install --mds {{ cephfs.srv | join(' ') }}
+        - ceph-deploy mds create {{ cephfs.srv | join(' ') }}
+      become: no
+
+    - name: Создаеие OSD на дисках узлов и добавление их в кластер
+      shell: |
+        ceph-deploy osd create --data {{ cephfs.dev[0] }} {{ item }}
+        ceph-deploy osd create --data {{ cephfs.dev[1] }} {{ item }}
+      with_items: '{{ cephfs.srv }}'
+      become: no
+
+    - name: Копирование ключей в '/etc/ceph/'
+      shell: '{{ item }}'
+      loop:
+        - cp /home/{{ ansible_ssh_user }}/ceph.*.keyring /etc/ceph/
+
+    - name: Настройка безопасности
+      shell: '{{ item }}'
+      loop:
+        - ceph config set mon auth_allow_insecure_global_id_reclaim false
+        - ceph config set mon mon_warn_on_insecure_global_id_reclaim false
+        - ceph config set mon mon_warn_on_insecure_global_id_reclaim_allowed false
+
+    - name: Создаем пулы
+      shell: '{{ item }}'
+      loop:
+        - ceph osd pool create kubernetes 64
+        - ceph osd pool create k8sfs_data 64
+        - ceph osd pool create k8sfs_metadata 64
+        - ceph fs new k8sfs k8sfs_metadata k8sfs_data
+        - ceph auth add client.kubernetes mon 'allow r' osd 'allow rwx pool=kubernetes,allow rwx pool=k8sfs_data' mds 'allow rw'
+        - rbd pool init kubernetes
+
+    - name: Указать, что в качестве  административной рабочей станции будет выступать фронтальная машина
+      shell: '{{ item }}'
+      loop:
+        - ceph-deploy admin {{ cephfs.srv[0] }}
+      become: no
+
+    - name: Установить клиентские инструментальные средства Ceph на фронтальную машину
+      shell: '{{ item }}'
+      loop:
+        - ceph-deploy install --cli {{ cephfs.srv[0] }}
+      become: no
+
+    - name: Получение ключей 'Ceph'
+      fetch:
+        src: '/etc/ceph/ceph.{{ item }}.keyring'
+        dest: /tmp
+      loop:
+        - 'bootstrap-mds'
+        - 'bootstrap-osd'
+        - 'client.admin'
+        - 'mon'
+        - 'bootstrap-mgr'
+        - 'bootstrap-rgw'     
+
+    - name: Установить Web-админку
+      shell: '{{ item }}'
+      loop:
+        - ceph mgr module enable dashboard
+
+    when: inventory_hostname == cephfs.srv[0]
+
+  - name: Отправка ключей 'Ceph'
+    copy:
+      src: '/tmp/{{ cephfs.srv[0] }}/etc/ceph/ceph.{{ item }}.keyring'
+      dest: '/etc/ceph/ceph.{{ item }}.keyring'
+
+    loop:
+      - 'bootstrap-mds'
+      - 'bootstrap-osd'
+      - 'client.admin'
+      - 'mon'
+      - 'bootstrap-mgr'
+      - 'bootstrap-rgw'  
+    when: inventory_hostname != cephfs.srv[0]
+
+  when: inventory_hostname in cephfs.srv
+ 
+...

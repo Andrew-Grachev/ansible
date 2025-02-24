@@ -1,0 +1,31 @@
+global_defs {
+  script_user root
+  }
+
+vrrp_script keepalived-{{ PostgreSQL.keepalived_IP }}-promote {
+    script "/usr/local/bin/patroni_restapi_check.sh"
+    interval 10
+    weight 100
+}
+
+vrrp_instance VIP_{{ PostgreSQL.keepalived_IP }} {
+  interface {{ ansible_default_ipv4.interface }}
+  virtual_router_id 130
+  state BACKUP
+  priority {{ 200 - PostgreSQL.pg_srv.index(inventory_hostname)*10 }}
+  advert_int 1
+  unicast_src_ip primary_private_IP
+  unicast_peer {
+    secondary_private_IP
+    }
+  authentication {
+    auth_type PASS
+    auth_pass Keepalived_SecPassWord
+    }
+  virtual_ipaddress {
+    {{ PostgreSQL.keepalived_IP }}/24 dev {{ ansible_default_ipv4.interface }} label {{ ansible_default_ipv4.interface }}:0
+    }
+  track_script {
+    keepalived-{{ PostgreSQL.keepalived_IP }}-promote
+    }
+  }

@@ -1,0 +1,62 @@
+---
+
+- name: Выполняется только на контроллере домена FreeIPA
+  block:
+
+  - name: Проверка наличия файла '/etc/ipa/dnssec/softhsm2.conf'
+    stat:
+      path: /etc/ipa/dnssec/softhsm2.conf
+    register: dnssec_result
+
+  - name: Создание контроллера домена FreeIPA
+    block:
+
+    - name: Удаление пакета 'ahttpd'
+      apt_rpm:
+        update_cache: yes
+        pkg:
+          - ahttpd
+        state: absent
+
+    - name: Установка демона энтропии 'haveged'
+      apt_rpm:
+        update_cache: yes
+        pkg:
+          - haveged
+
+    - name: Запускаем службу 'haveged'
+      service:
+        name: haveged
+        state: restarted
+        enabled: yes
+
+    - name: Установка пакетов 'freeipa-server'
+      apt_rpm:
+        update_cache: yes
+        pkg:
+          - freeipa-server
+          - freeipa-server-dns
+
+    - name: Инициализируем домен '{{ domain }}'
+      shell: |
+        ipa-server-install -U \
+        --hostname={{ inventory_hostname }}.{{ domain }} \
+        --realm={{ domain | upper }} \
+        --domain={{ domain }} \
+        --ds-password={{ FreeIPA.pass }} \
+        --admin-password={{ FreeIPA.pass }} \
+        --setup-dns \
+        --forwarder {{ net.bind }} \
+        --auto-reverse
+
+        # --no-dnssec-validation
+
+    - name: Перезагрузка сервера
+      reboot:
+        msg: 'Reboot'
+
+    when: not dnssec_result.stat.exists
+
+  when: inventory_hostname == FreeIPA.srv
+
+...

@@ -1,0 +1,70 @@
+---
+
+- name: Выполняется только на клиентах FreeIPA
+  block:
+
+  - name: Проверка наличия файла '/etc/ipa/default.conf'
+    stat:
+      path: /etc/ipa/default.conf
+    register: freeipa_result
+
+  - name: Регистрация клиентов домена FreeIPA
+    block:
+
+    - name: Получить список сетевых интерфейсов
+      shell: |
+        ip link show | grep BROADCAST | awk '{print $2}' | sed 's/.$//'
+      register: device_list
+
+    - name: Создание массива сетевых интерфейсов
+      set_fact:
+        interfaces: "{{ device_list.stdout_lines | list }}"
+
+    - name: Получение количества элементов в списке интерфейсов
+      set_fact:
+        interfaces_length: "{{ interfaces | length }}"
+
+    - name: Настройка сетевого интерфейса '{{ interfaces[0] }}'
+      shell: '{{ item }}'
+      loop:
+        - nmcli connection modify "{{ interfaces[0] }}" ipv4.dns "{{ hostvars[FreeIPA.srv].ansible_ssh_host }}"
+        - nmcli connection modify "{{ interfaces[0] }}" ipv4.dns-search "{{ domain }}"
+      when: interfaces_length == '1'
+
+    - name: Перезапуск службы 'NetworkManager'
+      service:
+        name: NetworkManager
+        state: restarted
+
+    - name: Установка пакетов необходимых для подключения к контроллеру домена FreeIPA
+      apt:
+        name:
+          - fly-admin-freeipa-client
+          - astra-freeipa-client
+        state: latest
+
+    - name: Удаление лишних пакетов
+      apt:
+        autoremove: yes
+
+    - name: Подключение к домену FreeIPA
+      shell: |
+        astra-freeipa-client \
+        -d {{ domain }} \
+        -u admin \
+        -p {{ FreeIPA.pass }} \
+        -n {{ hostvars[FreeIPA.srv].ansible_ssh_host }} \
+        -y
+
+
+
+
+    - name: Перезагрузим хост
+      reboot:
+        msg: 'Reboot'
+
+    when: not freeipa_result.stat.exists
+
+  when: inventory_hostname != FreeIPA.srv
+
+...

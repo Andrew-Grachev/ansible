@@ -1,0 +1,39 @@
+# PostgreSQL.keepalived_IP\ = 10.163.1.38
+# K8s.keepalived_IP = 10.163.1.35
+
+[all]
+[srv]
+
+1ipa02    ansible_ssh_host=10.163.1.12
+1etcd01   ansible_ssh_host=10.163.1.35
+1etcd02   ansible_ssh_host=10.163.1.36
+1postgres01   ansible_ssh_host=10.163.1.37
+
+2ipa01    ansible_ssh_host=10.163.17.11
+2etcd03   ansible_ssh_host=10.163.17.35
+2postgres02    ansible_ssh_host=10.163.17.37
+2monitoring01  ansible_ssh_host=10.163.17.40
+
+
+
+
+
+
+
+#2vhs01   ansible_ssh_host=10.163.17.241
+#2vhs02   ansible_ssh_host=10.163.17.242
+#2vhs03   ansible_ssh_host=10.163.17.243
+
+
+#2master01  ansible_ssh_host=10.163.17.21
+#2master02  ansible_ssh_host=10.163.17.22
+#2master03  ansible_ssh_host=10.163.17.23
+
+#2ceph01  ansible_ssh_host=10.163.17.31
+#2ceph02  ansible_ssh_host=10.163.17.32
+#2ceph03  ansible_ssh_host=10.163.17.33
+
+#2worker01  ansible_ssh_host=10.163.17.24
+#2worker02  ansible_ssh_host=10.163.17.25
+#2worker03  ansible_ssh_host=10.163.17.26
+

@@ -1,0 +1,44 @@
+---
+
+- name: Проверка наличия файла '/etc/postgresql/11/main/postgresql.conf'
+  stat:
+    path: /etc/postgresql/11/main/postgresql.conf
+  register: postgresql_result
+
+- name: Создания серверов
+  block:
+
+  - name: Установка пакетов 'postgresql-11'
+    apt:
+      update_cache: yes
+      name:
+      - postgresql-11
+      # - postgresql-se-test-11
+      state: latest
+
+  # - name: Назначение паролей пользователей 'replicator' и 'postgres'
+    # shell: |
+      # sudo -u postgres psql -c "CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD '{{ PostgreSQL.ReplicatorPassword }}';"
+      # sudo -u postgres psql -c "ALTER USER postgres PASSWORD '{{ PostgreSQL.PostgresPassword }}';"
+
+  - name: Предоставить пользователю postgres права читать мандатные метки и категории
+    shell: |
+      pdpl-user -l 0:0 postgres
+      pdpl-user -i 63 postgres
+      setfacl -d -m u:postgres:r /etc/parsec/{macdb,capdb}
+      setfacl -R -m u:postgres:r /etc/parsec/{macdb,capdb}
+      setfacl -m u:postgres:rx /etc/parsec/{macdb,capdb}
+
+  - name: Остановка сервиса 'postgresql' 
+    service:
+      name: postgresql
+      state: stopped
+      enabled: no
+
+  - name: Удаление данных из '/var/lib/postgresql/11/main/*'
+    shell: rm -rf /var/lib/postgresql/11/main/*
+
+
+  when: not postgresql_result.stat.exists
+
+...

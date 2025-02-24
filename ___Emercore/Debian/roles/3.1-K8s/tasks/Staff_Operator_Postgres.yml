@@ -1,0 +1,57 @@
+---
+# helm repo add postgres-operator https://opensource.zalando.com/postgres-operator/charts/postgres-operator/
+# helm repo list
+# helm repo update
+# helm search repo -l postgres-operator/postgres-operator | head -20
+# helm show values postgres-operator/postgres-operator --version 1.13.0 > postgres-operator_1_13_0_values.yaml
+
+- name: Чтение статуса 'Postgres'
+  shell: kubectl get pods -n staff | grep 'postgres-operator' | grep 'Running'
+  register: status_postgres
+  become: false
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: Создание пространства имен 'staff'
+    kubernetes.core.k8s:
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: staff
+          labels:
+            pod-security.kubernetes.io/enforce: privileged
+      state: present
+
+  # - name: Удаление пода 'postgres-operator'
+    # kubernetes.core.k8s:
+      # kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      # state: absent
+      # api_version: v1
+      # kind: Pod
+      # namespace: staff
+      # name:  postgres-operator-788bd5785c-8hdzx
+
+  - name: Добавление репозитория 'postgres-operator'
+    kubernetes.core.helm_repository:
+      name: postgres-operator
+      repo_url: https://opensource.zalando.com/postgres-operator/charts/postgres-operator
+      force_update: true
+    become: false
+
+  - name: Развертывание 'postgres-operator (1.13.0)'
+    kubernetes.core.helm:
+      name: postgres-operator
+      release_namespace: staff
+      chart_ref: postgres-operator/postgres-operator
+      chart_version: 1.13.0 
+      values: "{{ lookup('template', 'helm_charts/postgres-operator.yaml') | from_yaml }}"
+      force: true
+    become: false
+
+  when: status_postgres.stdout == ''
+
+...

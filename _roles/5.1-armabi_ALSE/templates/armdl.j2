@@ -1,0 +1,119 @@
+#!/bin/sh
+
+ARM="hostname"
+ARMIP=`cat /etc/hosts | grep $(hostname -f) | awk -F " " '{print $1}'`
+
+ARMABI="{{ armabi.ip }}"
+sed -i "s@ARMABI@$ARMABI@" /etc/armdl.conf
+
+OSSECSRV="{{ hostvars[ossec.srv].ansible_ssh_host }}"  
+PWDALDADM="{{ freeipa.pass }}"
+sed -i '/admin'/d /etc/password.txt
+echo 'admin/admin:'$PWDALDADM > /etc/password.txt
+chmod 600 /etc/password.txt
+chown root:root /etc/password.txt
+
+# Перенаправляем события аудита в rsyslog
+if ! $(test -f /etc/rc.local)
+then
+ sudo cp /tmp/armabi/rc.local /etc/ &&  chmod +x /etc/rc.local 
+fi 
+
+lineexit='exit 0'
+line=$(cat /etc/rc.local | grep "$lineexit" | wc -l )
+if [ "$line" == "0" ] 
+then 
+ # Если отсутствует  строка 'exit' пишем в конец файла
+ echo '/usr/sbin/kernlog -l -f > /dev/null &' >> /etc/rc.local
+ echo '/usr/sbin/userlog -l -f > /dev/null &' >> /etc/rc.local
+ echo exit 0 >> /etc/rc.local
+else
+ # Если присутствует строка 'exit' удаляем и пишем в конец файла
+ sed -i '/exit/d' /etc/rc.local > /dev/null
+ echo '/usr/sbin/kernlog -l -f > /dev/null &' >> /etc/rc.local
+ echo '/usr/sbin/userlog -l -f > /dev/null &' >> /etc/rc.local
+ echo exit 0 >> /etc/rc.local
+fi
+
+sudo /usr/sbin/userlog -l -f > /dev/null & /usr/sbin/kernlog -l -f & > /dev/null
+sudo systemctl start rc-local.service && sudo systemctl enable rc-local.service 
+
+sudo sed -i "s@report_syslog := no@report_syslog := yes@" /etc/afick.conf
+
+# Создаем эталонный конфигурационный файл
+cp ./supply/rsyslog.conf /etc/
+if [[ "$ARMIP" != "$OSSECSRV" && "$ARM" != "$OSSECSRV" ]]; then
+ sed -i "s@OSSECHOST@$OSSECSRV@" /etc/rsyslog.conf
+else
+ sed -i '$ d' /etc/rsyslog.conf
+fi 
+
+/etc/init.d/rsyslog restart
+
+#создаём демон агента АrmDl
+sudo cp ./supply/armdl /etc/init.d/
+
+# Unit для агента АrmDl
+sudo cp ./supply/armdl.service /lib/systemd/system
+sudo chown root:root /lib/systemd/system/armdl.service
+sudo chmod 644 /lib/systemd/system/armdl.service
+systemctl daemon-reload 
+systemctl enable armdl
+systemctl start  armdl
+
+# Задание cron проверки работы агента
+sudo cp ./supply/chkdl /etc/cron.d/chkdl
+chown root:root /etc/cron.d/chkdl
+
+# Cостав оборудования
+sudo lscpu > /etc/hardware.cfg
+sed -i '15d' /etc/hardware.cfg
+sed -i '17d' /etc/hardware.cfg
+sudo lsblk >> /etc/hardware.cfg
+sudo lspci >> /etc/hardware.cfg
+sudo lsusb >> /etc/hardware.cfg
+
+# Задание cron проверки состава оборудования
+sudo cp ./supply/chkhrdw /etc/cron.d/chkhrdw
+chown root:root /etc/cron.d/chkhrdw
+
+# Задание cron проверки контроля целостности
+sudo cp ./supply/chic /etc/cron.d/chic
+chown root:root /etc/cron.d/chic
+
+sudo /etc/init.d/cron restart
+
+# Настройки антивируса
+if $( test -f /opt/drweb.com/bin/drweb-ctl.real)
+then
+ sudo drweb-ctl cfset scanengine.log /var/log/drweb.log
+ sudo drweb-ctl cfset linuxspider.log /var/log/drweb.log
+ sudo drweb-ctl cfset filecheck.log /var/log/drweb.log
+ sudo drweb-ctl cfset filecheck.loglevel debug
+fi
+
+# Работа под принуждением
+sudo cp ./supply/abi-alarm.sh /usr/bin/
+
+LOCHOMEDIR='/home'
+ALDHOMEDIR='/ald_export_home'
+SHAREDIR='/usr/share/fly-wm'
+KEYFILE='keyshortcutrc'
+
+source1=$(find ${LOCHOMEDIR} -name ${KEYFILE} 2>/dev/null)
+source2=$(find ${ALDHOMEDIR} -name ${KEYFILE} 2>/dev/null)
+source3=$(find ${SHAREDIR} -name ${KEYFILE} 2>/dev/null)
+source="$source1 $source2 $source3"
+
+for loop in ${source}
+do
+  if [ $(grep "Ctrl|Alt|p" ${loop} -c) -eq 0 ]; then
+    sed -i '$ a \\nCtrl|Alt|p = "/usr/bin/abi-alarm.sh"' ${loop}
+  fi
+done
+
+groupadd -f abigroup
+chown root:abigroup /opt/ArmAbi/ArmDl
+chmod 755 /opt/ArmAbi/ArmDl
+chown -R root:abigroup /opt/ArmAbi/system
+chmod -R 755 /opt/ArmAbi/system

@@ -1,0 +1,10 @@
+TYPE=bri
+ONBOOT=yes
+CONFIG_IPV4=yes
+BOOTPROTO=static
+HOST="{{ interfaces | join(' ') }}"
+CONFIG_WIRELESS=no
+SYSTEMD_BOOTPROTO=static
+DISABLED=no
+NM_CONTROLLED=no
+SYSTEMD_CONTROLLED=no

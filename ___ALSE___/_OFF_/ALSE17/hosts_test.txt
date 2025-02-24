@@ -1,0 +1,26 @@
+# Отключить обязательный ввод пароля при повышении прав пользователя
+# sudo astra-sudo-control disable
+
+[all:vars]
+ansible_ssh_user=astra-admin
+ansible_ssh_pass=P@ssw0rd
+
+# На хостах с количеством интерфейсов более одного будет собран 'bond0'
+
+##### Все хосты сети #####
+[all]
+
+[srv]
+c1n1   ansible_ssh_host=10.10.20.111   interfaces=eth0,eth1 mac=10:10:00:20:01:11
+c1n2   ansible_ssh_host=10.10.20.121   interfaces=eth0,eth1 mac=10:10:00:20:01:21
+c2n1   ansible_ssh_host=10.10.20.112   interfaces=eth0,eth1 mac=10:10:00:20:01:12
+c2n2   ansible_ssh_host=10.10.20.122   interfaces=eth0,eth1 mac=10:10:00:20:01:22
+c3n1   ansible_ssh_host=10.10.20.113   interfaces=eth0,eth1 mac=10:10:00:20:01:13
+c3n2   ansible_ssh_host=10.10.20.123   interfaces=eth0,eth1 mac=10:10:00:20:01:23
+c4n1   ansible_ssh_host=10.10.20.114   interfaces=eth0,eth1 mac=10:10:00:20:01:14
+c4n2   ansible_ssh_host=10.10.20.124   interfaces=eth0,eth1 mac=10:10:00:20:01:24
+
+[arm]
+arm    ansible_ssh_host=10.10.20.61    interfaces=eth0 mac=10:10:00:20:00:61
+arm-2  ansible_ssh_host=10.10.20.62    interfaces=eth0 mac=10:10:00:20:00:62
+arm-3  ansible_ssh_host=10.10.20.63    interfaces=eth0 mac=10:10:00:20:00:63

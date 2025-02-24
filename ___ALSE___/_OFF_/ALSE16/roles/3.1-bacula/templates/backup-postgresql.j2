@@ -1,0 +1,59 @@
+#!/bin/sh
+### Переменные ###
+ZABBIX_SERVER_IP="{{ zabbix_ip }}"
+ZABBIX_SENDER="$(which zabbix_sender)"
+HOSTNAME=$(hostname)
+HOST_IP="127.0.0.1"
+PG_USER="postgres"
+PG_GROUP="postgres"
+PG_BASE="{{ item.1 }}"
+PG_DUMP="$(which pg_dump)"
+DATE=$(date '+%Y-%m-%d')
+BACKUP_DIR="/var/lib/postgresql/9.6/main/pd_dump/{{ item.1 }}"
+RESTORE_DIR="/var/lib/postgresql/9.6/main/pd_restore/{{ item.1 }}"
+LOG_FILE="$BACKUP_DIR/Restore-$HOSTNAME-$PG_BASE-$DATE.log"
+CMD_RM="$(which rm)"
+CMD_INSTALL="$(which install)"
+CMD_CHMOD="$(which chmod)"
+
+### Очистка директорий ###
+"$CMD_RM" -rf "${BACKUP_DIR:?}"/*
+"$CMD_RM" -rf "${RESTORE_DIR:?}"/*
+### Проверка доступности директорий. Если отсутствует, то создаются с необходимыми правами. ###
+if [ ! -d "$BACKUP_DIR" ]; then
+  "$CMD_INSTALL" -d -o "$PG_USER" -g "$PG_GROUP" "$BACKUP_DIR"
+fi
+"$CMD_CHMOD" 777 "$BACKUP_DIR"
+if [ ! -d "$RESTORE_DIR" ]; then
+  "$CMD_INSTALL" -d -o "$PG_USER" -g "$PG_GROUP" "$RESTORE_DIR"
+fi
+"$CMD_CHMOD" 777 "$RESTORE_DIR"
+
+### Создание лог файла ###
+{
+echo "### Резервное копирование запущено - $DATE ###"
+echo ""
+} >> "$LOG_FILE"
+
+### Запуск процесса резервного копирования ###
+"$PG_DUMP" -d "$PG_BASE" -h "$HOST_IP" -U "$PG_USER" -f "$BACKUP_DIR/$PG_BASE.dump" -Fd 2>&1
+PG_DUMP_STATUS=$?
+
+### Отправка кода возврата на сервер мониторинга ###
+### "$ZABBIX_SENDER" -z "$ZABBIX_SERVER_IP" -s "$HOSTNAME" -k pg_basebackup-postgresql-status -o "$PG_DUMP_STATUS"
+
+### Записать данные о статусе резервного копирования в лог файл ###
+if [ "$PG_DUMP_STATUS" -eq "0" ]; then
+{
+echo  ""
+echo  "### Резервное копирование завершено успешно! Код возврата [EXITCODE=$PG_DUMP_STATUS] - $DATE ###"
+} >> "$LOG_FILE"
+else
+{
+echo  ""
+echo  "### Резервное копирование завершено с ошибкой! Код возврата [EXITCODE=$PG_DUMP_STATUS] - $DATE ###"
+} >> "$LOG_FILE"
+fi
+
+### Выставить рекурсивно права на корневую директорию резервных копий.
+"$CMD_CHMOD" -R 777 "${BACKUP_DIR:?}"/*

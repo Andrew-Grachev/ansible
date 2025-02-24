@@ -1,0 +1,61 @@
+---
+
+- name:
+  block:
+
+  - name: Чтение статуса 'LVM'
+    shell: kubectl get pods -n {{ k8s.lvm_provisioner.namespace }} | grep 'csi-driver-lvm-controller-0' | grep 'Running'
+    register: status_lvm
+    become: false
+    ignore_errors: yes
+
+  - name:
+    block:
+
+    - name: Создание пространства имен для 'LVM Provisioner'
+      kubernetes.core.k8s:
+        kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ k8s.lvm_provisioner.namespace }}"
+            labels:
+              pod-security.kubernetes.io/enforce: privileged
+        state: present
+
+    - name: Создание LVM Provisioner CSIDriver
+      kubernetes.core.k8s:
+        state: present
+        force: true
+        kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+        definition: "{{ lookup('template', 'LVM/lvm_common.yaml') }}"
+
+    - name: Создание LVM provisioner controller deployment
+      kubernetes.core.k8s:
+        state: present
+        force: true
+        kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+        definition: "{{ lookup('template', 'LVM/lvm_controller.yaml') }}"
+
+    - name: Создание LVM provisioner plugin deployment
+      kubernetes.core.k8s:
+        state: present
+        force: true
+        kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+        definition: "{{ lookup('template', 'LVM/lvm_plugin.yaml') }}"
+
+    - name: Создание LVM provisioner StorageClass
+      kubernetes.core.k8s:
+        state: present
+        force: true
+        kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+        definition: "{{ lookup('template', 'LVM/lvm_storageclass.yaml') }}"
+
+    when: status_lvm.stdout == ''
+
+  when:
+    - k8s.lvm_provisioner.namespace is defined
+    - k8s.ceph_csi == 0
+
+...

@@ -1,0 +1,34 @@
+---
+
+- name: Создаем конфигурацию кластера
+  template:
+    src: cluster_config.yaml.j2
+    dest: '/tmp/cluster_config.yaml'
+  tags: k8s_config
+
+
+
+- name: Инициализируем сластер K8s
+  shell: kubeadm init --upload-certs --config /tmp/cluster_config.yaml >> ~/cluster_initialized.txt
+  register: init_cluster
+  become: "{{ 'no' if ansible_user == 'root' else 'yes' }}"
+  become_method: sudo
+  ignore_errors: yes
+
+- name: Создаем директорию '/home/{{ local_admin }}/.kube'
+  file:
+    path: $HOME/.kube
+    state: directory
+    mode: 0755
+
+- name: Копируем конфигурацию кластера K8s в домашний каталог администратора
+  copy:
+    src: '/etc/kubernetes/admin.conf'
+    dest: '/home/{{ local_admin }}/.kube/config'
+    remote_src: yes
+    owner: '{{ local_admin }}'
+  tags: k8s_config
+  become: "{{ 'no' if ansible_user == 'root' else 'yes' }}"
+  become_method: sudo
+
+...

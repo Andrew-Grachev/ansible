@@ -1,0 +1,33 @@
+image:
+  registry: dockerreg.sphaera.ru
+  imagePullSecrets:
+  - name: dockerreg-sphaera-ru
+
+configGeneral:
+  docker_image: dockerreg.sphaera.ru/zalando/spilo-15:2.1-p9
+  sidecars:
+    - name: "exporter"
+      image: "dockerreg.sphaera.ru/prometheuscommunity/postgres-exporter:latest"
+      ports:
+        - name: exporter
+          containerPort: 9187
+          protocol: TCP
+      resources:
+        limits:
+          cpu: 500m
+          memory: 256M
+        requests:
+          cpu: 100m
+          memory: 200M
+      env:
+      - name: "DATA_SOURCE_URI"
+        value: "$(POD_NAME)/postgres?sslmode=require"
+      - name: "DATA_SOURCE_USER"
+        value: "$(POSTGRES_USER)"
+      - name: "DATA_SOURCE_PASS"
+        value: "$(POSTGRES_PASSWORD)"
+      - name: "PG_EXPORTER_AUTO_DISCOVER_DATABASES"
+        value: "true"
+
+configKubernetes:
+  cluster_domain: {{ domain }}

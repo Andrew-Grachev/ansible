@@ -1,0 +1,95 @@
+---
+
+- name: Проверка наличия 'ssh' ключа '/home/{{ ansible_ssh_user }}/.ssh/id_rsa'
+  stat:
+    path: /home/{{ ansible_ssh_user }}/.ssh/id_rsa
+  register: ssh_result
+  ignore_errors: yes
+
+- name: Настройка 'ssh' для пользователя
+  block:
+
+  - name: Инсталляция пакета 'sshpass'
+    apt_rpm:
+      name: sshpass
+      update_cache: yes
+
+  - name: Внесение изменений в конфигурационныйе файл '/etc/openssh/ssh_config'
+    lineinfile:
+      dest: /etc/openssh/ssh_config
+      regexp: 'StrictHostKeyChecking'
+      line: '    StrictHostKeyChecking no'
+
+  - name: Перезапуск службы 'sshd'
+    service:
+      name: sshd
+      state: restarted
+
+  - name: Генерация ssh ключа пользователя '{{ ansible_ssh_user }}'
+    user:
+      name: '{{ ansible_ssh_user }}'
+      generate_ssh_key: yes
+      ssh_key_bits: 2048
+      ssh_key_file: .ssh/id_rsa
+    become: no
+
+  - name: Создание прав sudo пользователю '{{ ansible_ssh_user }}'
+    shell: |
+      echo "{{ ansible_ssh_user }} ALL = (root) NOPASSWD:ALL" > /etc/sudoers.d/{{ ansible_ssh_user }}
+      chmod 0440 /etc/sudoers.d/{{ ansible_ssh_user }}
+
+  when: not ssh_result.stat.exists
+
+- name: Обмен ключами между узлами кластера
+  shell: |
+    {% for item in ansible_play_batch %}
+    sshpass -p '{{ ansible_ssh_pass }}' ssh-copy-id -i /home/{{ ansible_ssh_user }}/.ssh/id_rsa.pub -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ ansible_ssh_user }}@{{ hostvars[item].ansible_ssh_host }}
+    {% endfor %}
+  become: no
+
+- name: Проверка наличия файла '/root/.ssh/id_rsa'
+  stat:
+    path: /root/.ssh/id_rsa
+  register: id_rsa_result
+
+- name: Добавление прав root-у на доступ по ssh и соседние ключей
+  block:
+
+  - name: Инсталляция пакета 'sshpass'
+    apt_rpm:
+      name: sshpass
+      update_cache: yes
+  
+  - name: Внесение изменений в /etc/openssh/sshd_config
+    lineinfile: 
+      dest: /etc/openssh/sshd_config
+      regexp: '^{{ item.src }}'
+      insertbefore: BOF
+      line: '{{ item.dest }}'
+    loop:
+      - { src: "#PermitRootLogin", dest: "PermitRootLogin yes" }
+
+  - name: Генерация ssh ключа пользователя 'root'
+    user:
+      name: root
+      state: present
+      password: "{{ root_pass | password_hash('sha512') }}"
+      generate_ssh_key: yes
+      ssh_key_bits: 2048
+      ssh_key_file: .ssh/id_rsa
+
+  - name: Перезапуск службы 'ssh'
+    service:
+      name: sshd
+      enabled: yes
+      state: restarted
+  
+  when: not id_rsa_result.stat.exists
+
+- name: Копирование ключей на соседние машины
+  shell: |
+    {% for item in ansible_play_batch %}
+    sshpass -p '{{ root_pass }}' ssh-copy-id -i /root/.ssh/id_rsa.pub -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@{{ hostvars[item].ansible_ssh_host }}
+    {% endfor %}
+
+...

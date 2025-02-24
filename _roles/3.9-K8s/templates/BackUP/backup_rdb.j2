@@ -1,0 +1,22 @@
+#!/bin/bash
+
+DATE=$(date +%Y-%m-%d)
+BACKUP_DIR="/mnt/BackUP"
+POOL="kube"
+IMAGES=$(rbd ls $POOL)
+
+mkdir -p $BACKUP_DIR/ceph/$DATE
+tar -czvf $BACKUP_DIR/ceph/$DATE/ceph-config-backup.tar.gz /etc/ceph
+tar -czvf $BACKUP_DIR/ceph/$DATE/ceph-keys-backup.tar.gz /var/lib/ceph
+
+mkdir -p $BACKUP_DIR/rbd/$DATE
+for IMAGE in $IMAGES; do
+  cd $BACKUP_DIR/rbd/$DATE
+  rbd export $POOL/$IMAGE $BACKUP_DIR/rbd/$DATE/$IMAGE-backup.raw
+  tar -cvzf $IMAGE-backup.tar.gz $IMAGE-backup.raw
+  rm $IMAGE-backup.raw
+done
+
+mkdir -p $BACKUP_DIR/cephfs/$DATE
+cd $BACKUP_DIR/cephfs/$DATE
+tar -czvf cephfs-backup.tar.gz -C /mnt/CephFS .

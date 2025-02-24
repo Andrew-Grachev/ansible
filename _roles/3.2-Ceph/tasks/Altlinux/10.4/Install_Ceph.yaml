@@ -1,0 +1,41 @@
+---
+
+- name: Проверка наличия 'Ceph'
+  stat:
+    path: /usr/bin/ceph
+  register: ceph_result
+  ignore_errors: yes
+
+- name: Установка и настройка Ceph
+  block:
+
+  - name: Установка пакетов AltLinux
+    apt_rpm:
+      update_cache: true
+      package:
+        - python3-module-pip
+        - htop
+        - iftop
+        - net-tools
+
+  - name: Установка модулей Python
+    pip:
+      executable: pip3
+      extra_args: --no-warn-script-location
+      name:
+        - ansible
+        - ansible-core
+        - ansible-lint
+    ignore_errors: yes
+
+  - name: Инсталляция пакета 'ceph-deploy'
+    apt_rpm:
+      name:
+      - ceph-deploy
+      - ceph-mgr-dashboard
+      update_cache: yes
+
+  when:
+    - not ceph_result.stat.exists
+
+...

@@ -1,0 +1,122 @@
+---
+
+- name: Чтение статуса видеокарты 'NVidia'
+  shell: lspci | grep NVIDIA
+  register: nvidia_status
+  ignore_errors: yes
+
+- name: Чтение статуса установки драйверов видеокарты 'NVidia'
+  stat:
+    path: /usr/bin/nvidia-settings
+  register: nvidia_drivers
+  ignore_errors: yes
+
+- name: Чтение статуса репозитория 'NVidia'
+  shell: cat /etc/apt/sources.list.d/sources.list | grep NVidia
+  register: repo_nvidia_status
+  ignore_errors: yes
+
+- name: Создание репозитория NVidia
+  block:
+
+  - name: Копирование образов репозитория 'NVidia'
+    copy:
+      src: '../../../../software/nvidia/{{ item }}.tar.gz'
+      dest: /tmp/
+      force: no
+    with_items:
+    - '{{ nvidia.repo }}'
+
+  - name: Распаковка репозитория 'NVidia'
+    shell:  'tar xf /tmp/{{ item }}.tar.gz -C /srv/repo'
+    with_items:
+    - '{{ nvidia.repo }}'
+
+  - name: Заполняем файл '/etc/apt/sources.list.d/sources.list'
+    lineinfile:
+      path: /etc/apt/sources.list.d/sources.list
+      line: 'deb file:///srv/repo/{{ item }} smolensk non-free'
+      state: present
+    with_items:
+    - '{{ nvidia.repo }}'
+
+  when:
+  - inventory_hostname == repo.srv
+  - repo_nvidia_status.stdout == ''
+
+
+- name: Добавление ссылок на репозиторий 'NVidia'
+  block:
+
+  - name: Заполняем файл '/etc/apt/sources.list.d/sources.list'
+    lineinfile:
+      path: /etc/apt/sources.list.d/sources.list
+      line: 'deb http://{{ hostvars[repo.srv].ansible_ssh_host }}:{{ repo.port }}/{{ item }} smolensk non-free'
+      state: present
+    with_items:
+    - '{{ nvidia.repo }}'
+
+  when:
+  - inventory_hostname != repo.srv
+  - repo_nvidia_status.stdout == ''
+  - nvidia_status.stdout != ''
+
+- name: Установка NVidia
+  block:
+
+  - name: Установка драйверов 'NVidia'
+    apt:
+      update_cache: yes
+      name: '{{ nvidia.pkgs }}'
+    ignore_errors: yes
+
+  - name: Копирование 'NVidia settings'
+    copy:
+      src: '../../../../software/nvidia/{{ item }}.tar.gz'
+      dest: /tmp/
+      force: no
+    with_items:
+    - '{{ nvidia.settings }}'
+
+  - name: Распаковка 'NVidia settings'
+    shell:  'tar xf /tmp/{{ item }}.tar.gz -C /tmp'
+    with_items:
+    - '{{ nvidia.settings }}'
+
+  - name: Инсталяция 'NVidia settings'
+    shell: 'dpkg -i /tmp/nvidia-settings-new/*.deb'
+
+  - name: Перезагрузка ОС
+    reboot:
+      msg: "Reboot"
+
+  when:
+  - nvidia_status.stdout != ''
+  - not nvidia_drivers.stat.exists
+
+# - name: Проверка наличия файла /etc/X11/xorg.conf
+  # stat:
+    # path: /etc/X11/xorg.conf
+  # register: xorg_result
+
+# - name: Удаление файла 'xorg.conf'
+  # shell:  mv /etc/X11/xorg.conf /etc/X11/xorg.conf.`date +%s`
+  # ignore_errors: yes
+  # when: xorg_result.stat.exists   
+
+# - name: Изменение файла /etc/modprobe.d/blacklist.conf
+  # blockinfile:
+    # dest: /etc/modprobe.d/blacklist.conf
+    # marker: '### NVidia ###'
+    # block: |
+      ##Запретить запуск драйверов Nouveau
+      # blacklist nouveau
+      # options nouveau modeset=0
+
+# - name: Модифицируем файл /etc/initramfs-tools/modules
+  # shell: sed -i "s/nouveau modeset=1/# nouveau modeset=1/g" /etc/initramfs-tools/modules
+
+# - name: Обновляем конфигурацию
+  # shell: update-initramfs -u -k all
+
+...

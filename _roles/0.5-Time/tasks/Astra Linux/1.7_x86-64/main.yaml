@@ -1,0 +1,68 @@
+---
+
+- name: Чтение статуса часового пояса
+  shell: cat /etc/timezone
+  register: timezone_status
+
+- name: Установка часового пояса '{{ ntp.timezone }}'
+  shell: |
+    timedatectl set-timezone {{ ntp.timezone }}
+    timedatectl set-local-rtc 0
+  when: timezone_status.stdout != ntp.timezone
+
+# - name: Чтение статуса конфигурирования NTP сервера
+  # shell: cat /etc/ntp.conf | grep '{{ ntp.ntp }}'
+  # register: ntp_server_status
+  # ignore_errors: yes
+
+# - name: Настройка NTP
+  # block:
+
+  # - name: Установка пакетов 'ntp'
+    # apt:
+      # name: ntp
+      # state: latest
+
+  # - name: Очистка файла '/etc/ntp.conf'
+    # file:
+      # path: /etc/ntp.conf
+      # state: '{{ item }}'
+    # with_items:
+      # - absent
+      # - touch
+
+  # - name: Внесение изменений в файл '/etc/ntp.conf'
+    # blockinfile:
+      # path: /etc/ntp.conf
+      # create: yes
+      # state: present
+      # marker: ""
+      # block: |
+        # logfile /var/log/ntp
+        # driftfile /var/lib/ntp/ntp.drift
+        # server 127.127.1.0
+        # server {{ ntp.ntp }} prefer
+        # fudge 127.127.1.0 stratum 10
+        # restrict 127.127.1.0 mask 255.255.255.255
+        # restrict {{ net.network.split("/")[0] }} mask {{ net.mask }}
+
+  # - name: Перезапуск службы NTP
+    # service:
+      # name: ntp
+      # enabled: yes
+      # state: restarted
+
+  # - name: Синхронизация апаратного времени с системным
+    # shell: |
+      # hwclock --systohc
+      # timedatectl set-local-rtc true
+
+  # - name: Синхронизация времени
+    # shell: |
+      # ntpdate {{ ntp.ntp }}
+      # hwclock --systohc --utc
+      # timedatectl set-local-rtc true
+
+  # when: ntp_server_status.stdout == ''
+
+...

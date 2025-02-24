@@ -1,0 +1,102 @@
+---
+
+- name: Проверка наличия файла /opt/ArmAbi/etc/armabi.conf
+  stat:
+    path: /opt/ArmAbi/etc/armabi9.conf
+  register: armabi_result
+
+- name: Установка АРМ-ов ARMABI
+  block:
+
+  - name: Установка пакетов необходимых для инсталяции АРМ АБИ
+    apt:
+      name:
+      - libpq5
+      - keepalived
+      - postgresql-client-9.6
+      - freeipa-admintools
+      state: latest
+      update_cache: yes
+      dpkg_options: 'force-confdef'
+
+  - name: Создание папок для АРМ АБИ
+    file:
+      state: directory
+      mode: 0755
+      recurse: yes
+      path: '{{ item }}'
+    with_items:
+    - /opt/ArmAbi
+    - /opt/ArmAbi/resources
+    - /opt/ArmAbi/log
+    - /opt/ArmAbi/etc
+    - /etc/digsig/keys/legacy/armabi
+
+  - name: Копирование файлов для инсталяции АРМ АБИ
+    copy:
+      src: '../../../../software/arm_abi/PsArmAbi/{{ item.src }}'
+      dest: '{{ item.dest }}'
+      force: yes
+    loop:
+    - { src: supply/libqt5sql5-psql_5.11.0-0astra6_amd64.deb, dest: /tmp/ }
+    - { src: supply/armabi.conf, dest: /opt/ArmAbi/etc/armabi.conf }
+    - { src: bin/ArmAbi, dest: /opt/ArmAbi/ArmAbi }
+    - { src: supply/rbt-tver_pub.key, dest: /etc/digsig/keys/rbt-tver_pub.key }
+    - { src: supply/rbt-tver_pub.key, dest: /etc/digsig/keys/legacy/armabi/rbt-tver_pub.key }
+    - { src: supply/abi.png, dest: /usr/share/icons/hicolor/48x48/apps/abi.png }
+    - { src: supply/abi.desktop, dest: /usr/share/applications/abi.desktop }
+
+  - name: Установка .deb пакетов
+    apt:
+      deb: /tmp/libqt5sql5-psql_5.11.0-0astra6_amd64.deb
+
+  - name: Внесение изменений в '/opt/ArmAbi/etc/armabi.conf'
+    shell: |
+      sed -i "s/freeIPA=0/freeIPA=1/g" /opt/ArmAbi/etc/armabi.conf
+      sed -i "s@armabi@{{ armabi.db }}@" /opt/ArmAbi/etc/armabi.conf
+
+  - name: Создание группы 'abigroup'
+    shell: groupadd -f abigroup
+
+  - name: Добавим пользователей в группу 'abigroup'
+    shell: |
+      usermod -a -G abigroup {{ ansible_ssh_user }}
+      usermod -a -G abigroup {{ armabi.admin.user }}
+
+  - name: Внесение изменений в конфигурационные файлы
+    shell: |
+      chown -R {{ armabi.admin.user }}:abigroup /opt/ArmAbi/
+      chmod -R 771 /opt/ArmAbi/
+      chown root:abigroup /opt/ArmAbi/ArmAbi
+      chmod 755 /opt/ArmAbi/ArmAbi
+      chmod 644 /usr/share/applications/abi.desktop
+
+  - name: Копирование файла конфигурации 'keepalived.conf' для АРМ АБИ master
+    template:
+      src: keepalived_0.j2
+      dest: /etc/keepalived/keepalived.conf
+      mode: 0644
+      owner: root
+    when: inventory_hostname == armabi.arm[0]
+
+  - name: Копирование файла конфигурации 'keepalived.conf' для АРМ АБИ slave
+    template:
+      src: keepalived_1.j2
+      dest: /etc/keepalived/keepalived.conf
+      mode: 0644
+      owner: root  
+    when: inventory_hostname == armabi.arm[1]  
+
+  - name: Перезапуск служб
+    service:
+      name: keepalived
+      enabled: yes
+      state: restarted
+
+  - name: Удаление лишних пакетов
+    apt:
+      autoremove: yes
+
+  when: not armabi_result.stat.exists
+
+...

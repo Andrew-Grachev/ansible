@@ -1,0 +1,10 @@
+---
+
+- name: Настройка сервера
+  block:
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/server.yaml'
+  when: inventory_hostname == Zabbix.srv
+
+- include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/client.yaml'
+
+...

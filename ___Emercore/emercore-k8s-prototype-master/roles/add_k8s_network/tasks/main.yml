@@ -1,0 +1,34 @@
+---
+# tasks file for add_k8s_networ
+- name: Install tigera-operator
+  kubernetes.core.k8s:
+    state: present
+    force: false
+    kubeconfig: "/$HOME/.kube/config"
+    definition: "{{ lookup('template', '{{ role_path }}/files/tigera-operator.yaml') }}"
+  when: cni  == "calico"
+
+- name: Install calico with vxlan
+  kubernetes.core.k8s:
+    state: present
+    force: false
+    kubeconfig: "/$HOME/.kube/config"
+    definition: "{{ lookup('template', '{{ role_path }}/files/vxlan.yaml') }}"
+  when: cni  == "calico"
+
+
+- name: Install calico with bgp
+  kubernetes.core.k8s:
+    state: present
+    force: no
+    kubeconfig: "~/.kube/config"
+    definition: "{{ lookup('template', '{{ role_path }}/files/kube-calico-bgp.yaml') }}"
+  when: cni  == "calico_bgp"
+
+- name: install flannel
+  kubernetes.core.k8s:
+    state: present
+    force: no
+    kubeconfig: "/$HOME/.kube/config"
+    definition: "{{ lookup('template', '{{ role_path }}/files/kube-flannel.yml') }}"
+  when: cni  == "flannel"

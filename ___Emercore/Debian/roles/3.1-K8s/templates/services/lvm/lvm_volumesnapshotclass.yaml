@@ -1,0 +1,16 @@
+
+
+apiVersion: snapshot.storage.k8s.io/v1beta1
+kind: VolumeSnapshotClass
+metadata:
+  name: csi-sanlock-lvm-snapclass
+  annotations:
+    # Use this class as default one.
+    snapshot.storage.kubernetes.io/is-default-class: "true"
+driver: csi-sanlock-lvm.csi.vleo.net
+parameters:
+  # Snapshot maximum size in bytes.
+  #maxSize: "21474836480" # 20 GiB
+  # Snapshot maximum size as a percentage of the origin size as a value in (0, 1].
+  maxSizePct: "0.2"
+deletionPolicy: Delete

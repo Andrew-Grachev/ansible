@@ -1,0 +1,6 @@
+logfile /var/log/ntp
+driftfile /var/lib/ntp/ntp.drift
+
+server {{ ntp.ntp_int }} prefer
+
+restrict 127.127.1.0 mask 255.255.255.255

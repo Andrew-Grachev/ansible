@@ -1,0 +1,11 @@
+#!/bin/sh
+### Переменные ###
+IPA_BACKUP="$(which ipa-backup)"
+CMD_RM="$(which rm)"
+BACKUP_DIR="/var/lib/ipa/backup"
+
+### Очистка директорий ###
+"$CMD_RM" -rf "${BACKUP_DIR:?}"/*
+
+### Запуск процесса резервного копирования ###
+"$IPA_BACKUP" 2>&1

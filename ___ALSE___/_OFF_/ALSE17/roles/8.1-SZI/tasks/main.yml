@@ -1,0 +1,35 @@
+---
+
+- name: Настройка afick
+  copy:
+    src: afick.conf
+    dest: /etc/afick.conf
+    mode: 0600
+
+- name: Пересчет afick
+  shell: sudo afick -i
+
+
+
+# - name: настройкпа grub в соответствии с контрольным примером
+  # lineinfile:
+    # path: /etc/default/grub
+    # regexp: '#GRUB_DISABLE_RECOVERY="true"'
+    # line: 'GRUB_DISABLE_RECOVERY="true"'
+    # state: present
+
+# - name: обновление настроек grub в соответствии  с контрольным примером
+  # shell: update-grub
+
+
+#- name: копирование скрипта настройки безопасности астры
+#  copy:
+#    src: security.sh
+#    dest: /tmp/
+#    mode: 0777
+
+#- name: Выполнение скрипта безопасности
+#  shell: "cd /tmp && sudo ./security.sh"
+#  when: version.stdout != relis
+
+...

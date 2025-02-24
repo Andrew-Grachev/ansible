@@ -1,0 +1,39 @@
+---
+
+- name: Выполняется только на клиентах FreeIPA
+  block:
+
+  - name: Проверка наличия файла '/etc/ipa/default.conf'
+    stat:
+      path: /etc/ipa/default.conf
+    register: freeipa_result
+
+  - name: Регистрация клиентов домена FreeIPA
+    block:
+
+    - name: Установка пакетов 'freeipa-client'
+      apt_rpm:
+        update_cache: yes
+        pkg:
+          - freeipa-client
+          - zip
+
+    - name: Подключение к домену '{{ domain }}'
+      shell: |
+        ipa-client-install \
+        -U \
+        --server={{ FreeIPA.srv }}.{{ domain }} \
+        --domain={{ domain }} \
+        --principal=admin \
+        --password={{ FreeIPA.pass }} \
+        --hostname={{ inventory_hostname }}.{{ domain }}
+
+    - name: Перезагрузим хост
+      reboot:
+        msg: 'Reboot'
+
+    when: not freeipa_result.stat.exists
+
+  when: inventory_hostname != FreeIPA.srv
+
+...

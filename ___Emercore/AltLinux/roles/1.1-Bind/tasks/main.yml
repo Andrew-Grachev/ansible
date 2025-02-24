@@ -1,0 +1,63 @@
+---
+
+# - name: Чтение статуса 'Bind'
+  # shell: kubectl get pods -n kube-system | grep 'ceph-csi' | grep 'Running'
+  # register: status_ceph
+  # become: false
+  # ignore_errors: yes
+
+- name:
+  block:
+
+  - name: Инсталляция Bind сервера
+    apt_rpm:
+      pkg:
+        - bind
+        - bind-control
+        - bind-utils
+      update_cache: yes
+
+  - name: '/var/lib/bind/etc/local.conf'
+    template:
+      src: local.conf.j2
+      dest: /var/lib/bind/etc/local.conf
+
+  - name: '/var/lib/bind/zone/internal.domain.net'
+    template:
+      src: internal.domain.net.j2
+      dest: /var/lib/bind/zone/internal.domain.net
+
+
+
+
+  - name: Перезапускаем службу 'bind'
+    service:
+      name: bind
+      state: restarted
+      enabled: yes
+
+  when: inventory_hostname in bind.srv
+
+...
+
+
+
+xx
+
+# - name: db.sc.local configuration copy
+  # template:
+    # src: named.conf.options.j2
+    # dest: /etc/bind/named.conf.options
+  # tags: bind9
+  # become: true
+  # become_method: sudo
+
+# - name: named.conf.local configuration copy
+  # template:
+    # src: named.conf.local.j2
+    # dest: /etc/bind/named.conf.local
+  # tags: bind9
+  # notify: restart bind9
+  # become: true
+  # become_method: sudo
+

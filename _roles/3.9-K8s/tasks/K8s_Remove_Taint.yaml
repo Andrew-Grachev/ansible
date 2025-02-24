@@ -1,0 +1,12 @@
+---
+
+- name: Получение количества элементов в списке 'workers'
+  set_fact:
+    workers_length: "{{ k8s.workers | length }}"
+
+- name: Снимаем метку "отталкивания" подов
+  shell: "kubectl taint nodes --all node-role.kubernetes.io/control-plane-"
+  become: false
+  when: workers_length == '0'
+
+...

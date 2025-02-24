@@ -1,0 +1,64 @@
+serviceMonitor:
+  enabled: true
+  namespace: monitoring
+  jobLabel: fluentbit
+  selector:
+    release: prometheus
+
+prometheusRule:
+  enabled: false
+
+dashboards:
+  enabled: true
+  labelKey: grafana_dashboard
+  annotations:
+    grafana-dashboard-folder: Logging
+  namespace: "monitoring"
+
+config:
+  filters: |
+    [FILTER]
+        Name kubernetes
+        Match kube.*
+        Merge_Log On
+        Keep_Log Off
+        K8S-Logging.Parser On
+        K8S-Logging.Exclude On
+    [FILTER]
+        Name            nest
+        Match           kube.*
+        Operation       lift
+        Wildcard        kubernetes.*
+        Nested_under    kubernetes
+        Add_prefix      k8s_
+    [FILTER]
+        Name modify
+        Match kube.*
+        Condition  Key_exists timestamp
+        Hard_rename timestamp @timestamp
+    [FILTER]
+        Name modify
+        Match kube.*
+        Condition  Key_exists time
+        Rename time log_time
+
+  outputs: |
+    [OUTPUT]
+        Name es
+        Match kube.*
+        Host elasticsearch
+        Logstash_Format On
+        Logstash_Prefix_Key k8s_namespace_name
+        Logstash_DateFormat %EY
+        Suppress_Type_Name On
+        Retry_Limit 5
+        Replace_Dots On
+
+    [OUTPUT]
+        Name es
+        Match host.*
+        Host elasticsearch
+        Suppress_Type_Name On
+        Logstash_Format On
+        Logstash_Prefix node
+        Retry_Limit False
