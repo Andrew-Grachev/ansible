@@ -1,5 +1,0 @@
----
-- name: remove master taint to allow workloads to be run on master
-  shell: "kubectl taint nodes --all node-role.kubernetes.io/control-plane-"
-  when: not worker_nodes
-  ignore_errors: yes

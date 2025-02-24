@@ -1,7 +1,0 @@
----
-# handlers file for install_keepalive
-
-- name: restart zabbix-agent
-  service: name=zabbix-agent state=restarted
-  become: true
-  become_method: sudo
