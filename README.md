@@ -9,6 +9,10 @@
 | Astra Linux 1.7 | :white_check_mark: |
 | RedOS 8.0 | :white_check_mark: |
 
+- :white_check_mark: - Поддерживается
+- :no_entry: - Не подерживается
+- :grey_question: - Частично работает
+
 
 ## Роли
 * ***0.1-Hostname*** - Настройка имени хоста;
