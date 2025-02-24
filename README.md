@@ -7,12 +7,12 @@
 | Alt Linux 10 | :white_check_mark: |
 | Astra Linux 1.6 | :white_check_mark: |
 | Astra Linux 1.7 | :white_check_mark: |
-| Astra Linux 1.8 | :check_box_with_check: |
+| Astra Linux 1.8 | :ballot_box_with_check: |
 | RedOS 8.0 | :white_check_mark: |
 
 - :white_check_mark: - Поддерживается
 - :no_entry: - Не подерживается
-- :check_box_with_check: - Частично работает
+- :ballot_box_with_check: - Частично работает
 
 ## Роли
 * ***0.1-Hostname*** - Настройка имени хоста;
