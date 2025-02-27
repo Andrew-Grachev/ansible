@@ -15,7 +15,20 @@
         - pgbouncer
       state: latest
 
+  - name: Получение хеша пароля
+    shell: |
+      echo -n "{{ PostgreSQL.password }}" | md5sum | awk '{print $1}'
+    register: hash
 
+  - name: Создание файла '/etc/pgbouncer/userlist.txt'
+    shell: |
+      echo '"postgres" "{{ hash.stdout }}"' > /etc/pgbouncer/userlist.txt
+
+  - name: Запускаем службу 'pgbouncer'
+    service:
+      name: pgbouncer
+      state: restarted
+      enabled: yes
 
   when: not pgbouncer_result.stat.exists
 

@@ -1,0 +1,50 @@
+global
+	log 127.0.0.1 local0 notice
+	chroot      /var/lib/haproxy
+	maxconn     3000
+	user        haproxy
+	group       haproxy
+	daemon
+	stats socket /var/lib/haproxy/stats
+
+defaults
+	mode tcp
+	log global
+	retries 2
+	timeout queue 1m
+	timeout connect 5s
+	timeout client 30m
+	timeout server 30m
+	timeout check 5s
+
+listen stats
+	bind *:9000
+	stats enable
+	stats uri /
+	stats refresh 10s
+	stats realm Haproxy\ Statistics
+
+
+#frontend master-frontend
+#	bind *:15432
+#	default_backend master-backend
+
+#    acl maccat_eq_0  maccat eq 0
+#    tcp-request content accept if maccat_eq_0
+
+
+
+#backend master-backend
+#	option httpchk GET /master
+#	http-check expect status 200
+#	default-server inter 3s fall 3 rise 2 on-marked-down shutdown-sessions
+#{% for item in PostgreSQL.pg_srv %}
+#	server {{ item }} {{ hostvars[item].ansible_ssh_host }}:5432 check port 8008
+#{% endfor %}	
+	
+
+
+#	frontend ft_slave bind *:25432 mode tcp default_backend slave backend slave option httpchk GET /replica http-check expect status 200 default-server inter 3s fall 3 rise 2 on-marked-down shutdown-sessions server v_ccng_postgresql-01 10.100.5.80:5432 maxconn 3000 check port 8008 server v_ccng_postgresql-02 10.100.5.218:5432 maxconn 3000 check port 8008 frontend ft_master_pool bind *:16432 default_backend master_pool backend master_pool option httpchk GET /master http-check expect status 200 default-server inter 3s fall 3 rise 2 on-marked-down shutdown-sessions server v_ccng_postgresql-01 10.100.5.80:6432 maxconn 3000 check port 8008 server v_ccng_postgresql-02 10.100.5.218:6432 maxconn 3000 check port 8008 frontend ft_slave_pool bind *:26432 mode tcp default_backend slave_pool backend slave_pool option httpchk GET /replica http-check expect status 200 default-server inter 3s fall 3 rise 2 on-marked-down shutdown-sessions server v_ccng_postgresql-01 10.100.5.80:6432 maxconn 3000 check port 8008 server v_ccng_postgresql-02 10.100.5.218:6432 maxconn 3000 check port 8008
+
+
+

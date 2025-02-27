@@ -29,7 +29,6 @@
         - psycopg2
         - psycopg2-binary
         - python-etcd
-        # - wheel
 
   - name: Копирование файла конфигурации '/etc/patroni.yaml'
     template:

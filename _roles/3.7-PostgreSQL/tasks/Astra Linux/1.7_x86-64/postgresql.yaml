@@ -13,13 +13,7 @@
       update_cache: yes
       name:
       - postgresql-11
-      # - postgresql-se-test-11
       state: latest
-
-  # - name: Назначение паролей пользователей 'replicator' и 'postgres'
-    # shell: |
-      # sudo -u postgres psql -c "CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD '{{ PostgreSQL.ReplicatorPassword }}';"
-      # sudo -u postgres psql -c "ALTER USER postgres PASSWORD '{{ PostgreSQL.PostgresPassword }}';"
 
   - name: Предоставить пользователю postgres права читать мандатные метки и категории
     shell: |
@@ -37,7 +31,6 @@
 
   - name: Удаление данных из '/var/lib/postgresql/11/main/*'
     shell: rm -rf /var/lib/postgresql/11/main/*
-
 
   when: not postgresql_result.stat.exists
 

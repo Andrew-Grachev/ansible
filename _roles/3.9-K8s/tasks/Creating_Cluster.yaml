@@ -9,7 +9,7 @@
 - name: Создание кластера 'Kubernetes'
   block:
 
-  - name: Инициализируем кластер 'Kubernetes'
+  - name: Инициализация кластера 'Kubernetes'
     shell: |
       kubeadm init \
       --upload-certs \

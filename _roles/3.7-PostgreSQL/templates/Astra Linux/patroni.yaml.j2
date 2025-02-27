@@ -35,6 +35,7 @@ bootstrap:
       use_pg_rewind: true
       use_slots: true
       parameters:
+        priority: {{ 200 - PostgreSQL.pg_srv.index(inventory_hostname)*10 }}
         wal_level: replica
         hot_standby: on
         wal_keep_segments: 8

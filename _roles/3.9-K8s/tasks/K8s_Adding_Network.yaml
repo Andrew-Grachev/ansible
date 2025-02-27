@@ -16,9 +16,9 @@
       kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
       definition: "{{ lookup('template', 'Calico/kube-calico-bgp.yaml') }}"
 
-  - name: Перезагрузка ОС
-    reboot:
-      msg: 'Reboot'
+  # - name: Перезагрузка ОС
+    # reboot:
+      # msg: 'Reboot'
 
   - name: Устанавливаем 'calicoctl (3.27.5)'
     shell: |

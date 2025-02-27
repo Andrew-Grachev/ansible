@@ -12,10 +12,10 @@
 
   roles:
 # 0. Первичная настройка хостов
-    # - ../_roles/0.1-HostName
-    # - ../_roles/0.3-Update
-    # - ../_roles/0.4-Network
-    # - ../_roles/0.9-SSH
+    - ../_roles/0.1-HostName
+    - ../_roles/0.3-Update
+    - ../_roles/0.4-Network
+    - ../_roles/0.9-SSH
 # 1. Установка первичных серверов и служб
     # - ../_roles/1.1-PXE
 # 2. Установка контроллера домена и подключение клиентов
@@ -24,8 +24,8 @@
     # - ../_roles/3.1-Zabbix
     # - ../_roles/3.2-Ceph
     # - ../_roles/3.3-Xrdp
-    - ../_roles/3.7-PostgreSQL
-    # - ../_roles/3.9-K8s
+    # - ../_roles/3.7-PostgreSQL
+    - ../_roles/3.9-K8s
 
 # 4. Настройка безопасности хостов
 # 5. Установка ОПО

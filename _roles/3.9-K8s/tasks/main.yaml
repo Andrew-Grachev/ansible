@@ -22,7 +22,7 @@
   block:
     - import_tasks: K8s_Adding_Network.yaml
     - import_tasks: K8s_Adding_NodeLocalDNS.yaml
-    - import_tasks: K8s_Provisioner_Ceph.yaml
+    # - import_tasks: K8s_Provisioner_Ceph.yaml
     - import_tasks: K8s_Provisioner_LVM.yaml
     - import_tasks: K8s_Provisioner_NFS.yaml
   when: inventory_hostname == k8s.masters[0]
@@ -51,10 +51,10 @@
   block:
     - import_tasks: Postgres_Operator.yaml
     - import_tasks: Monitoring.yaml
-    - import_tasks: Logging.yaml
-    - import_tasks: Rabbitmq_Operator.yaml
-    - import_tasks: Redis_Operator.yaml
-    - import_tasks: Ingress.yaml
+    # - import_tasks: Logging.yaml
+    # - import_tasks: Rabbitmq_Operator.yaml
+    # - import_tasks: Redis_Operator.yaml
+    # - import_tasks: Ingress.yaml
   when: inventory_hostname == k8s.masters[0]
 
 ...

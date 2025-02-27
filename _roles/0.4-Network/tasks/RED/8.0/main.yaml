@@ -26,6 +26,7 @@
       name: firewalld
       state: stopped
       enabled: false
+    ignore_errors: yes
 
   # - name: Останавливаем  службу 'systemd-resolved' 
     # service:

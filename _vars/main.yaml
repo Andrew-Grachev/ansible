@@ -180,7 +180,7 @@ PostgreSQL:
 ### 3.9-K8s          ###
 ########################
 k8s:
-  ver: '1.30'
+  ver: '1.32'
   masters:
     - master01
     - master02
@@ -189,7 +189,7 @@ k8s:
     - worker01
     - worker02
     - worker03
-  keepalived_IP: 10.163.1.35
+  keepalived_IP: 10.150.0.100
   haproxy_port: 8443
 # подсеть выделенная для подов
   pod_subnet: 10.230.0.0/22
@@ -200,7 +200,7 @@ k8s:
   rwo_sc: csi-rwo-sc
   rwx_sc: csi-rwx-sc
 
-  ceph_csi: 1  ## Количество провиженоров 'CephRBD' и 'CephFS'. Должно равняться количеству воркеров. Если равно '0' не устанавливается
+  ceph_csi: 0  ## Количество провиженоров 'CephRBD' и 'CephFS'. Должно равняться количеству воркеров. Если равно '0' не устанавливается
   lvm_provisioner:    ## LVM RWO # Уcтанавливатся вместо 'CephRBD'
     namespace: csi-lvm-system
     device: /dev/sdb
