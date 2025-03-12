@@ -1,5 +1,0 @@
-#!/bin/bash
-
-cd {{ repo.path }}
-reposync --repoid=redos8_base_src --download-metadata --downloadcomps --newest-only
-createrepo -v {{ repo.path }}/redos8_base_src/ -g comps.xml

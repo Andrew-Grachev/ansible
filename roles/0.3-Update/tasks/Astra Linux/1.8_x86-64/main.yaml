@@ -1,0 +1,45 @@
+---
+
+- name: Чтение версии установленного апдейта ОС
+  shell: cat /etc/astra/build_version
+  register: update_status
+  ignore_errors: yes
+
+- name: Обновление системы
+  block:
+
+  - name: Установка пакетов для обновления ОС
+    apt:
+      name:
+      - astra-update
+      state: latest
+      update_cache: yes
+    ignore_errors: yes
+
+  - name: Обновление AstraLinux
+    shell: 'astra-update -A -K -T -r'
+    ignore_errors: yes
+
+  - name: Перезагрузка ОС
+    reboot:
+      msg: "Reboot"
+
+  - name: Удаление старых ядер ОС
+    shell: |
+      set -e
+      pkgs=`dpkg -l 2> /dev/null | egrep "^ii\s*linux-image-[456]\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-" | cut -d " " -f3 | grep -v ^linux-image-$(uname -r | cut -d '-' -f1-2)`
+      [ -n "$pkgs" ] && apt remove $pkgs -y
+      rm -f /boot/old-*
+    ignore_errors: yes
+
+  - name: Перезагрузка ОС
+    reboot:
+      msg: "Reboot"
+
+  - name: Удаление старых ядер ОС
+    shell: apt -y autoremove
+    ignore_errors: yes
+
+  when: update_status.stdout != os[2].repo.build
+
+...

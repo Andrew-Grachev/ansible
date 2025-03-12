@@ -1,0 +1,55 @@
+---
+
+- name: install all
+  hosts: all
+  become: yes
+  vars_files:
+    - ../vars/main.yaml
+  #strategy: free
+#  vars:
+#    ansible_python_interpreter: /usr/bin/python3
+
+  roles:
+# 0. Первичная настройка хостов
+    - ../roles/0.1-HostName
+    - ../roles/0.2-Repo
+    - ../roles/0.3-Update
+    - ../roles/0.4-Network
+    # - ../roles/0.5-Time
+    # - 0.5-multipath
+    # - 0.6-iscsi
+    # - 0.7-nvidia
+    # - ../roles/0.9-SSH
+# 1. Установка первичных серверов и служб
+    # - ../roles/1.1-PXE
+# 2. Установка контроллера домена и подключение клиентов
+    # - ../roles/2.1-FreeIPA
+# 3. Установка серверов и служб
+    # - ../roles/3.1-Zabbix
+    # - ../roles/3.2-Ceph
+    # - ../roles/3.3-Xrdp
+    # - ../roles/3.7-PostgreSQL
+    # - ../roles/3.8-NFS
+    # - ../roles/3.9-K8s
+
+    # - 3.1-bacula
+    # - 3.3-cluster
+    # - 3.4-cups
+
+# 4. Настройка безопасности хостов
+    # - 4.1-drweb
+    # - 4.2-ksl
+# 5. Установка ОПО
+    # - 5.1-armabi
+    # - 5.2-kpsgp
+# 6. Установка серверной части СПО
+    - ../roles/6.1-GitLab
+# 7. Резерв
+# 8. Настройка безопасности
+    # - 8.1-szi
+# 9. Сервисные плейбуки
+    # - 9.1-gostsum
+    # - 9.8-logclear
+    # - ../roles/9.9-ShutDown
+
+...

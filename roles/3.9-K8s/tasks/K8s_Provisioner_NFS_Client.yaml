@@ -1,0 +1,27 @@
+---
+
+- name:
+  block:
+
+  - name: Чтение статуса 'LVM'
+    shell: kubectl get pods -n {{ k8s.nfs_provisioner.namespace }} | grep 'nfs-client-provisioner' | grep 'Running'
+    register: status_nfs
+    become: false
+    ignore_errors: yes
+
+  - name:
+    block:
+
+    - name: Создание nfs-client-provisioner
+      k8s:
+        state: present
+        force: true
+        kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+        definition: "{{ lookup('template', 'NFS_Client/nfs-client-provisioner.yaml') }}"
+
+    when: status_nfs.stdout == ''
+
+  when:
+    - k8s.nfs_provisioner.namespace is defined
+    - k8s.ceph_csi == 0
+...

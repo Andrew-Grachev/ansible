@@ -1,0 +1,90 @@
+---
+
+- name: Проверка наличия '{{ GitLab.path }}'
+  stat:
+    path: '{{ GitLab.path }}'
+  register: gitlab_result
+  ignore_errors: yes
+
+- name: Установка и настройка кластера Ceph
+  block:
+
+  - name: Установка 'Docker'
+    dnf:
+      update_cache: true
+      state: present
+      name:
+        - docker-ce
+        - docker-ce-cli
+        - docker-compose
+
+  - name: Создание файла '/tmp/docker-compose.yaml'
+    blockinfile:
+      path: /tmp/docker-compose.yaml
+      create: yes
+      state: present
+      marker: ""
+      block: |
+        version: '3.6'
+        services:
+          gitlab:
+            image: gitlab/gitlab-ce:latest
+            container_name: gitlab
+            restart: always
+            hostname: 'gitlab.{{ domain }}'
+            environment:
+              GITLAB_OMNIBUS_CONFIG: |
+                external_url 'http://gitlab.{{ domain }}'
+                gitlab_rails['gitlab_shell_ssh_port'] = 2222
+                gitlab_rails['smtp_enable'] = false
+            ports:
+              - "80:80"
+              - "443:443"
+              - "2222:22"
+            volumes:
+              - '{{ GitLab.path }}/config:/etc/gitlab'
+              - '{{ GitLab.path }}/logs:/var/log/gitlab'
+              - '{{ GitLab.path }}/data:/var/opt/gitlab'
+            shm_size: '256m'
+            networks:
+              - gitlab-network
+        networks:
+          gitlab-network:
+            driver: bridge
+
+  - name: Создание папок
+    file:
+      path: '{{ item }}'
+      state: directory
+      mode: 0777
+      recurse: True
+    with_items:
+      - '{{ GitLab.path }}/config'
+      - '{{ GitLab.path }}/logs'
+      - '{{ GitLab.path }}/data'
+
+  - name: Перезапуск службы 'docker'
+    service:
+      name: docker
+      enabled: yes
+      state: restarted
+
+  - name: Запуск 'docker-compose'
+    shell: |
+      cd /tmp && docker-compose up -d
+
+  when: not gitlab_result.stat.exists
+
+...
+
+
+
+
+
+
+
+
+
+
+
+

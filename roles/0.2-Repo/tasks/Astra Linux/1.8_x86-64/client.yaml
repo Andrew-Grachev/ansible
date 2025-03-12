@@ -1,0 +1,42 @@
+---
+
+- name: Проверка наличия файла '/etc/apt/sources.list.d/sources.list'
+  stat:
+    path: /etc/apt/sources.list.d/sources.list
+  register: sources_result
+  
+- name: Подключение к сетевому репозиторию
+  block:
+
+  - name: Удаление файла '/etc/apt/sources.list'
+    file:
+      path: /etc/apt/sources.list
+      state: '{{ item }}'
+    with_items:
+      - absent
+      - touch
+
+  - name: Удаление файла '/etc/apt/sources.list.d/sources.list'
+    file:
+      path: /etc/apt/sources.list.d/sources.list
+      state: '{{ item }}'
+    with_items:
+      - absent
+      - touch
+
+  - name: Заполняем файл '/etc/apt/sources.list.d/sources.list'
+    lineinfile:
+      path: /etc/apt/sources.list.d/sources.list
+      line: 'deb http://{{ hostvars[repo.srv].ansible_ssh_host }}:{{ repo.port }}/{{ item}} {{ os[ansible_distribution][ansible_distribution_version]repo.dist }} {{ os[ansible_distribution][ansible_distribution_version]repo.res }}'
+      state: present
+    with_items:
+      - '{{ os[ansible_distribution][ansible_distribution_version]repo.name_iso }}'
+
+  - name: Обновление репозиториев
+    apt:
+      update_cache: yes
+
+  when:
+    - not sources_result.stat.exists
+
+...

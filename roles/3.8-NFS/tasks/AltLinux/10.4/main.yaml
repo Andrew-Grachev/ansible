@@ -1,0 +1,99 @@
+---
+
+- name: Проверка наличия '{{ nfs.path }}'
+  stat:
+    path: '{{ nfs.path }}'
+  register: nfs_result
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: Инсталляция пакетов
+    apt_rpm:
+      update_cache: yes
+      pkg:
+        - nfs-server
+
+  - name: Создание папки '{{ nfs.path }}'
+    file:
+      path: '{{ nfs.path }}'
+      state: directory
+      mode: 0777
+      recurse: True
+      owner: nobody
+      group: nobody
+
+  - name: Добавление ресурсов в конфигурацию сервера '/etc/exports'
+    blockinfile:
+      dest: /etc/exports
+      block: |
+        {{ nfs.path }} {{ net.network }}(rw,no_subtree_check,no_root_squash,insecure)
+      marker: ''
+
+
+    # - name:
+      # block:
+
+      # - name: Создаем раздел '{{ nfs.device }}p1'
+        # parted:
+          # device: '{{ nfs.device }}'
+          # number: 1
+          # state: present
+          # fs_type: ext4
+
+      # - name: Очищаем раздел '{{ nfs.device }}p1'
+        # filesystem:
+          # dev: '{{ nfs.device }}p1'
+          # state: absent
+
+      # - name: Форматируем раздел '{{ nfs.device }}p1'
+        # filesystem:
+          # dev: '{{ nfs.device }}p1'
+          # fstype: ext4
+
+      # - name: Монтирование раздела NFS
+        # mount:
+          # path: '{{ nfs.path }}'
+          # src: '{{ nfs.device }}p1'
+          # fstype: ext4
+          # opts: defaults,auto
+          # state: mounted
+
+      # when: nfs.device is defined
+
+  - name: Перезапуск службы 'nfs-server'
+    service:
+      name: nfs
+      enabled: yes
+      state: restarted
+
+  when: not nfs_result.stat.exists
+
+
+
+# - name: Настройка NFS на воркерах кластера
+  # block:
+
+    # - name: Создание папки '{{ nfs.path }}'
+      # file:
+        # path: '{{ nfs.path }}'
+        # state: directory
+        # mode: 0777
+        # recurse: True
+        # owner: nobody
+        # group: nobody
+
+    # - name: Монтирование раздела NFS
+      # mount:
+        # path: '{{ nfs.path }}'
+        # src: '{{ nfs.srv }}.{{ domain }}:{{ nfs.path }}'
+        # fstype: nfs
+        # opts: defaults,auto
+        # state: mounted
+
+  # when: inventory_hostname in k8s.workers
+
+...
+
+# exportfs -a

@@ -1,0 +1,34 @@
+if loadfont $prefix/fonts/unicode.pf2 ; then
+#  set gfxmode=800x600
+  set gfxmode=1920x1080
+  set gfxpayload=keep
+  insmod efi_gop
+  insmod efi_uga
+  insmod video_bochs
+  insmod video_cirrus
+  insmod gfxterm
+  insmod png
+  terminal_output gfxterm
+fi
+ 
+# Таймаут для выполнения автоматической загрузки
+set timeout=50
+ 
+if background_image /isolinux/splash.png; then
+  set color_normal=light-gray/black
+  set color_highlight=white/black
+else
+  set menu_color_normal=cyan/blue
+  set menu_color_highlight=white/blue
+fi
+
+menuentry "Загрузка с диска" {
+    insmod chain
+    insmod disk
+    insmod part_gpt
+    insmod part_mbr
+    search --set=root --file /efi/astralinux/grubx64.efi
+    chainloader /efi/astralinux/grubx64.efi
+    boot
+}
+

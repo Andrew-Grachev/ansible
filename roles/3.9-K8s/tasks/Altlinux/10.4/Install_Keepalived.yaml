@@ -1,0 +1,77 @@
+---
+
+- name: Проверка наличия файла '/etc/keepalived/keepalived.conf'
+  stat:
+    path: /etc/keepalived/keepalived.conf
+  register: keepalived_result
+  ignore_errors: yes
+
+- name: Установка 'keepalived'
+  block:
+
+  - name: Установка пакета 'Keepalived'
+    apt_rpm:
+      update_cache: yes
+      pkg:
+        - keepalived
+
+  - name: Очистка файла '/etc/keepalived/keepalived.conf'
+    file:
+      path: /etc/keepalived/keepalived.conf
+      state: '{{ item }}'
+    with_items:
+      - absent
+      - touch
+
+  - name: Внесение изменений в файл '/etc/keepalived/keepalived.conf'
+    blockinfile:
+      path: /etc/keepalived/keepalived.conf
+      create: yes
+      state: present
+      marker: ""
+      block: |
+        vrrp_script chk_haproxy {
+          script "killall -0 haproxy"
+          interval 2
+          weight 2
+        }
+        vrrp_instance Virtual_IP {
+          interface {{ ansible_default_ipv4.interface }}
+          virtual_router_id 230
+          state BACKUP
+          priority {{ 200 - k8s.masters.index(inventory_hostname)*10 }}
+          advert_int 1
+          unicast_src_ip primary_private_IP
+          unicast_peer {
+            secondary_private_IP
+          }
+          authentication {
+            auth_type PASS
+            auth_pass Keepalived_SecPassWord
+          }
+          virtual_ipaddress {
+            {{ k8s.keepalived_IP }}/24 dev {{ ansible_default_ipv4.interface }} label {{ ansible_default_ipv4.interface }}:0
+          }
+          track_script {
+            chk_haproxy
+          }
+        }
+
+  - name: Внесение изменений в файл '/etc/keepalived/keepalived.conf'
+    lineinfile:
+      dest: /etc/keepalived/keepalived.conf
+      regexp: 'state BACKUP'
+      line: '  state MASTER'
+    when: inventory_hostname == k8s.masters[0]
+
+  - name: Запускаем службу 'Keepalived'
+    service:
+      name: keepalived
+      state: restarted
+      enabled: yes
+
+  when:
+    - not keepalived_result.stat.exists
+    - inventory_hostname in k8s.masters
+
+...

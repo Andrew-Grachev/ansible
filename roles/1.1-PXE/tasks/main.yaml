@@ -1,0 +1,8 @@
+---
+
+- name: Создания PXE сервера
+  block:
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/main.yaml'
+  when: inventory_hostname == pxe.srv
+
+...
