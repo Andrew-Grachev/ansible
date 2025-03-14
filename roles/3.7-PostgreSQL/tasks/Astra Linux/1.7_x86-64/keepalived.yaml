@@ -13,7 +13,6 @@
     apt:
       pkg:
         - keepalived
-        - curl
 
   - name: Копирование файла конфигурации '/usr/local/bin/patroni_restapi_check.sh'
     template:

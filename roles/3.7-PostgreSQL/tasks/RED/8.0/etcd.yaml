@@ -18,22 +18,12 @@
   - name: Удаление данных из '/var/lib/etcd/*'
     shell: rm -rf /var/lib/etcd/*
 
-  - name: Внесение изменений в конфигурационныйе файл '/etc/etcd/etcd.conf'
-    blockinfile:
-      path: /etc/etcd/etcd.conf
-      block: |
-        ETCD_NAME="{{ inventory_hostname }}"
-        ETCD_DATA_DIR="/var/lib/etcd"
-        ETCD_LISTEN_PEER_URLS="http://0.0.0.0:2380"
-        ETCD_LISTEN_CLIENT_URLS="http://0.0.0.0:2379"
-        ETCD_INITIAL_ADVERTISE_PEER_URLS="http://{{ hostvars[inventory_hostname].ansible_ssh_host }}:2380"
-        ETCD_INITIAL_CLUSTER="{% for item in PostgreSQL.etcd_srv %}{{ item }}=http://{{ hostvars[item].ansible_ssh_host }}:2380,{% endfor %}"
-        ETCD_INITIAL_CLUSTER_STATE="new"
-        ETCD_INITIAL_CLUSTER_TOKEN="PatroniCluster"
-        ETCD_ADVERTISE_CLIENT_URLS="http://{{ hostvars[inventory_hostname].ansible_ssh_host }}:2379"
-        ETCD_ELECTION_TIMEOUT="5000"
-        ETCD_HEARTBEAT_INTERVAL="1000"
-        ETCD_ENABLE_V2="true"
+  - name: Копирование файла конфигурации '/etc/default/etcd.conf'
+    template:
+      src: '{{ ansible_distribution }}/etcd.conf.j2'
+      dest: /etc/default/etcd.conf
+      mode: 0644
+      owner: root
 
   - name: Перезагрузка сервиса 'etcd' 
     service:

@@ -1,12 +1,12 @@
 ---
 
-- name: Проверка наличия '{{ GitLab.path }}'
+- name: Проверка наличия '{{ GitLab.path }}/gitlab'
   stat:
-    path: '{{ GitLab.path }}'
+    path: '{{ GitLab.path }}/gitlab'
   register: gitlab_result
   ignore_errors: yes
 
-- name: Установка и настройка кластера Ceph
+- name: Установка и настройка GitLab
   block:
 
   - name: Установка 'Docker'
@@ -46,9 +46,9 @@
               - "443:443"
               - "2222:22"
             volumes:
-              - '{{ GitLab.path }}/config:/etc/gitlab'
-              - '{{ GitLab.path }}/logs:/var/log/gitlab'
-              - '{{ GitLab.path }}/data:/var/opt/gitlab'
+              - '{{ GitLab.path }}/gitlab/config:/etc/gitlab'
+              - '{{ GitLab.path }}/gitlab/logs:/var/log/gitlab'
+              - '{{ GitLab.path }}/gitlab/data:/var/opt/gitlab'
             shm_size: '256m'
             networks:
               - gitlab-network
@@ -63,14 +63,14 @@
       mode: 0777
       recurse: True
     with_items:
-      - '{{ GitLab.path }}/config/ssl'
-      - '{{ GitLab.path }}/logs'
-      - '{{ GitLab.path }}/data'
+      - '{{ GitLab.path }}/gitlab/config/ssl'
+      - '{{ GitLab.path }}/gitlab/logs'
+      - '{{ GitLab.path }}/gitlab/data'
 
   - name: Копирование сертификатов
     copy:
       src: '{{ item }}'
-      dest: '{{ GitLab.path }}/config/ssl/{{ item }}'
+      dest: '{{ GitLab.path }}/gitlab/config/ssl/{{ item }}'
       force: no
     with_items:
       - 'gitlab.crt'

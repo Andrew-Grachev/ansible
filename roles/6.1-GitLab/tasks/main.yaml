@@ -1,6 +1,6 @@
 ---
 
-- name: Настройка сервера
+- name: Настройка сервера 'GitLab'
   block:
     - include_tasks: '{{ ansible_distribution }}/main.yaml'
   when: inventory_hostname == GitLab.srv

@@ -155,12 +155,12 @@ Xrdp:
 ### 3.7-PostgreSQL   ###
 ########################
 PostgreSQL:
-  ver: '11'
   keepalived_IP: 10.150.0.110
   password: WFett45654dfR
   pg_srv:
     - postgres01
     - postgres02
+    - postgres03
   etcd_srv:
     - etcd01
     - etcd02
@@ -224,8 +224,17 @@ k8s:
 # Сервер GitLab
 GitLab:
   srv: gitlab
-  path: /srv/gitlab
+  path: /opt
 
+
+
+####################
+### 6.2-Prometheus   ###
+####################
+# Сервер Prometheus + Grafana
+Prometheus:
+  srv: monitoring
+  path: /opt
 
 
 ...

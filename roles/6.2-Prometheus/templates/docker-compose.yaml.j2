@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    pull_policy: always
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - {{ Prometheus.path }}/prometheus/conf:/etc/prometheus
+      - {{ Prometheus.path }}/prometheus/data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yaml'
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    pull_policy: always
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - {{ Prometheus.path }}/grafana/data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    restart: unless-stopped
+
+  node_exporter:
+    image: prom/node-exporter:latest
+    pull_policy: always
+    container_name: node_exporter
+    ports:
+      - "9100:9100"
+    restart: unless-stopped

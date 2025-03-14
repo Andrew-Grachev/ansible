@@ -1,0 +1,68 @@
+---
+
+- name: Проверка наличия '{{ Prometheus.path }}/prometheus'
+  stat:
+    path: '{{ Prometheus.path }}/prometheus'
+  register: prometheus_result
+  ignore_errors: yes
+
+- name: Установка и настройка Prometheus
+  block:
+
+  - name: Установка 'Docker'
+    dnf:
+      update_cache: true
+      state: present
+      name:
+        - docker-ce
+        - docker-ce-cli
+        - docker-compose
+ 
+  - name: Создание папок
+    file:
+      path: '{{ item }}'
+      state: directory
+      mode: 0777
+      recurse: True
+    with_items:
+      - '{{ Prometheus.path }}/prometheus/conf'
+      - '{{ Prometheus.path }}/prometheus/data'
+      - '{{ Prometheus.path }}/grafana/data'
+
+  - name: Копирование файла конфигурации 'docker-compose.yaml'
+    template:
+      src: 'docker-compose.yaml.j2'
+      dest: '/tmp/docker-compose.yaml'
+      mode: 0644
+      owner: root
+
+  - name: Копирование файла конфигурации 'prometheus.yaml'
+    copy:
+      src: 'prometheus.yaml.j2'
+      dest: '{{ Prometheus.path }}/prometheus/conf/prometheus.yaml'
+
+  - name: Перезапуск службы 'docker'
+    service:
+      name: docker
+      enabled: yes
+      state: restarted
+
+  - name: Запуск 'docker-compose'
+    shell: |
+      cd /tmp && docker-compose up -d
+
+  when: not prometheus_result.stat.exists
+
+...
+
+
+
+
+
+
+
+
+
+
+
+

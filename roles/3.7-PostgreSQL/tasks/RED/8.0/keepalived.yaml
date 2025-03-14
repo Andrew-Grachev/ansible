@@ -12,7 +12,7 @@
   - name: Установка пакета 'Keepalived'
     dnf:
       name:
-      - keepalived
+        - keepalived
 
   - name: Копирование файла конфигурации '/usr/local/bin/patroni_restapi_check.sh'
     template:
@@ -20,50 +20,12 @@
       dest: /usr/local/bin/patroni_restapi_check.sh
       mode: 0755
 
-  - name: Очистка файла '/etc/keepalived/keepalived.conf'
-    file:
-      path: /etc/keepalived/keepalived.conf
-      state: '{{ item }}'
-    with_items:
-    - absent
-    - touch
-
-  - name: Внесение изменений в файл '/etc/keepalived/keepalived.conf'
-    blockinfile:
-      path: /etc/keepalived/keepalived.conf
-      create: yes
-      state: present
-      marker: ""
-      block: |
-        global_defs {
-          script_user root
-          }
-        vrrp_script keepalived-{{ PostgreSQL.keepalived_IP }}-promote {
-          script "/usr/local/bin/patroni_restapi_check.sh"
-          interval 10
-          weight 100
-          }
-        vrrp_instance VIP_{{ PostgreSQL.keepalived_IP }} {
-          interface {{ ansible_default_ipv4.interface }}
-          virtual_router_id 150
-          state BACKUP
-          priority {{ 200 - PostgreSQL.pg_srv.index(inventory_hostname)*10 }}
-          advert_int 1
-          unicast_src_ip primary_private_IP
-          unicast_peer {
-          secondary_private_IP
-          }
-          authentication {
-            auth_type PASS
-            auth_pass Keepalived_SecPassWord
-            }
-          virtual_ipaddress {
-            {{ PostgreSQL.keepalived_IP }}/24 dev {{ ansible_default_ipv4.interface }} label {{ ansible_default_ipv4.interface }}:0
-            }
-          track_script {
-            keepalived-{{ PostgreSQL.keepalived_IP }}-promote
-            }
-          }      
+  - name: Копирование файла конфигурации '/etc/keepalived/keepalived.conf'
+    template:
+      src: '{{ ansible_distribution }}/keepalived.conf.j2'
+      dest: /etc/keepalived/keepalived.conf
+      mode: 0644
+      owner: root
 
   - name: Внесение изменений в файл '/etc/keepalived/keepalived.conf'
     lineinfile:

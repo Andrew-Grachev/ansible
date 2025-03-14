@@ -1,0 +1,23 @@
+# Имя этого узла в кластере ETCD
+ETCD_NAME="{{ inventory_hostname }}"
+# Путь к директории для хранения данных ETCD
+ETCD_DATA_DIR="/var/lib/etcd"
+# Список адресов, по которым ETCD будет принимать запросы от других узлов кластера
+ETCD_LISTEN_PEER_URLS="http://0.0.0.0:2380"
+# Список адресов, по которым ETCD будет принимать клиентские запросы
+ETCD_LISTEN_CLIENT_URLS="http://0.0.0.0:2379"
+# Список адресов, по которым ETCD будет рекламировать себя для других узлов кластера
+ETCD_INITIAL_ADVERTISE_PEER_URLS="http://{{ hostvars[inventory_hostname].ansible_ssh_host }}:2380"
+# Начальный список узлов кластера ETCD
+ETCD_INITIAL_CLUSTER="{% for item in PostgreSQL.etcd_srv %}{{ item }}=http://{{ hostvars[item].ansible_ssh_host }}:2380,{% endfor %}"
+# Состояние кластера (new - новый кластер, existing - существующий кластер)
+ETCD_INITIAL_CLUSTER_STATE="new"
+# Токен для инициализации нового кластера
+ETCD_INITIAL_CLUSTER_TOKEN="PatroniCluster"
+# Список адресов, по которым ETCD будет рекламировать себя для клиентов
+ETCD_ADVERTISE_CLIENT_URLS="http://{{ hostvars[inventory_hostname].ansible_ssh_host }}:2379"
+# Дополнительные параметры
+ETCD_ELECTION_TIMEOUT="5000"
+ETCD_HEARTBEAT_INTERVAL="1000"
+# Разрешение использовать API v2 (требуется для patroni)
+ETCD_ENABLE_V2="true"

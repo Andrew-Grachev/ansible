@@ -3,7 +3,7 @@ https://gitverse.ru/amsamoylov
 Запускаем и проверяем состояние etcd
 # etcd --version
 # systemctl status etcd
-# etcdctl member list -w table
+# etcdctl member list -w table --endpoints=etcd01:2380,etcd02:2380,etcd03:2380
 # etcdctl endpoint status -w table --endpoints=etcd01:2380,etcd02:2380,etcd03:2380
 
 # etcdctl --endpoints=1etcd01:2380,1postgres01:2380,2postgres02:2380 user add root
