@@ -3,8 +3,8 @@ https://gitverse.ru/amsamoylov
 Запускаем и проверяем состояние etcd
 # etcd --version
 # systemctl status etcd
-# etcdctl --write-out=table --endpoints=1etcd01:2380,1etcd02:2380,2etcd03:2380 endpoint status
-# etcdctl --write-out=table --endpoints=1etcd01:2380,1postgres01:2380,2postgres02:2380 endpoint status
+# etcdctl member list -w table
+# etcdctl endpoint status -w table --endpoints=etcd01:2380,etcd02:2380,etcd03:2380
 
 # etcdctl --endpoints=1etcd01:2380,1postgres01:2380,2postgres02:2380 user add root
 # etcdctl --endpoints=1etcd01:2380,1postgres01:2380,2postgres02:2380 user get root
@@ -14,20 +14,18 @@ https://gitverse.ru/amsamoylov
 
 Проверяем конфигурацию. На всех ВМ с PostgreSQL
 sudo -u postgres psql -c "psql -c 'SHOW data_directory;'"
-
-
 systemctl status postgresql
 # watch systemctl status patroni
-patroni --validate-config /etc/patroni.yaml
-patronictl -c /etc/patroni.yaml list
 
 # pg_basebackup -h 10.163.1.37 -p 5432 -U replicator -D /var/lib/postgresql/11/main
-   
 
-patroni --validate-config /etc/patroni.yaml
-
-patronictl -c /etc/patroni.yaml create etcd
-
+# watch sudo patronictl -c /etc/patroni/patroni.yaml list
++ Cluster: postgres-cluster (7481273126891353683) +----+-----------+
+| Member     | Host         | Role    | State     | TL | Lag in MB |
++------------+--------------+---------+-----------+----+-----------+
+| postgres01 | 10.150.0.111 | Replica | streaming |  1 |         0 |
+| postgres02 | 10.150.0.112 | Leader  | running   |  1 |           |
++------------+--------------+---------+-----------+----+-----------+
 
 
 -- Создаем таблицу
@@ -41,8 +39,6 @@ SELECT
     md5(random()::text)
 FROM 
     generate_series(1, 100000000);
-
-
 SELECTt * FROM random_strings;
 
 

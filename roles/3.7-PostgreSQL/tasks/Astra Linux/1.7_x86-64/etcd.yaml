@@ -1,20 +1,19 @@
 ---
 
-- name: Проверка наличия файла '/var/lib/etcd/default/member/snap/db'
+- name: Проверка наличия файла '/var/lib/etcd/member/snap/db'
   stat:
-    path: /var/lib/etcd/default/member/snap/db
+    path: /var/lib/etcd/member/snap/db
   register: etcd_result
 
 - name: Создания серверов
   block:
 
-  - name: Установка пакетов
+  - name: Установка пакетов 'etcd'
     apt:
       update_cache: yes
       name:
         - etcd-server
         - etcd-client
-        - curl
       state: latest
 
   - name: Удаление данных из '/var/lib/etcd/*'

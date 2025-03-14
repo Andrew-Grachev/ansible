@@ -1,6 +1,0 @@
----
-
-- import_tasks: samba-srv.yml
-# - import_tasks: samba-cli.yml
-
-...

@@ -1,0 +1,84 @@
+---
+
+- name: Проверка наличия файла '/etc/keepalived/keepalived.conf'
+  stat:
+    path: /etc/keepalived/keepalived.conf
+  register: keepalived_result
+  ignore_errors: yes
+
+- name: Установка 'keepalived'
+  block:
+
+  - name: Установка пакета 'Keepalived'
+    dnf:
+      name:
+      - keepalived
+
+  - name: Копирование файла конфигурации '/usr/local/bin/patroni_restapi_check.sh'
+    template:
+      src: '{{ ansible_distribution }}/patroni_restapi_check.sh.j2'
+      dest: /usr/local/bin/patroni_restapi_check.sh
+      mode: 0755
+
+  - name: Очистка файла '/etc/keepalived/keepalived.conf'
+    file:
+      path: /etc/keepalived/keepalived.conf
+      state: '{{ item }}'
+    with_items:
+    - absent
+    - touch
+
+  - name: Внесение изменений в файл '/etc/keepalived/keepalived.conf'
+    blockinfile:
+      path: /etc/keepalived/keepalived.conf
+      create: yes
+      state: present
+      marker: ""
+      block: |
+        global_defs {
+          script_user root
+          }
+        vrrp_script keepalived-{{ PostgreSQL.keepalived_IP }}-promote {
+          script "/usr/local/bin/patroni_restapi_check.sh"
+          interval 10
+          weight 100
+          }
+        vrrp_instance VIP_{{ PostgreSQL.keepalived_IP }} {
+          interface {{ ansible_default_ipv4.interface }}
+          virtual_router_id 150
+          state BACKUP
+          priority {{ 200 - PostgreSQL.pg_srv.index(inventory_hostname)*10 }}
+          advert_int 1
+          unicast_src_ip primary_private_IP
+          unicast_peer {
+          secondary_private_IP
+          }
+          authentication {
+            auth_type PASS
+            auth_pass Keepalived_SecPassWord
+            }
+          virtual_ipaddress {
+            {{ PostgreSQL.keepalived_IP }}/24 dev {{ ansible_default_ipv4.interface }} label {{ ansible_default_ipv4.interface }}:0
+            }
+          track_script {
+            keepalived-{{ PostgreSQL.keepalived_IP }}-promote
+            }
+          }      
+
+  - name: Внесение изменений в файл '/etc/keepalived/keepalived.conf'
+    lineinfile:
+      dest: /etc/keepalived/keepalived.conf
+      regexp: 'state BACKUP'
+      line: '  state MASTER'
+    when: inventory_hostname == PostgreSQL.pg_srv[0]
+
+  - name: Запускаем службу 'Keepalived'
+    service:
+      name: keepalived
+      state: restarted
+      enabled: yes
+
+  when:
+    - not keepalived_result.stat.exists
+
+...

@@ -5,7 +5,7 @@ ansible_ssh_pass: Sph@era92
 
 root_pass: P@ssw0rd
 
-domain: 'test.lan'
+domain: 'test'
 net:
   network: 10.150.0.0/24
   net: 10.150.0.0
@@ -79,8 +79,7 @@ os:
 ntp:
   timezone: Europe/Samara
   srv:
-    - 10.163.1.1
-    - 10.163.17.1
+    - 10.150.0.1
 
 ####################
 ### 1.1-PXE      ###
@@ -157,17 +156,15 @@ Xrdp:
 ########################
 PostgreSQL:
   ver: '11'
-  keepalived_IP: 10.163.1.38
+  keepalived_IP: 10.150.0.110
   password: WFett45654dfR
   pg_srv:
-    - 1postgres01
-    - 2postgres02
+    - postgres01
+    - postgres02
   etcd_srv:
-    - 1postgres01
-    - 2postgres02
-    - 1etcd01
-    # - 1etcd02
-    # - 2etcd03
+    - etcd01
+    - etcd02
+    - etcd03
 
 
 

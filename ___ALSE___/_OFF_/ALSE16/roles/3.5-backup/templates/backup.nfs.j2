@@ -1,4 +1,0 @@
-{{ inventory_hostname}}  -fstype=nfs4,rw,soft,intr  {{ hostvars[backup.srv].ansible_ssh_host }}:{{ backup.path }}/{{inventory_hostname}}
-log  -fstype=nfs4,rw,soft,intr  {{ hostvars[backup.srv].ansible_ssh_host }}:{{ backup.path }}/log
-
-

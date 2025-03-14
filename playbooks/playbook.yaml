@@ -28,7 +28,7 @@
     # - ../roles/3.1-Zabbix
     # - ../roles/3.2-Ceph
     # - ../roles/3.3-Xrdp
-    # - ../roles/3.7-PostgreSQL
+    - ../roles/3.7-PostgreSQL
     # - ../roles/3.8-NFS
     # - ../roles/3.9-K8s
 

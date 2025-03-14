@@ -1,0 +1,29 @@
+---
+
+# - name: Проверка наличия файла '/etc/postgresql/15/main/postgresql.conf'
+  # stat:
+    # path: /etc/postgresql/15/main/postgresql.conf
+  # register: postgresql_result
+
+- name: Создания серверов
+  block:
+
+  - name: Установка пакетов 'postgresql v.15'
+    dnf:
+      update_cache: true
+      name:
+        - postgresql15-server
+      state: latest
+
+  - name: Остановка сервиса 'postgresql' 
+    service:
+      name: postgresql-15
+      state: stopped
+      enabled: no
+
+  # - name: Удаление данных из '/var/lib/pgsql/15/data/*'
+    # shell: rm -rf /var/lib/pgsql/15/data/*
+
+  # when: not postgresql_result.stat.exists
+
+...

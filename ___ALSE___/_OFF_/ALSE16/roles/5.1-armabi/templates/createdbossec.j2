@@ -1,4 +1,0 @@
-#!/bin/bash
-export PGPASSWORD={{ ossec.pass }}
-psql -q -U {{ ossec.user }} -d {{ ossec.db }} -f /tmp/ossec.schema
-psql -q -U {{ ossec.user }} -d {{ ossec.db }} -f /tmp/signature.sql

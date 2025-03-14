@@ -9,8 +9,8 @@
   block:
     - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/postgresql.yaml'
     - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/patroni.yaml'
-    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/pgbouncer.yaml'
-    # - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/keepalived.yaml' 
+    # - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/pgbouncer.yaml'
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/keepalived.yaml' 
     # - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/HAProxy.yaml'
   when: inventory_hostname in PostgreSQL.pg_srv
 

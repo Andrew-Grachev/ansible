@@ -1,0 +1,9 @@
+#!/bin/bash
+
+v_restapi_options=$1
+v_primary_status=`curl -is http://{{ hostvars[inventory_hostname].ansible_ssh_host }}:8008/$v_restapi_options | head -n1 | cut -d" " -f2`
+if [ "$v_primary_status" == "200" ]; then
+    exit 0
+else
+    exit 1
+fi

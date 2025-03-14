@@ -1,7 +1,0 @@
-#!/bin/bash
-
-ipa user-del {{ ossec.user }}
-ipa user-add {{ ossec.user }} --first DB_OSSEC --last Administrator --password-expiration=20250101010101Z --password<<-EOF
-{{ ossec.pass }}
-{{ ossec.pass }}
-EOF
