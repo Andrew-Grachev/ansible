@@ -1,0 +1,28 @@
+---
+
+# Local
+
+#remote_user: admin1
+ansible_ssh_user: admin1
+#ansible_ssh_pass: Sph@era92
+ansible_ssh_private_key_file: ./ssh/admin1/id_rsa.pub
+
+domain: 'test.local'
+
+net:
+  network: 10.150.0.0/24
+  net: 10.150.0.0
+  mask: 255.255.255.0
+  gateway: 10.150.0.1
+  bind: 10.150.0.1
+  vlan:
+
+####################
+### 0.5-Time     ###
+####################
+ntp:
+  timezone: Europe/Moscow
+  srv:
+    - 10.150.0.1
+
+...

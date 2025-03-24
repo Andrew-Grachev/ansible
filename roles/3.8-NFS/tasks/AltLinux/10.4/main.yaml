@@ -22,7 +22,7 @@
       mode: 0777
       recurse: True
       owner: nobody
-      group: nobody
+      group: nogroup
 
   - name: Добавление ресурсов в конфигурацию сервера '/etc/exports'
     blockinfile:

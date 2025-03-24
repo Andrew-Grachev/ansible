@@ -1,5 +1,4 @@
 # Здесь собраны ansible-роли
-
 ## Поддерживаемые версии
 
 | Операционная система | Статус |
@@ -48,10 +47,13 @@
 * ***5.3-Termidesk_ALSE*** - ;
 
 * ***6.1-GitLab*** - Создание сервера репозиториев GitLab (docker)
-* ***6.2-Prometheus*** - Создание сервера Prometheus (docker)
+* ***6.2-Prometheus*** - Создание сервера Prometheus+Grafana (docker)
 
 * ***8.1-szi_ALSE*** - ;
 
 * ***9.1-GostSum*** - подсчет контрольных сумм ПО на серверах.
 * ***9.8-logclear_ALSE*** - ;
 * ***9.9-ShutDown*** - Выключение хостов.
+
+
+pip install -r requirements.txt -v

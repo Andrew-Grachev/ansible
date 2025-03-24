@@ -1,0 +1,57 @@
+---
+
+- name: Настройка узлов кластера
+  block:
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/Configure_kernel.yaml'
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/Install_Keepalived.yaml'
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/Install_HAProxy.yaml'
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/Install_Kubernetes.yaml'
+  when: inventory_hostname in k8s.masters or inventory_hostname in k8s.workers
+
+- name: Создание кластера
+  block:
+    - import_tasks: Creating_Cluster.yaml
+  when: inventory_hostname == k8s.masters[0]
+
+- name: Добавление провайдеров в кластер
+  block:
+    - import_tasks: K8s_Adding_Network.yaml
+    - import_tasks: K8s_Adding_NodeLocalDNS.yaml
+    # - import_tasks: K8s_Provisioner_Ceph.yaml
+    # - import_tasks: K8s_Provisioner_LVM.yaml
+    # - import_tasks: K8s_Provisioner_NFS.yaml
+    # - import_tasks: K8s_Provisioner_NFS_Client.yaml
+  when: inventory_hostname == k8s.masters[0]
+
+# - name: Создание кластера без воркеров
+  # block:
+    # - import_tasks: K8s_Remove_Taint.yaml 
+  # when: inventory_hostname in k8s.masters
+
+# - name: Обновление сертификатов кластера
+  # block:
+    # - import_tasks: Renew_Certs.yaml
+  # when: inventory_hostname == k8s.masters[0]
+
+# - name: Регистрация узлов Masters
+  # include_tasks: Adding_Master.yaml
+  # with_items: '{{ k8s.masters }}'
+  # when: inventory_hostname == k8s.masters[0]
+
+- name: Регистрация узлов Workers
+  include_tasks: Adding_Worker.yaml
+  with_items: '{{ k8s.workers }}'
+  when: inventory_hostname == k8s.masters[0]
+
+- name: Регистрация сервисов в кластере
+  block:
+    - import_tasks: Postgres_Operator.yaml
+    # - import_tasks: Monitoring.yaml
+    # - import_tasks: Logging.yaml
+    # - import_tasks: Rabbitmq_Operator.yaml
+    # - import_tasks: Redis_Operator.yaml
+    # - import_tasks: Ingress.yaml
+  when: inventory_hostname == k8s.masters[0]
+
+...
+# - import_tasks: Dashboard.yaml

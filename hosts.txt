@@ -1,0 +1,35 @@
+[all]
+
+gitlab     ansible_ssh_host=10.150.0.200
+
+[mosoblgaz_k8s]
+# k8s.keepalived_IP:           10.4.151.205 s04k8s.mog.ent.local
+s04master1    ansible_ssh_host=10.4.151.212
+s04worker1    ansible_ssh_host=10.4.151.213
+s04master2    ansible_ssh_host=10.4.151.210
+s04worker2    ansible_ssh_host=10.4.151.211
+s04master3    ansible_ssh_host=10.4.151.208
+s04worker3    ansible_ssh_host=10.4.151.209
+[mosoblgaz_ceph]
+s04ceph1      ansible_ssh_host=10.4.151.218
+s04ceph2      ansible_ssh_host=10.4.151.219
+s04ceph3      ansible_ssh_host=10.4.151.220
+[mosoblgaz_proxy]
+; s04proxy1   ansible_ssh_host=10.4.151.214
+; s04proxy2   ansible_ssh_host=10.4.151.206
+[mosoblgaz_freeipa]
+; s04dc1      ansible_ssh_host=10.4.151.215
+; s04dc2      ansible_ssh_host=10.4.151.207
+[mosoblgaz_other]
+s04registry   ansible_ssh_host=10.4.151.216
+s04backup     ansible_ssh_host=10.4.151.217
+
+[mosoblgaz:children]
+mosoblgaz_k8s
+mosoblgaz_ceph
+mosoblgaz_proxy
+mosoblgaz_freeipa
+mosoblgaz_other
+
+
+

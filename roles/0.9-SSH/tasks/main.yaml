@@ -1,6 +1,40 @@
 ---
 
-- include_tasks: '{{ ansible_distribution }}/main.yaml'
+- include_tasks: 'Create_user_sudo.yaml'
+- include_tasks: 'Create_user_key.yaml'
+- include_tasks: 'Create_root_key.yaml'
+
+- name: Чтение ключа SSH пользователя '{{ ansible_ssh_user }}'
+  set_fact:
+    idrsapub: "{{ lookup('file', '../../ssh/' + ansible_ssh_user + '/id_rsa.pub') }}"
+
+- name: Проверка ключа 'ansible'
+  shell: cat /home/{{ ansible_ssh_user }}/.ssh/authorized_keys | grep "{{ idrsapub }}"
+  register: idrsa_status
+  ignore_errors: yes
+
+- name: Запись ключа пользователя 'ansible'
+  shell: |
+    echo "{{ idrsapub }}" >> /home/{{ ansible_ssh_user }}/.ssh/authorized_keys
+    chmod 600 /home/{{ ansible_ssh_user }}/.ssh/authorized_keys
+    chown {{ ansible_ssh_user }} /home/{{ ansible_ssh_user }}/.ssh/authorized_keys
+  when: idrsa_status.stdout == ""
+
+- name: Обмен ключами пользователя '{{ ansible_ssh_user }}' между узлами
+  shell: |
+    {% for item in ansible_play_batch %}
+    sshpass -p '{{ ansible_ssh_pass }}' ssh-copy-id -i /home/{{ ansible_ssh_user }}/.ssh/id_rsa.pub -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ ansible_ssh_user }}@{{ hostvars[item].ansible_ssh_host }}
+    {% endfor %}
+  become: no
+
+- name: Обмен ключами пользователя 'root' между узлами
+  shell: |
+    {% for item in ansible_play_batch %}
+    sshpass -p '{{ root_pass }}' ssh-copy-id -i /root/.ssh/id_rsa.pub -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@{{ hostvars[item].ansible_ssh_host }}
+    {% endfor %}
+  when: root_pass is defined
+
+# - include_tasks: '{{ ansible_distribution }}/Config_sshd.yaml'
 
 ...
 

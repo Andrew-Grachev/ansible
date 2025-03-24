@@ -28,6 +28,8 @@ systemctl status postgresql
 +------------+--------------+---------+-----------+----+-----------+
 
 
+
+Тестирование. Создадим тестовую БД
 -- Создаем таблицу
 CREATE TABLE random_strings (
     id SERIAL PRIMARY KEY,
@@ -38,7 +40,7 @@ INSERT INTO random_strings (random_text)
 SELECT 
     md5(random()::text)
 FROM 
-    generate_series(1, 100000000);
+    generate_series(1, 10000000);
 SELECTt * FROM random_strings;
 
 

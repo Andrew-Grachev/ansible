@@ -1,0 +1,65 @@
+---
+
+- name: Проверка наличия '{{ registry.path }}/conf/nginx.conf'
+  stat:
+    path: '{{ registry.path }}/conf/nginx.conf'
+  register: nginx_result
+  ignore_errors: yes
+
+- name: Настройка сервера 'Nginx' с Herm репозиторием для Kubernetes'
+  block:
+
+  - name: Создание папок '{{ registry.path }}/...'
+    file:
+      path: '{{ item }}'
+      state: directory
+      mode: 0777
+      recurse: True
+    with_items:
+      - '{{ registry.path }}/repo/helm'
+      - '{{ registry.path }}/conf'
+
+  - name: Копирование файлов '*.tgz'
+    copy:
+      src: 'Repo_Helm/'
+      dest: '{{ registry.path }}/repo/helm/'
+
+  - name: Копирование файла конфигурации 'docker-nginx.yaml'
+    template:
+      src: 'docker-nginx.yaml.j2'
+      dest: '/tmp/docker-nginx.yaml'
+      mode: 0644
+      owner: root
+
+  - name: Копирование файла конфигурации 'nginx.conf'
+    template:
+      src: 'nginx.conf.j2'
+      dest: '{{ registry.path }}/conf/nginx.conf'
+      mode: 0644
+      owner: root
+
+  - name: Перезапуск службы 'docker'
+    service:
+      name: docker
+      enabled: yes
+      state: restarted
+
+  - name: Запуск 'docker-compose'
+    shell: |
+      docker-compose -f /tmp/docker-nginx.yaml up -d
+
+  when: not nginx_result.stat.exists
+
+...
+
+
+
+
+
+
+
+
+
+
+
+

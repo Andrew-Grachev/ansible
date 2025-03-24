@@ -1,0 +1,17 @@
+---
+
+- name: Удаление Ceph
+  block:
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/UnInstall_Ceph.yaml'
+  when: inventory_hostname in Ceph.nodes
+
+
+- name: Настройка узлов кластера
+  block:
+    # - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/Network.yaml'  
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/Install_Ceph.yaml'
+    # - include_tasks: 'Add_Ceph_User.yaml'    
+    - include_tasks: 'Init_Ceph.yaml'
+  when: inventory_hostname in Ceph.nodes
+
+...

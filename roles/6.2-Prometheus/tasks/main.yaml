@@ -1,8 +1,13 @@
 ---
 
-- name: Настройка сервера 'Prometheus'
+- name: Настройка сервера 'Prometheus+Grafana'
   block:
-    - include_tasks: '{{ ansible_distribution }}/main.yaml'
+    - include_tasks: '{{ ansible_distribution }}/server.yaml'
   when: inventory_hostname == Prometheus.srv
+
+- name: Настройка экспортера 'Prometheus'
+  block:
+    - include_tasks: '{{ ansible_distribution }}/exporter.yaml'
+  when: inventory_hostname != Prometheus.srv
 
 ...

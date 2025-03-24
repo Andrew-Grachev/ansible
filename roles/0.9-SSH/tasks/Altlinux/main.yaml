@@ -131,11 +131,4 @@
 
   # when: status_rsa.stdout == ''
 
-- name: Копирование ключей на соседние машины
-  shell: |
-    {% for item in ansible_play_batch %}
-    sshpass -p '{{ ansible_ssh_pass }}' ssh-copy-id -i /home/{{ ansible_ssh_user }}/.ssh/id_rsa.pub -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ ansible_ssh_user }}@{{ hostvars[item].ansible_ssh_host }}
-    sshpass -p '{{ root_pass }}' ssh-copy-id -i /root/.ssh/id_rsa.pub -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@{{ hostvars[item].ansible_ssh_host }}
-    {% endfor %}
-
 ...

@@ -40,13 +40,6 @@
 
   when: not ssh_result.stat.exists
 
-- name: Обмен ключами между узлами кластера
-  shell: |
-    {% for item in ansible_play_batch %}
-    sshpass -p '{{ ansible_ssh_pass }}' ssh-copy-id -i /home/{{ ansible_ssh_user }}/.ssh/id_rsa.pub -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ ansible_ssh_user }}@{{ hostvars[item].ansible_ssh_host }}
-    {% endfor %}
-  become: no
-
 - name: Проверка наличия файла '/root/.ssh/id_rsa'
   stat:
     path: /root/.ssh/id_rsa
@@ -94,11 +87,5 @@
       state: restarted
   
   when: not id_rsa_result.stat.exists
-
-- name: Копирование ключей на соседние машины
-  shell: |
-    {% for item in ansible_play_batch %}
-    sshpass -p '{{ root_pass }}' ssh-copy-id -i /root/.ssh/id_rsa.pub -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@{{ hostvars[item].ansible_ssh_host }}
-    {% endfor %}
 
 ...

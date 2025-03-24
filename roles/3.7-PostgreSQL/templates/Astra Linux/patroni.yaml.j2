@@ -1,3 +1,4 @@
+namespace: NAMESPACE
 scope: postgres-cluster
 name: {{ inventory_hostname }}
 
@@ -8,7 +9,8 @@ log:
   max_queue_size: 1000
   file_num: 4
   file_size: 25000000
-  dir: /var/log/postgresql
+#  dir: /var/log/postgresql
+  dir: /var/log/patroni
 
 restapi:
   listen: 0.0.0.0:8008

@@ -1,0 +1,44 @@
+---
+
+- name: 3.22.3 | Проверка наличия файла '/etc/sudoers.d/{{ Ceph.user }}'
+  stat:
+    path: /etc/sudoers.d/{{ Ceph.user }}
+  register: sudo_result
+  ignore_errors: yes
+
+- name: 3.22.3 | Создание пользователя '{{ Ceph.user }}' и настройка его прав
+  block:
+
+  - name: 3.22.3 | Добавим группу '{{ Ceph.user }}'
+    group:
+      name: '{{ Ceph.user }}'
+
+  - name: 3.22.3 | Добавим пользователя '{{ Ceph.user }}'
+    user:
+      name: '{{ Ceph.user }}'
+      comment: '{{ Ceph.user }}'
+      password: '{{ Ceph.password | password_hash("sha512") }}'
+      group: '{{ Ceph.user }}'
+      generate_ssh_key: yes
+      ssh_key_bits: 2048
+      ssh_key_file: .ssh/id_rsa
+
+
+  - name: 3.22.3 | Обмен ключами между узлами кластера
+    shell: |
+      {% for item in ansible_play_batch %}
+      echo "#!/usr/bin/sh" > /tmp/ssh.sh
+      echo "sshpass -p '{{ Ceph.password }}' ssh-copy-id -i /home/{{ Ceph.user }}/.ssh/id_rsa.pub -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {{ Ceph.user }}@{{ hostvars[item].ansible_ssh_host }}" >> /tmp/ssh.sh
+      cd /tmp
+      chmod 777 ssh.sh
+      echo "{{ Ceph.password }}" | sudo -S -u {{ Ceph.user }} ./ssh.sh
+      {% endfor %}
+
+  - name: 3.22.3 | Создание прав sudo пользователю '{{ Ceph.user }}'
+    shell: |
+      echo "{{ Ceph.user }} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/{{ Ceph.user }}
+      chmod 0440 /etc/sudoers.d/{{ Ceph.user }}
+
+  when: not sudo_result.stat.exists
+
+...
