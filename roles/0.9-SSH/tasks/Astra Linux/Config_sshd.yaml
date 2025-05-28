@@ -1,0 +1,54 @@
+---
+
+- name: 0.9-SSH Проверка установки 'sshpass'
+  command: which sshpass
+  register: sshpass_check
+  ignore_errors: yes
+
+- name: Инсталляция пакета 'sshpass'
+  apt:
+    name: sshpass
+    update_cache: yes
+  when: sshpass_check.rc != 0
+
+- name: Проверка наличия файла '/etc/ssh/ssh_config.d/ssh.conf'
+  stat:
+    path: /etc/ssh/ssh_config.d/ssh.conf
+  register: sources_result
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: Создание файла '/etc/ssh/ssh_config.d/ssh.conf'
+    copy:
+      dest: '/etc/ssh/ssh_config.d/ssh.conf'
+      content: |
+        # Отключить вход по паролю
+        #PasswordAuthentication no
+        # Отключить подтверждение (yes/no) при первом SSH-подключении
+        StrictHostKeyChecking no
+        UserKnownHostsFile /dev/null
+
+  - name: Создание файла '/etc/ssh/sshd_config.d/sshd.conf'
+    copy:
+      dest: '/etc/ssh/sshd_config.d/sshd.conf'
+      content: |
+        # Разрешить аутентификацию по ключу'
+        PubkeyAuthentication yes
+        # Отключить вход root
+        #PermitRootLogin no
+        # Отключить вход по паролю
+        #PasswordAuthentication no
+        # Запретить пустые пароли
+        #PermitEmptyPasswords no
+
+  - name: Перезапуск службы 'sshd'
+    service:
+      name: sshd
+      state: restarted
+
+  when:
+    # - not sources_result.stat.exists
+
+...

@@ -1,0 +1,38 @@
+---
+
+- name: Чтение статуса часового пояса
+  shell: |
+    timedatectl show | grep "{{ ntp.timezone }}"
+  register: timezone_status
+
+- name: Установка часового пояса '{{ ntp.timezone }}'
+  shell: |
+    timedatectl set-timezone {{ ntp.timezone }}
+    timedatectl set-local-rtc 0
+  when: timezone_status.rc != 0
+
+- name: Чтение статуса конфигурирования 'chrony'
+  shell: cat /etc/chrony.conf | grep '{{ ntp.srv }}'
+  register: chrony_status
+  ignore_errors: yes
+
+- name: Настройка 'Chrony'
+  block:
+
+  - name: Внесение изменений в файл '/etc/chrony.conf'
+    blockinfile:
+      path: /etc/chrony.conf
+      create: yes
+      state: present
+      block: |
+        server {{ ntp.srv }} iburst
+
+  - name: Перезапуск службы 'chronyd'
+    service:
+      name: chronyd
+      enabled: yes
+      state: restarted
+
+  when: chrony_status.stdout != ''
+
+...

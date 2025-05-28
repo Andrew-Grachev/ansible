@@ -1,0 +1,47 @@
+---
+
+- name: 3.29.2 | Проверка наличия файла '/etc/haproxy/haproxy.cfg'
+  stat:
+    path: /etc/haproxy/haproxy.cfg
+  register: haproxy_result
+  ignore_errors: yes
+
+- name: 3.29.2 | Установка 'HAProxy'
+  block:
+
+  - name: 3.29.2 | Включаем 'net.ipv4.ip_nonlocal_bind'
+    sysctl:
+      name: net.ipv4.ip_nonlocal_bind
+      value: 1
+      sysctl_file: /etc/sysctl.d/k8s.conf
+      reload: true
+
+  - name: 3.29.2 | Установка пакета 'haproxy'
+    dnf:
+      name:
+      - haproxy
+
+  - name: 3.29.2 | Очистка файла '/etc/haproxy/haproxy.cfg'
+    file:
+      path: /etc/haproxy/haproxy.cfg
+      state: '{{ item }}'
+    with_items:
+    - absent
+    - touch
+
+  - name: 3.29.2 | Создаем конфигурацию '/etc/haproxy/haproxy.cfg'
+    template:
+      src:  '{{ ansible_distribution }}/haproxy.j2'
+      dest: '/etc/haproxy/haproxy.cfg'
+
+  - name: 3.29.2 | Запускаем службу 'haproxy'
+    service:
+      name: haproxy
+      state: restarted
+      enabled: yes
+
+  when:
+    - inventory_hostname in k8s.masters
+    - not haproxy_result.stat.exists
+    - k8s.haproxy_port is defined
+...

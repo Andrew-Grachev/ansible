@@ -1,7 +1,29 @@
 ---
 
-- include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/server.yaml'
-# - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/client.yaml'
-# - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/replica.yaml'
+- name: Настройка домена FreeIPA
+  block:
+
+  - name: Настройка контроллера домена FreeIPA
+    block:
+      - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/server.yaml'
+    when: inventory_hostname == FreeIPA.srv
+
+  - name: Подключение к контроллеру домена FreeIPA
+    block:
+      - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/client.yaml'
+    when: inventory_hostname != FreeIPA.srv
+
+  - name: Настройка реплики контроллера домена FreeIPA
+    block:
+
+    - name: Настройка реплики контроллера домена FreeIPA
+      block:
+        - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/replica.yaml'
+      when:
+        - inventory_hostname == FreeIPA.repl or inventory_hostname == FreeIPA.srv
+
+    when: FreeIPA.repl is defined
+
+  when: FreeIPA.srv is defined
 
 ...

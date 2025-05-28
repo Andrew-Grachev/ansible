@@ -1,254 +1,160 @@
 ---
 
-
-
-- name: Получить список сетевых интерфейсов
-  shell: |
-    ip link show | grep BROADCAST | awk '{print $2}' | sed 's/.$//'
-  register: device_list
-
-- name: Создание массива сетевых интерфейсов
-  set_fact:
-    interfaces: "{{ device_list.stdout_lines | list }}"
-
-- name: Получение количества элементов в списке интерфейсов
-  set_fact:
-    interfaces_length: "{{ interfaces | length }}"
-
-- name: Чтение статуса конфигурации интерфейса '{{ interfaces[0] }}'
-  shell: nmcli connection show {{ interfaces[0] }} | grep '{{ domain }}'
-  register: eth0_status
+- name: 0.4.1 | Проверка 'NetworkManager'
+  command: systemctl is-active NetworkManager
   ignore_errors: yes
+  register: nm_active
 
-- name: Чтение статуса конфигурации интерфейса 'bond0'
-  shell: nmcli connection show bond0 | grep '{{ domain }}'
-  register: bond0_status
-  ignore_errors: yes
-
-- name: Чтение '/etc/network/interfaces'
-  shell: |
-    cat /etc/network/interfaces | grep {{ domain }}
-  register: interfaces_status
-  ignore_errors: yes
-
-
-
-
-
-
-
-
-# Конфигурирование интерфейсов в 'NetworkManager'
-- name: Проверка наличия файла '/etc/NetworkManager/NetworkManager.conf'
+- name: 0.4.1 | Проверка 'network'
   stat:
-    path: '/etc/NetworkManager/NetworkManager.conf'
-  register: NetworkManager_result
+    path: /etc/network/interfaces
+  register: ifupdown_exists
 
-- name: Конфигурирование интерфейсов в 'NetworkManager'
+# NetworkManager: {{ nm_active.stdout == 'active' }}
+# ifupdown: {{ ifupdown_exists.stat.exists }}
+
+- name: 0.4.1 | Получить имя активного интерфейса
+  shell: |
+    ip -o -4 addr show | grep "{{ hostvars[inventory_hostname].ansible_ssh_host }}" | awk '{print $2}'  
+  register: device_name
+
+- name: 0.4.1 | Проверка настройки интерфейса '{{ device_name.stdout }}'
+  stat:
+    path: '/etc/network/interfaces.d/{{ device_name.stdout }}'
+  register: eth_config_exists
+  when:
+    - nm_active.stdout == 'inactive' # NetworkManager не активен
+    - ifupdown_exists.stat.exists    # networking есть
+
+
+
+
+
+# - name: Получить список сетевых интерфейсов
+  # shell: |
+    # ip link show | grep BROADCAST | awk '{print $2}' | sed 's/.$//'
+  # register: device_list
+
+# - name: Создание массива сетевых интерфейсов
+  # set_fact:
+    # interfaces: "{{ device_list.stdout_lines | list }}"
+
+# - name: Получение количества элементов в списке интерфейсов
+  # set_fact:
+    # interfaces_length: "{{ interfaces | length }}"
+
+# - name: Чтение статуса конфигурации интерфейса '{{ interfaces[0] }}'
+  # shell: nmcli connection show {{ interfaces[0] }} | grep '{{ domain }}'
+  # register: eth0_status
+  # ignore_errors: yes
+
+# - name: Чтение статуса конфигурации интерфейса 'bond0'
+  # shell: nmcli connection show bond0 | grep '{{ domain }}'
+  # register: bond0_status
+  # ignore_errors: yes
+
+# - name: Чтение '/etc/network/interfaces'
+  # shell: |
+    # cat /etc/network/interfaces | grep {{ domain }}
+  # register: interfaces_status
+  # ignore_errors: yes
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Создание интерфейсов в 'Network'
+- name: 0.4.1 | Конфигурирование активного интерфейса
   block:
 
-# Единственный интерфейс
-  - name: Создание первого интерфейса если количество интерфейсов однин в 'NetworkManager'
-    block:
+    - name: 0.4.1 | Создание файла '/etc/network/interfaces'
+      copy:
+        dest: '/etc/network/interfaces'
+        content: |
+          # Создано Ansible
+          source /etc/network/interfaces.d/*
+          auto lo
+          iface lo inet loopback
 
-    - name: Настройка сетевого интерфейса '{{ interfaces[0] }}'
-      nmcli:
-        type: ethernet
-        conn_name: '{{ interfaces[0] }}'
-        ip4: '{{ hostvars[inventory_hostname].ansible_ssh_host }}/{{ net.network.split("/")[1] }}'
-        gw4: '{{ hostvars[inventory_hostname].ansible_ssh_host.split(".")[0] }}.{{ hostvars[inventory_hostname].ansible_ssh_host.split(".")[1] }}.{{ hostvars[inventory_hostname].ansible_ssh_host.split(".")[2] }}.{{ net.gateway.split(".")[3] }}'
-        dns4 : '{{ net.bind }}'
-        dns4_search: '{{ domain }}'
-        state: present
+    - name: 0.4.1 | Создание файла '/etc/network/interfaces.d/{{ device_name.stdout }}'
+      copy:
+        dest: '/etc/network/interfaces.d/{{ device_name.stdout }}'
+        content: |
+          # Создано Ansible
+          auto {{ device_name.stdout }}
+          iface {{ device_name.stdout }} inet static
+            address {{ hostvars[inventory_hostname].ansible_ssh_host }}/{{ Net.network.split("/")[1] }}
+            gateway {{ Net.gateway }}
+          {% for dns in Net.bind %}
+            dns-nameservers {{ dns }}
+          {% endfor %}
+            dns-search {{ domain }}
 
-    - name: Настройка сетевого интерфейса '{{ interfaces[0] }}'
-      shell: |
-        nmcli connection modify "{{ interfaces[0] }}" ipv6.method  disabled
+    - name: 0.4.1 | Создание файла '/etc/resolv.conf'
+      copy:
+        dest: '/etc/resolv.conf'
+        content: |
+          # Создано Ansible
+          {% for dns in Net.bind %}
+          nameserver {{ dns }}
+          {% endfor %}
+          search {{ domain }}
 
-    - name: Перезапуск службы 'NetworkManager'
+    - name: 0.4.1 | Перезапуск службы 'networking'
       service:
-        name: NetworkManager
+        name: networking
         state: restarted
-
-    when:
-      - interfaces_length == '1'
-      - eth0_status.stdout == ''
-
-# Создание 'bond0'
-  - name: Создание 'bond0' если количество интерфейсов отлично от одного в 'NetworkManager'
-    block:
-
-    - name: Установка пакетов для создания Bond0
-      apt:
-        name: ifenslave
-        state: latest
-
-    - name: Очистим '/etc/NetworkManager/system-connections'
-      shell: |
-        rm -rf /etc/NetworkManager/system-connections/*
-
-    - name: Создание интерфейса 'bond0'
-      nmcli:
-        type: bond
-        conn_name: bond0
-        ifname: bond0
-        mode: active-backup
-        ip4: '{{ hostvars[inventory_hostname].ansible_ssh_host }}/{{ net.network.split("/")[1] }}'
-        gw4: '{{ net.gateway }}'
-        dns4 : '{{ net.bind }}'
-        dns4_search: '{{ domain }}' 
-        state: present
-
-    - name: Добавление '{{ interfaces[0] }}' в 'bond0'
-      nmcli:
-        type: bond-slave
-        conn_name: 'bond0-{{ interfaces[0] }}'
-        ifname: '{{ interfaces[0] }}'
-        master: bond0
-        state: present
-
-    - name: Добавление '{{ interfaces[1] }}' в 'bond0'
-      nmcli:
-        type: bond-slave
-        conn_name: 'bond0-{{ interfaces[1] }}'
-        ifname: '{{ interfaces[1] }}'
-        master: bond0
-        state: present
-
-    - name: Активировать интерфейс 'bond0'
-      command: nmcli connection up bond0
-
-    - name: Выключение IPv6 на интерфейсе 'bond0'
-      shell: |
-        nmcli connection modify bond0 ipv6.method  disabled
-
-    - name: Перезапуск службы 'NetworkManager'
-      service:
-        name: NetworkManager
-        state: restarted
-
-    when:
-      - interfaces_length != '1'
-      - bond0_status.stdout == ''
-
-  when: NetworkManager_result.stat.exists
-
-
-
-
-
-
-
-
-# Создание интерфейсов в 'Networking'
-- name: Создание первого интерфейса если количество интерфейсов однин в 'Networking'
-  block:
-
-    - name: Удаление файла '/etc/network/interfaces'
-      file:
-        path: /etc/network/interfaces
-        state: '{{ item }}'
-      with_items:
-        - absent
-        - touch
-
-    - name: Создание файла '/etc/network/interfaces'
-      lineinfile:
-        path: '/etc/network/interfaces'
-        line: '{{ item }}'
-      with_items:
-        - 'source /etc/network/interfaces.d/*'
-        - '#'
-        - 'auto lo'
-        - 'iface lo inet loopback'
-        - '#'
-        - 'auto eth0'
-        - 'iface eth0 inet static'
-        - '  address {{ hostvars[inventory_hostname].ansible_ssh_host }}/{{ net.network.split("/")[1] }}'
-        - '  gateway {{ hostvars[inventory_hostname].ansible_ssh_host.split(".")[0] }}.{{ hostvars[inventory_hostname].ansible_ssh_host.split(".")[1] }}.{{ hostvars[inventory_hostname].ansible_ssh_host.split(".")[2] }}.{{ net.gateway.split(".")[3] }}'
-        - '  dns-nameservers {{ net.bind }}'
-        - '  dns-search {{ domain }}'
-
-    - name: Удаление папки '/etc/NetworkManager'
-      shell:  rm -rf /etc/NetworkManager
-      ignore_errors: yes
-
-    - name: Удаление файла resolv.conf
-      file:
-        path: /etc/resolv.conf
-        state: '{{ item }}'
-      with_items:
-      - absent
-      - touch
-
-    - name: Создание файла resolv.conf
-      lineinfile:
-        path: /etc/resolv.conf
-        line: '{{ item }}'
-      with_items:
-      - nameserver {{ net.bind }}
-      - search {{ domain }}
-
-    - name: Удаление пакетов Network-Manager
-      apt:
-        name: network-manager
-        state: absent
-        purge: yes
-      ignore_errors: yes
-
-    - name: Перезагрузим сервер
-      reboot:
-        msg: 'Reboot'
 
   when:
-    - interfaces_length == '1'
-    - eth0_status.stdout == ''
-    - not NetworkManager_result.stat.exists
-    - interfaces_status.stdout == ''
+    - nm_active.stdout == 'inactive' # NetworkManager не активен
+    - ifupdown_exists.stat.exists    # networking есть
+    - not eth_config_exists.stat.exists    # нет файла конфигурации
+    # bonding не определен
 
-
-
-    # - name: Копирование файла '/etc/network/interfaces.d/interfaces для создания 'bond'
-      # template:
-        # src: 'Astra Linux/bond.j2'
-        # dest: /etc/network/interfaces.d/bond0
-        # owner: root
-        # group: root
-        # mode: 0644
  
 
 
+
+
 # Выключение IPv6
-- name: Чтение содержимого файла '/etc/sysctl.d/999-astra.conf'
+- name: 0.4.1 | Чтение содержимого файла '/etc/sysctl.d/999-astra.conf'
   shell: cat /etc/sysctl.d/999-astra.conf | grep 'net.ipv6.conf.lo.disable_ipv6=0'
   register: disable_ipv6_status
   ignore_errors: yes
 
-- name: Выключение IPv6
+- name: 0.4.1 | Выключение IPv6
   block:
 
-  - name: Изменения файла '/etc/default/grub'
+  - name: 0.4.1 | Изменения файла '/etc/default/grub'
     shell: |
       cat /etc/default/grub | grep GRUB_CMDLINE_LINUX_DEFAULT | grep ipv6.disable=0
       if [ $? != 0 ]; then
       sed -i "s/parsec.max_ilev=63/parsec.max_ilev=63 ipv6.disable=0/g" /etc/default/grub
       fi
 
-  - name: Выключаем 'ipv6'
+  - name: 0.4.1 | Выключаем 'ipv6'
     sysctl:
       name: net.ipv6.conf.all.disable_ipv6
       value: 1
       sysctl_file: /etc/sysctl.d/999-astra.conf
       reload: true
 
-  - name: Выключаем 'ipv6'
+  - name: 0.4.1 | Выключаем 'ipv6'
     sysctl:
       name: net.ipv6.conf.lo.disable_ipv6
       value: 0
       sysctl_file: /etc/sysctl.d/999-astra.conf
       reload: true
 
-  - name: Обновление GRUB
+  - name: 0.4.1 | Обновление GRUB
     shell:  update-grub
     ignore_errors: yes
          

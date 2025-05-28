@@ -1,0 +1,57 @@
+---
+
+- name: 3.27.4 | Проверка наличия файла '/etc/systemd/system/patroni.service'
+  stat:
+    path: /etc/systemd/system/patroni.service
+  register: patroni_result
+
+- name: 3.27.4 | Создания серверов
+  block:
+
+  - name: 3.27.4 | Установка 'Patroni'
+    shell: |
+      pip3 install patroni[etcd] psycopg python-etcd
+    ignore_errors: yes
+
+  - name: 3.27.4 | Копирование файла конфигурации '/etc/patroni.yaml'
+    template:
+      src: '{{ ansible_distribution }}/patroni.yaml.j2'
+      dest: /etc/patroni.yaml
+      mode: 0700
+      owner: postgres
+      group: postgres
+
+  - name: 3.27.4 | Создание сервиса '/etc/systemd/system/patroni.service'
+    copy:
+      dest: /etc/systemd/system/patroni.service
+      content: |
+        # Создано Ansible
+        [Unit]
+        Description=Patroni PostgreSQL HA
+        After=syslog.target network.target 
+        [Service]
+        Type=simple 
+        User=postgres
+        Group=postgres 
+        ExecStart=/usr/local/bin/patroni /etc/patroni.yaml
+        KillMode=process 
+        TimeoutSec=30 
+        Restart=no 
+        [Install]
+        WantedBy=multi-user.target
+      mode: 0644
+      owner: root
+
+  - name: Перечитаем systemd daemon
+    systemd:
+      daemon_reload: yes
+
+  - name: Перезагрузка сервиса 'patroni' 
+    service:
+      name: patroni
+      state: restarted
+      enabled: yes
+
+  when: not patroni_result.stat.exists
+
+...

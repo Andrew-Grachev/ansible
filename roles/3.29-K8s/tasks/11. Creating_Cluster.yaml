@@ -1,0 +1,38 @@
+---
+
+- name: 3.29.11 | Проверка наличия файла '/home/{{ ansible_ssh_user }}/.kube/config'
+  stat:
+    path: /home/{{ ansible_ssh_user }}/.kube/config
+  register: result
+  ignore_errors: true
+
+- name: 3.29.11 | Создание кластера 'Kubernetes'
+  block:
+
+  - name: 3.29.11 | Инициализация кластера 'Kubernetes'
+    shell: |
+      kubeadm config images pull
+      kubeadm init \
+      --upload-certs \
+      --pod-network-cidr="{{ k8s.pod_subnet }}" \
+      --service-cidr="{{ k8s.service_subnet }}" \
+      --service-dns-domain="{{ k8s.subdomain }}.{{ domain }}" \
+      --cri-socket="unix:///var/run/crio/crio.sock" \
+      --apiserver-advertise-address="{{ hostvars[k8s.masters[0]].ansible_ssh_host }}" \
+      --control-plane-endpoint="{{ hostvars[k8s.masters[0]].ansible_ssh_host }}:6443"
+
+  - name: 3.29.11 | Создаем директорию '/home/{{ ansible_ssh_user }}/.kube'
+    file:
+      path: '/home/{{ ansible_ssh_user }}/.kube'
+      state: directory
+      mode: 0755
+
+  - name: 3.29.11 | Копируем конфигурацию кластера в домашний каталог администратора '{{ ansible_ssh_user }}'
+    copy:
+      src: '/etc/kubernetes/admin.conf'
+      dest: '/home/{{ ansible_ssh_user }}/.kube/config'
+      remote_src: true
+
+  when: not result.stat.exists
+
+...

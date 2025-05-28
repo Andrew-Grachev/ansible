@@ -1,68 +1,71 @@
 ---
 
-- name: Чтение статуса часового пояса
+- name: 0.5-Time | Чтение статуса часового пояса
   shell: cat /etc/timezone
   register: timezone_status
 
-- name: Установка часового пояса '{{ ntp.timezone }}'
+- name: 0.5-Time | Установка часового пояса '{{ ntp.timezone }}'
   shell: |
     timedatectl set-timezone {{ ntp.timezone }}
     timedatectl set-local-rtc 0
   when: timezone_status.stdout != ntp.timezone
 
-# - name: Чтение статуса конфигурирования NTP сервера
-  # shell: cat /etc/ntp.conf | grep '{{ ntp.ntp }}'
-  # register: ntp_server_status
-  # ignore_errors: yes
+- name: 0.5-Time | Чтение статуса конфигурирования NTP сервера
+  shell: cat /etc/ntp.conf | grep '{{ ntp.srv }}'
+  register: ntp_server_status
+  ignore_errors: yes
+  when: ntp.srv is defined
 
-# - name: Настройка NTP
-  # block:
+- name: 0.5-Time | Настройка NTP
+  block:
 
-  # - name: Установка пакетов 'ntp'
-    # apt:
-      # name: ntp
-      # state: latest
+  - name: 0.5-Time | Проверка установки 'ntp'
+    command: which ntpq
+    register: ntp_check
+    ignore_errors: yes
 
-  # - name: Очистка файла '/etc/ntp.conf'
-    # file:
-      # path: /etc/ntp.conf
-      # state: '{{ item }}'
-    # with_items:
-      # - absent
-      # - touch
+  - name: 0.5-Time | Инсталляция пакета 'ntp'
+    apt:
+      name: ntp
+      update_cache: yes
+    when: ntp_check.rc != 0
 
-  # - name: Внесение изменений в файл '/etc/ntp.conf'
-    # blockinfile:
-      # path: /etc/ntp.conf
-      # create: yes
-      # state: present
-      # marker: ""
-      # block: |
+  # - name: 0.5-Time | Создание файла '/etc/ntp.conf'
+    # copy:
+      # dest: '/etc/ntp.conf'
+      # content: |
         # logfile /var/log/ntp
         # driftfile /var/lib/ntp/ntp.drift
+        # leapfile /usr/share/zoneinfo/leap-seconds.list
+        # statistics loopstats peerstats clockstats
+        # filegen loopstats file loopstats type day enable
+        # filegen peerstats file peerstats type day enable
+        # filegen clockstats file clockstats type day enable
         # server 127.127.1.0
-        # server {{ ntp.ntp }} prefer
+        # server {{ ntp.srv }} prefer
         # fudge 127.127.1.0 stratum 10
         # restrict 127.127.1.0 mask 255.255.255.255
-        # restrict {{ net.network.split("/")[0] }} mask {{ net.mask }}
+        # restrict {{ Net.network.split("/")[0] }} mask {{ Net.mask }}
+        # restrict -4 default kod notrap nomodify nopeer noquery limited
+        # restrict -6 default kod notrap nomodify nopeer noquery limited
+        # restrict source notrap nomodify noquery
 
-  # - name: Перезапуск службы NTP
-    # service:
-      # name: ntp
-      # enabled: yes
-      # state: restarted
+  - name: Синхронизация времени
+    shell: |
+      echo server {{ ntp.srv }} prefer >> /etc/ntp.conf
 
-  # - name: Синхронизация апаратного времени с системным
-    # shell: |
-      # hwclock --systohc
-      # timedatectl set-local-rtc true
+  - name: Перезапуск службы NTP
+    service:
+      name: ntp
+      enabled: yes
+      state: restarted
 
   # - name: Синхронизация времени
     # shell: |
-      # ntpdate {{ ntp.ntp }}
       # hwclock --systohc --utc
-      # timedatectl set-local-rtc true
+      # timedatectl set-local-rtc 0
+      # ntpdate {{ ntp.srv }}
 
-  # when: ntp_server_status.stdout == ''
+  when: ntp_server_status.rc != 0
 
 ...

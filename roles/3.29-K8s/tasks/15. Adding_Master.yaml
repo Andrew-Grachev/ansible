@@ -1,0 +1,73 @@
+---
+
+- name: 3.29.15 | Ping хоста {{ item }}
+  shell: 'ping -c 1 {{ hostvars[item].ansible_ssh_host }} | grep Unreachable'
+  register: ping_result
+  ignore_errors: true
+  
+- name: 3.29.15 | Хост доступен
+  block:
+
+  - name: Чтение статуса регистрации хоста '{{ item }}'
+    shell: kubectl get nodes -A | grep '{{ item }}'
+    register: status_reg
+    become: false
+    ignore_errors: true
+
+  - name: 3.29.15 | Хост не зарегистрирован
+    block:
+
+    - name: 3.29.15 | Получение 'certificate-key'
+      shell: kubeadm init phase upload-certs --upload-certs | grep -v 'upload-certs'
+      register: k8s_certificate_key
+
+    - name: 3.29.15 | Получение хеша SSL ключа
+      shell: openssl x509 -in /etc/kubernetes/pki/ca.crt -pubkey -noout | openssl pkey -pubin -outform DER | openssl dgst -sha256 | awk '{print $2}'
+      register: k8s_certificate_hash
+
+    - name: 3.29.15 | Получение токена кластера Kubernetes
+      shell: kubeadm token create
+      register: k8s_join_token
+
+    - name: 3.29.15 | Создание 'config.yaml'
+      template:
+        src: config.j2
+        dest: '/tmp/config.yaml'
+      delegate_to: '{{ item }}'
+      
+    - name: 3.29.15 | Получение 'config.yaml'
+      shell: kubeadm config images pull --config /tmp/config.yaml
+      delegate_to: '{{ item }}'
+      
+    - name: 3.29.15 | Добавление мастера в кластер Kubernetes
+      shell: "kubeadm join {{ hostvars[k8s.masters[0]].ansible_ssh_host }}:6443 --token {{ k8s_join_token.stdout }} --discovery-token-ca-cert-hash sha256:{{ k8s_certificate_hash.stdout }} --control-plane --certificate-key {{ k8s_certificate_key.stdout }}"
+      delegate_to: '{{ item }}'
+
+    - name: 3.29.15 | Создаем директорию '/home/{{ ansible_ssh_user }}/.kube'
+      file:
+        path: '/home/{{ ansible_ssh_user }}/.kube'
+        state: directory
+        mode: 0755
+      delegate_to: '{{ item }}'
+
+    - name: 3.29.15 | Копируем конфигурацию кластера в домашний каталог администратора '{{ ansible_ssh_user }}'
+      copy:
+        src: '/etc/kubernetes/admin.conf'
+        dest: '/home/{{ ansible_ssh_user }}/.kube/config'
+        remote_src: true
+      delegate_to: '{{ item }}'
+
+    - name: 3.29.15 | Ожидание запуска мастера '{{ item }}'
+      shell: |
+        kubectl get nodes -A | grep '{{ item }}' | grep Ready
+      register: result
+      until: result.rc == 0
+      retries: 60
+      delay: 10
+      become: false
+
+    when: status_reg.stdout == ''
+
+  when: ping_result.stdout == ''
+
+...

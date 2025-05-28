@@ -1,0 +1,39 @@
+---
+
+- name: 3.1.2 | Проверка наличия установленного Zabbix-agent
+  stat:
+    path: /etc/zabbix/zabbix_agentd.conf
+  register: zabbix_result
+
+- name:
+  block:
+
+  - name: 3.1.2 | Инсталляция пакета 'zabbix7-agent'
+    dnf:
+      name: zabbix7-lts-agent
+
+  - name: 3.1.2 | Внесение изменений в конфигурационныйе файл '/etc/zabbix/zabbix_agentd.conf'
+    replace:
+      path: /etc/zabbix/zabbix_agentd.conf
+      regexp: '^{{ item.src }}.*$'
+      replace: '{{ item.dest }}'
+    loop:
+      - { src: "Server=", dest: "Server={{ hostvars[Zabbix.srv].ansible_ssh_host }}" }
+      - { src: "ServerActive=", dest: "ServerActive={{ hostvars[Zabbix.srv].ansible_ssh_host }}" }
+      - { src: "Hostname=", dest: "Hostname={{ inventory_hostname }}" }
+      - { src: "Timeout=", dest: "Timeout=20" }
+
+  - name: 3.1.2 | Создание прав sudo пользователю '{{ ansible_ssh_user }}'
+    shell: |
+      echo "zabbix ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/zabbix
+      chmod 0440 /etc/sudoers.d/zabbix
+
+  - name: 3.1.2 | Включаем и перезапускаем службы
+    service:
+      name: zabbix-agent
+      state: restarted
+      enabled: yes
+
+  when: not zabbix_result.stat.exists
+
+...

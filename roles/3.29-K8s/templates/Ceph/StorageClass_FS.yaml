@@ -15,6 +15,6 @@ parameters:
   csi.storage.k8s.io/node-stage-secret-namespace: ceph-csi-cephfs
 reclaimPolicy: Delete
 allowVolumeExpansion: true
-mountOptions:
-  - debug
-  
+# mountOptions:
+  # - debug # Включить отладочный режим при монтировании
+volumeBindingMode: Immediate

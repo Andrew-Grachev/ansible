@@ -1,57 +1,53 @@
 ---
 
-- name: Выполняется только на контроллере домена FreeIPA
+# https://redos.red-soft.ru/base/redos-8_0/8_0-administation/8_0-domain-redos/8_0-installation-ipa/8_0-install-ipa/
+
+- name: Проверка наличия файла '/etc/ipa/dnssec/softhsm2.conf'
+  stat:
+    path: /etc/ipa/dnssec/softhsm2.conf
+  register: dnssec_result
+
+- name: Создание контроллера домена FreeIPA
   block:
 
-  - name: Проверка наличия файла '/etc/ipa/dnssec/softhsm2.conf'
-    stat:
-      path: /etc/ipa/dnssec/softhsm2.conf
-    register: dnssec_result
+  - name: Останавливаем службу 'systemd-timesyncd'
+    service:
+      name: systemd-timesyncd
+      state: stopped
+      enabled: no
 
-  - name: Создание контроллера домена FreeIPA
-    block:
+  - name: Установка пакетов необходимых для создания контроллера домена FreeIPA
+    dnf:
+      name:
+        - ipa-server-dns
+        - ipa-server-trust-ad
+        - python3-packaging
+        - pki-ca
+        - pki-kra
+        - pki-acme
 
-    - name: Останавливаем службу 'systemd-timesyncd'
-      service:
-        name: systemd-timesyncd
-        state: stopped
-        enabled: no
+  - name: Удаление пакет Java OpenJDK версии 11
+    shell: |
+      rpm -e java-11-openjdk-headless --nodeps
 
-    - name: Установка пакетов необходимых для создания контроллера домена FreeIPA
-      dnf:
-        name:
-          - ipa-server-dns
-          - ipa-server-trust-ad
-          - python3-packaging
-          - pki-ca
-          - pki-kra
-          - pki-acme
+  - name: Инициализация домена FreeIPA
+    shell: |
+      ipa-server-install \
+      --unattended \
+      --hostname={{ inventory_hostname }}.{{ domain }} \
+      --realm={{ domain | upper }} \
+      --domain={{ domain }} \
+      --ds-password={{ FreeIPA.pass }} \
+      --admin-password={{ FreeIPA.pass }} \
+      --setup-dns \
+      --forwarder {{ net.bind[0] }} \
+      --auto-reverse \
+      --mkhomedir
 
-    - name: Удаление пакет Java OpenJDK версии 11
-      shell: |
-        rpm -e java-11-openjdk-headless --nodeps
+  - name: Перезагрузка сервера
+    reboot:
+      msg: 'Reboot'
 
-    - name: Инициализация домена FreeIPA
-      shell: |
-        ipa-server-install \
-        --unattended \
-        --hostname={{ inventory_hostname }}.{{ domain }} \
-        --realm={{ domain | upper }} \
-        --domain={{ domain }} \
-        --ds-password={{ FreeIPA.pass }} \
-        --admin-password={{ FreeIPA.pass }} \
-        --setup-dns \
-        --forwarder {{ net.bind }} \
-        --auto-reverse \
-        --mkhomedir
-
-    - name: Перезагрузка сервера
-      reboot:
-        msg: 'Reboot'
-
-    when: not dnssec_result.stat.exists
-
-  when: inventory_hostname == FreeIPA.srv
+  when: not dnssec_result.stat.exists
 
 ...
-# https://redos.red-soft.ru/base/redos-8_0/8_0-administation/8_0-domain-redos/8_0-installation-ipa/8_0-install-ipa/

@@ -1,0 +1,22 @@
+---
+
+- name: Настройка узлов кластера
+  block:
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/1. Configure_kernel.yaml'
+  when: inventory_hostname in PostgreSQL.etcd_srv or inventory_hostname in PostgreSQL.pg_srv
+
+- name: Настройка etcd
+  block:
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/2. etcd.yaml'
+  when: inventory_hostname in PostgreSQL.etcd_srv
+
+- name: Настройка Patroni + PostgreSQL
+  block:
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/3. postgresql.yaml'
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/4. patroni.yaml'
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/5. pgbouncer.yaml'
+    # - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/keepalived.yaml' 
+    # - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/HAProxy.yaml'
+  when: inventory_hostname in PostgreSQL.pg_srv
+
+...

@@ -1,0 +1,47 @@
+---
+
+- name: 3.1.5 | Проверка наличия установленного Zabbix клиента
+  shell: cat /etc/zabbix/zabbix_agentd.conf | grep 'Hostname={{ inventory_hostname }}'
+  register: zabbix_result
+  become: false
+  ignore_errors: yes
+
+- name: 3.1.5 | Установка и настройка Zabbix клиента
+  block:
+
+  - name: 3.1.5 | Инсталляция пакетов
+    apt_rpm:
+      name:
+        - zabbix-agent
+
+  - name: 3.1.5 | Внесение изменений в конфигурационныйе файл '/etc/zabbix/zabbix_agentd.conf'
+    replace:
+      path: /etc/zabbix/zabbix_agentd.conf
+      regexp: '^{{ item.src }}.*$'
+      replace: '{{ item.dest }}'
+    loop:
+      - { src: "Server=", dest: "Server={{ hostvars[Zabbix.srv].ansible_ssh_host }}" }
+      - { src: "ServerActive=", dest: "ServerActive={{ hostvars[Zabbix.srv].ansible_ssh_host }}" }
+      - { src: "Hostname=", dest: "Hostname={{ inventory_hostname }}" }
+
+  - name: 3.1.5 | Перезапуск службы 'zabbix_agentd'
+    service:
+      name: zabbix_agentd
+      enabled: yes
+      state: restarted
+
+  when: zabbix_result.stdout == ''
+
+...
+
+
+
+
+
+
+
+
+
+
+
+

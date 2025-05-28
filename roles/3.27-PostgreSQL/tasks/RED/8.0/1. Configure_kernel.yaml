@@ -1,0 +1,23 @@
+---
+
+- name: 3.27.1 | Чтение статуса 'SELinux'
+  shell: |
+    cat /etc/sysconfig/selinux | grep SELINUX=enforcing
+  register: SELinux_status
+  ignore_errors: yes
+
+- name: 3.27.1 | Отключение 'SELinux'
+  block:
+
+  - name: 3.27.1 | Отключение 'SELinux'
+    shell: |
+      setenforce 0
+      sed -i --follow-symlinks 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/sysconfig/selinux
+
+  - name: 3.27.1 | Перезагрузка ОС
+    reboot:
+      msg: 'Reboot'
+
+  when: SELinux_status.rc == 0
+
+...

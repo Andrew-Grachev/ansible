@@ -1,0 +1,55 @@
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+bootstrapTokens:
+- groups:
+  - system:bootstrappers:kubeadm:default-node-token
+  token: abcdef.0123456789abcdef
+  ttl: 24h0m0s
+  usages:
+  - signing
+  - authentication
+localAPIEndpoint:
+  {% if k8s.keepalived_IP is defined  %}
+  advertiseAddress: "{{ k8s.keepalived_IP }}"
+  {% else %}
+  advertiseAddress: "{{ hostvars[k8s.masters[0]].ansible_ssh_host }}"
+  {% endif %}
+  bindPort: 6443
+nodeRegistration:
+  criSocket: unix:///var/run/crio/crio.sock
+  imagePullPolicy: IfNotPresent
+  name: {{ inventory_hostname }}.{{ k8s.subdomain }}.{{ domain }}
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+certificatesDir: /etc/kubernetes/pki
+clusterName: {{ k8s.subdomain }}.{{ domain }}
+etcd:
+  local:
+    dataDir: /var/lib/etcd
+imageRepository: registry.k8s.io
+apiServer:
+  timeoutForControlPlane: 4m0s
+  extraArgs:
+    service-cluster-ip-range: {{ k8s.service_subnet }}
+    service-node-port-range: 30000-32767
+{% if k8s.keepalived_IP is defined %}
+controlPlaneEndpoint: "{{ k8s.keepalived_IP }}:6443"
+{% else %}
+controlPlaneEndpoint: "{{ hostvars[k8s.masters[0]].ansible_ssh_host }}:6443"
+{% endif %}
+networking:
+  dnsDomain: {{ k8s.subdomain }}.{{ domain }}
+  podSubnet: {{ k8s.pod_subnet }}
+  serviceSubnet: {{ k8s.service_subnet }}
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+systemReserved:
+  memory: 512Mi
+  cpu: 500m
+  ephemeral-storage: 2Gi
+containerLogMaxSize: 1Mi
+containerLogMaxFiles: 3
+...

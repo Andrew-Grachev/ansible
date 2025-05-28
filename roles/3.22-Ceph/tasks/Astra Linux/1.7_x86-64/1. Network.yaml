@@ -1,0 +1,44 @@
+---
+
+- name: 3.22.1 | Проверка 'NetworkManager'
+  command: systemctl is-active NetworkManager
+  ignore_errors: yes
+  register: nm_active
+
+- name: 3.22.1 | Проверка 'network'
+  stat:
+    path: /etc/network/interfaces
+  register: ifupdown_exists
+
+- name: 3.22.1 | Проверка настройки интерфейса '{{ Ceph.net.interface}}'
+  stat:
+    path: '/etc/network/interfaces.d/{{ Ceph.net.interface}}'
+  register: eth_config_exists
+  when:
+    - nm_active.stdout == 'inactive' # NetworkManager не активен
+    - ifupdown_exists.stat.exists    # networking есть
+
+# Создание интерфейсов в 'Network'
+- name: 3.22.1 | Конфигурирование активного интерфейса
+  block:
+
+    - name: 3.22.1 | Создание файла '/etc/network/interfaces.d/{{ Ceph.net.interface}}'
+      copy:
+        dest: '/etc/network/interfaces.d/{{ Ceph.net.interface}}'
+        content: |
+          # Создано Ansible
+          auto {{ Ceph.net.interface}}
+          iface {{ Ceph.net.interface}} inet static
+            address {{ Ceph.net.network.split(".")[0] }}.{{ Ceph.net.network.split(".")[1] }}.{{ Ceph.net.network.split(".")[2] }}.{{ hostvars[inventory_hostname].ansible_ssh_host.split(".")[3] }}/{{ Ceph.net.network.split("/")[1] }}
+
+    - name: 3.22.1 | Перезапуск службы 'networking'
+      service:
+        name: networking
+        state: restarted
+
+  when:
+    - nm_active.stdout == 'inactive'     # NetworkManager не активен
+    - ifupdown_exists.stat.exists        # networking есть
+    - not eth_config_exists.stat.exists  # нет файла конфигурации интерфейса
+
+...

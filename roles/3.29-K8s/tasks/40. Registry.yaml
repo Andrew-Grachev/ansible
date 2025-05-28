@@ -1,0 +1,68 @@
+---
+
+- name: 3.29.40 | Чтение namespace 'registry'
+  shell: |
+    kubectl get namespace registry | grep 'Active'
+  register: status_namespace
+  become: false
+  ignore_errors: yes
+  when: inventory_hostname == k8s.masters[0]
+
+- name:
+  block:
+
+  - name: 3.29.40 | Создание пространства имен 'registry'
+    kubernetes.core.k8s:
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: registry
+          labels:
+            pod-security.kubernetes.io/enforce: privileged
+      state: present
+    when: status_namespace.rc == 1
+
+  - name: 3.29.40 | Развертывание Docker Registry
+    kubernetes.core.k8s:
+      state: present
+      force: true
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition: "{{ lookup('template', 'Registry/Deploy.yaml') }}"
+    when: status_namespace.rc == 1
+
+  when:
+    - inventory_hostname == k8s.masters[0]
+
+- name: 3.29.40 | Чтение статуса 'registries'
+  shell: cat /etc/containers/registries.conf | grep 'location = "registry.{{ domain }}:30500"'
+  register: status_registries
+  become: false
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: 3.29.40 | Создание файла '/etc/containers/registries.conf'
+    copy:
+      dest: /etc/containers/registries.conf
+      content: |
+        # Создано Ansible
+        [[registry]]
+        location = "registry.{{ domain }}:30500"
+        insecure = true
+
+  - name: 3.29.40 | Перечитаем systemd daemon
+    systemd:
+      daemon_reload: yes
+
+  - name: 3.29.40 | Перезапуск службы 'Сri-O'
+    service: 
+      name: crio
+      state: restarted
+      enabled: yes
+
+  when: status_registries.stdout == ''
+
+...

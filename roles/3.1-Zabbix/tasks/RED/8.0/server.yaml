@@ -1,0 +1,150 @@
+---
+
+- name: Проверка наличия установленного Zabbix
+  stat:
+    path: /etc/zabbix/zabbix_server.conf
+  register: zabbix_result
+
+- name:
+  block:
+
+  - name: Подключение репозитория php8
+    dnf:
+      name:
+        - php83-release
+
+  - name: Настройка политики безопасности 
+    shell:  |
+      setsebool -P httpd_can_network_connect on
+      setsebool -P httpd_can_network_connect_db on
+
+  - name: Инсталляция пакета 'httpd'
+    dnf:
+      name:
+        - httpd
+        - zabbix7-lts-apache-conf
+        - zabbix7-lts-sql-scripts
+
+  - name: Инсталляция пакета 'postgresql15-server'
+    dnf:
+      name:
+        - postgresql15-server
+
+  - name: Выполните инициализацию нового сервера баз данных postgresql
+    shell:  |
+      /usr/bin/postgresql-15-setup initdb
+    ignore_errors: yes
+
+  - name: Перезапуск службы 'postgresql-15'
+    service:
+      name: postgresql-15
+      enabled: yes
+      state: restarted
+
+  - name: Инсталляция пакета 'zabbix7'
+    dnf:
+      name:
+        - zabbix7-lts-server-pgsql
+        - zabbix7-lts-web-pgsql
+        - zabbix7-lts-agent
+
+  - name: Внесение изменений в конфигурационныйе файл '/etc/php.ini'
+    replace:
+      path: /etc/php.ini
+      regexp: '^.*{{ item.src }}.*$'
+      replace: '{{ item.dest }}'
+    loop:
+      - { src: "date.timezone",      dest: "date.timezone = {{ ntp.timezone }}" }
+      - { src: "post_max_size",      dest: "post_max_size = 16M" }
+      - { src: "max_execution_time", dest: "max_execution_time = 300" }
+      - { src: "max_input_time",     dest: "max_input_time = 300" }
+
+  # - name: Удаление БД '{{ Zabbix.db.name }}'
+    # shell: |
+      # sudo -u postgres psql -c "DROP DATABASE IF EXISTS {{ Zabbix.db.name }};"
+      # sudo -u postgres psql -c "DROP ROLE IF EXISTS {{ Zabbix.db.user }};"
+
+  - name: Создание БД '{{ Zabbix.db.name }}'
+    shell: |
+      sudo -u postgres psql -c "CREATE ROLE {{ Zabbix.db.user }} WITH NOSUPERUSER LOGIN PASSWORD '{{ Zabbix.db.password }}';"
+      sudo -u postgres psql -c "CREATE DATABASE {{ Zabbix.db.name }} WITH OWNER {{ Zabbix.db.user }};"  
+      sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE {{ Zabbix.db.name }} TO {{ Zabbix.db.user }};"
+
+  - name: Внесение изменений в конфигурационныйе файл '/var/lib/pgsql/15/data/postgresql.conf'
+    replace: 
+      path: /var/lib/pgsql/15/data/postgresql.conf
+      regexp: '^.*{{ item.src }}.*$'
+      replace: '{{ item.dest }}'
+    loop:
+      - { src: "listen_addresses", dest: "listen_addresses = '*'" }
+      - { src: "port",             dest: "port = 5432" }
+
+  - name: Внесение изменений в '/var/lib/pgsql/15/data/pg_hba.conf'
+    shell: |
+      sed -i '/Zabbix'/d /var/lib/pgsql/15/data/pg_hba.conf
+      sed -i '89 a host     {{ Zabbix.db.name }}     {{ Zabbix.db.user }}     127.0.0.1/32     password    # Настройки для Zabbix' /var/lib/pgsql/15/data/pg_hba.conf
+
+  - name: Перезапуск службы 'postgresql-15'
+    service:
+      name: postgresql-15
+      enabled: yes
+      state: restarted
+
+
+  - name: Наполнение БД '{{ Zabbix.db.name }}'
+    shell: |
+      export PGPASSWORD={{ Zabbix.db.password }}
+      zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | psql -h localhost {{ Zabbix.db.name }} {{ Zabbix.db.user }}
+
+  - name: Внесение изменений в конфигурационныйе файл '/etc/zabbix/zabbix_server.conf'
+    replace:
+      path: /etc/zabbix/zabbix_server.conf
+      regexp: '^.*{{ item.src }}.*$'
+      replace: '{{ item.dest }}'
+    loop:
+      - { src: "DBHost=",     dest: "DBHost=localhost" }
+      - { src: "DBName=",     dest: "DBName={{ Zabbix.db.name }}" }
+      - { src: "DBUser=",     dest: "DBUser={{ Zabbix.db.user }}" }
+      - { src: "DBPassword=", dest: "DBPassword={{ Zabbix.db.password }}" }
+
+  - name: Внесение изменений в файл '/etc/zabbix/web/zabbix.conf.php'
+    blockinfile:
+      path: /etc/zabbix/web/zabbix.conf.php
+      create: yes
+      state: present
+      marker: ""
+      block: |
+        <?php
+        $DB['TYPE']      = 'POSTGRESQL';
+        $DB['SERVER']    = 'localhost';
+        $DB['PORT']      = '5432';
+        $DB['DATABASE']  = '{{ Zabbix.db.name }}';
+        $DB['USER']      = '{{ Zabbix.db.user }}';
+        $DB['PASSWORD']  = '{{ Zabbix.db.password }}';
+        $ZBX_SERVER_NAME = 'Zabbix';
+
+  - name: Включаем и перезапускаем службы
+    service:
+      name: '{{ item }}'
+      state: restarted
+      enabled: yes
+    with_items:
+      - httpd
+      - zabbix-server
+      - zabbix-agent
+
+  when: not zabbix_result.stat.exists
+
+...
+
+
+
+
+
+
+
+
+
+
+
+

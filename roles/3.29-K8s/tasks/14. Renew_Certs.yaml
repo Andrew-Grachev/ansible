@@ -1,0 +1,32 @@
+---
+
+- name: 3.29.14 | Проверка наличия файла '/usr/local/bin/k8s_renew_certs.sh'
+  stat:
+    path: /usr/local/bin/k8s_renew_certs.sh
+  register: renew_certs_result
+
+- name:
+  block:
+
+  - name: 3.29.14 | Копирование скрипта демона
+    copy:
+      src: renew_certs.sh.j2
+      dest: /usr/local/bin/k8s_renew_certs.sh
+      mode: 0755
+      force: yes
+
+  - name: 3.29.14 | Создание задания на обновление сертификатов кластера
+    cron:
+      name: Renew_Certs_Kubernetes
+      job: /usr/local/bin/k8s_renew_certs.sh
+      minute: "0"
+      hour: "0"
+      day: "*"
+      month: "*"
+      weekday: "*"
+      user: root
+
+  when:
+    - not renew_certs_result.stat.exists
+
+...

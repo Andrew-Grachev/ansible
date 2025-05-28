@@ -1,0 +1,87 @@
+---
+
+- name: 3.22.3 | Проверка наличия файла '/etc/keepalived/keepalived.conf'
+  stat:
+    path: /etc/keepalived/keepalived.conf
+  register: keepalived_result
+  ignore_errors: yes
+
+- name: 3.22.3 | Установка 'keepalived'
+  block:
+
+  - name: 3.22.3 | Установка пакета 'Keepalived'
+    apt:
+      name:
+        - keepalived
+        - curl
+
+  - name: 3.22.3 | Создание файла '/etc/keepalived/keepalived.conf'
+    copy:
+      dest: '/etc/keepalived/keepalived.conf'
+      content: |
+        global_defs {
+          script_user root
+        }
+        vrrp_script check_mgr {
+          script "/usr/local/bin/check_mgr.sh"
+          interval 10
+          timeout 10
+          fall 1
+          rise 2
+        }
+        vrrp_instance Virtual_IP {
+          interface {{ ansible_default_ipv4.interface }}
+          virtual_router_id 220
+          state BACKUP
+          priority {{ 250 - Ceph.nodes.index(inventory_hostname)*10 }}
+          advert_int 1
+          unicast_src_ip primary_private_IP
+          unicast_peer {
+            secondary_private_IP
+          }
+          authentication {
+            auth_type PASS
+            auth_pass Keepalived_SecPassWord
+          }
+          virtual_ipaddress {
+            {{ Ceph.net.keepalived_IP }}/24 dev {{ ansible_default_ipv4.interface }} label {{ ansible_default_ipv4.interface }}:0
+          }
+          track_script {
+            check_mgr
+          }
+        }
+
+  - name: 3.22.3 | Внесение изменений в файл '/etc/keepalived/keepalived.conf'
+    lineinfile:
+      dest: /etc/keepalived/keepalived.conf
+      regexp: 'state BACKUP'
+      line: '  state MASTER'
+    when: inventory_hostname == Ceph.nodes[0]
+
+
+  - name: 3.22.3 | Создание файла '/usr/local/bin/check_mgr.sh'
+    copy:
+      dest: '/usr/local/bin/check_mgr.sh'
+      content: |
+        #!/bin/sh
+        HOSTNAME=$(hostname -s)
+        ceph mgr stat | grep "$HOSTNAME" > /dev/null 2>&1
+        if [[ $? -eq 0 ]]; then
+          exit 0
+        else
+          exit 1
+        fi
+      mode: 0755
+
+  - name: 3.22.3 | Запускаем службу 'Keepalived'
+    service:
+      name: keepalived
+      state: restarted
+      enabled: yes
+
+  when:
+    - inventory_hostname in Ceph.nodes
+    - not keepalived_result.stat.exists
+    - Ceph.net.keepalived_IP is defined
+
+...

@@ -2,12 +2,6 @@ fullnameOverride: "elasticsearch"
 clusterDomain: {{ domain }}
 
 master:
-  masterOnly: true
-  replicaCount: 1
-  # replicaCount: 2
-  persistence:
-    enabled: true
-    storageClass: {{ k8s.rwo_sc }}
   extraVolumes:
     - name: elasticsearch-templates
       configMap:
@@ -16,30 +10,17 @@ master:
     - name: elasticsearch-templates
       mountPath: /etc/elasticsearch-templates
       readOnly: true
-
   persistence:
-    enabled: true
     storageClass: {{ k8s.rwo_sc }}
     size: 1Gi
 
 data:
-  replicaCount: 1
-  # replicaCount: 2
   persistence:
-    enabled: true
     storageClass: {{ k8s.rwo_sc }}
-    size: 10Gi
-
-coordinating:
-  replicaCount: 1
-  # replicaCount: 2  
+    size: 100Gi
   
 ingest:
   enabled: false
-  replicaCount: 1
-  # replicaCount: 2
-  ingress:
-    hostname: elasticsearch-ingest.logging.svc.{{ domain }}
 
 metrics:
   enabled: true
@@ -57,12 +38,3 @@ metrics:
       release: prometheus
   prometheusRule:
     enabled: true
-
-volumePermissions:
-  enabled: false
-  # image:
-    # registry: dockerreg.sphaera.ru
-
-sysctlImage:
-  enabled: true
-  # registry: dockerreg.sphaera.ru

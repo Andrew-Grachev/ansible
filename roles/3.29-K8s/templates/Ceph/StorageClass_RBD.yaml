@@ -19,3 +19,4 @@ reclaimPolicy: Delete
 allowVolumeExpansion: true
 mountOptions:
   - discard
+volumeBindingMode: Immediate

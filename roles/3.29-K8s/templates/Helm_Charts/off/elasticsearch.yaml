@@ -1,0 +1,52 @@
+fullnameOverride: "elasticsearch"
+clusterDomain: {{k8s.subdomain }}.{{ domain }}
+
+master:
+  extraVolumes:
+    - name: elasticsearch-templates
+      configMap:
+        name: elasticsearch-templates
+  extraVolumeMounts:
+    - name: elasticsearch-templates
+      mountPath: /etc/elasticsearch-templates
+      readOnly: true
+  persistence:
+    enabled: true
+    storageClass: {{ k8s.rwo_sc }}
+    size: 1Gi
+
+data:
+  persistence:
+    enabled: true
+    storageClass: {{ k8s.rwo_sc }}
+    size: 100Gi
+
+ingest:
+  enabled: false
+  ingress:
+    enabled: false
+    hostname: elasticsearch-ingest.local
+
+metrics:
+  enabled: true
+  extraArgs:
+    - --es.cluster_settings
+    - --es.indices
+    - --es.indices_settings
+    - --es.indices_mappings
+    - --es.aliases
+    - --es.shards
+    - --es.data_stream
+  serviceMonitor:
+    enabled: true
+    labels:
+      release: prometheus
+  prometheusRule:
+    enabled: true
+{% raw %}
+kibana:
+  elasticsearch:
+    hosts:
+      - '{{ include "elasticsearch.service.name" . }}'
+    port: '{{ include "elasticsearch.service.ports.restAPI" . }}'
+{% endraw %}

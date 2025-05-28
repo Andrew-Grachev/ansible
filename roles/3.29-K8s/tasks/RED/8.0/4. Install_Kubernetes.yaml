@@ -1,0 +1,81 @@
+---
+
+- name: 3.29.4 | Проверка наличия '/etc/kubernetes'
+  stat:
+    path: /etc/kubernetes
+  register: kubernetes_result
+  ignore_errors: yes
+
+- name: 3.29.4 | Установка 'Kubernetes'
+  block:
+
+  - name: Установка вспомогательных пакетов
+    dnf:
+      update_cache: true
+      name:
+      - python3-pip
+      - python3-kubernetes
+      - bind-utils
+      - curl
+      - htop
+      - iftop
+      - git
+      - wget
+      - net-tools
+      - openssl
+
+  - name: 3.29.4 | Установка модулей Python
+    pip:
+      executable: pip3
+      extra_args: --no-warn-script-location
+      name:
+      - ansible
+      - ansible-core
+      - ansible-lint
+      - kubernetes
+      - collection
+
+  - name: 3.29.4 | Установка 'Kubernetes v{{ k8s.ver }}'
+    dnf:
+      update_cache: true
+      state: present
+      name:
+        - kubernetes{{ k8s.ver }}
+        - kubernetes{{ k8s.ver }}-kubeadm
+        - cri-o{{ k8s.ver }}
+        - cri-tools{{ k8s.ver }}
+        - iproute-tc
+        - skopeo
+
+  - name: 3.29.4 | Настройка 'Сri-O'
+    shell: |
+      sed -i '/^\[crio\.runtime\]/a seccomp_profile = "\/etc\/containers\/policy.json"' /etc/crio/crio.conf
+
+  - name: 3.29.4 | Запуск службы 'Сri-O'
+    service: 
+      name: crio
+      state: restarted
+      enabled: yes
+
+  - name: 3.29.4 | Настройка имени домена в конфигурации 'kubelet'
+    shell: |
+      sed -i "s/--cluster-domain=cluster.local/--cluster-domain={{ k8s.subdomain }}.{{ domain }}/" /etc/systemd/system/kubelet.service.d/kubeadm.conf
+
+  - name: 3.29.4 | Запуск службы 'kubelet'
+    service: 
+      name: kubelet
+      state: restarted
+      enabled: yes
+
+  - name: 3.29.4 | Инсталляция диспетчера пакетов 'Helm v3.16.4'
+    shell: |
+      wget https://get.helm.sh/helm-v3.16.4-linux-amd64.tar.gz
+      tar xvf helm-v3.16.4-linux-amd64.tar.gz
+      mv linux-amd64/helm /usr/bin
+      rm helm-v3.16.4-linux-amd64.tar.gz
+      rm -rf linux-amd64
+    when: inventory_hostname in k8s.masters
+
+  when: not kubernetes_result.stat.exists
+
+...

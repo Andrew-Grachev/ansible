@@ -1,5 +1,178 @@
 ---
 
-- include_tasks: '../1.7_x86-64/main.yaml'
+- name: 0.4.1 | Проверка 'NetworkManager'
+  command: systemctl is-active NetworkManager
+  ignore_errors: yes
+  register: nm_active
+
+- name: 0.4.1 | Проверка 'network'
+  stat:
+    path: /etc/network/interfaces
+  register: ifupdown_exists
+
+
+
+
+
+- name: 0.4.1 | Создание первого интерфейса в NetworkManager
+  block:
+
+  - name: Чтение DNS серверов в файле '/etc/NetworkManager/conf.d/dns.conf'
+    shell: cat /etc/NetworkManager/conf.d/dns.conf | grep '{{ Net.bind | join(',') }}'
+    register: dns_status
+    ignore_errors: yes
+
+  - name: Настройка 'dns.conf'
+    block:
+
+    - name: Создаем конфигурацию '/etc/NetworkManager/conf.d/dns.conf'
+      shell: |
+        echo -e "[global-dns-domain-*]\nservers = {{ Net.bind | join(',') }}\n" > /etc/NetworkManager/conf.d/dns.conf
+        rm -f /etc/resolv.conf
+
+    - name: Перезапуск службы 'NetworkManager'
+      service:
+        name: NetworkManager
+        state: restarted
+
+    when: dns_status.stdout == ''
+
+  - name: 0.4.1 | Получить имя активного интерфейса
+    shell: |
+      ip -o -4 addr show | grep "{{ hostvars[inventory_hostname].ansible_ssh_host }}" | awk '{print $2}'  
+    register: device_name
+
+  - name: 0.4.1 | Проверка настройки интерфейса '{{ device_name.stdout }}'
+    stat:
+      path: '/etc/NetworkManager/system-connections/{{ device_name.stdout }}.nmconnection'
+    register: eth_config_exists
+
+  - name: Настройка '{{ device_name.stdout }}'
+    block:
+
+    - name: Настройка сетевого интерфейса '{{ device_name.stdout }}'
+      nmcli:
+        type: ethernet
+        conn_name: '{{ device_name.stdout }}'
+        ip4: '{{ hostvars[inventory_hostname].ansible_ssh_host }}/{{ Net.network.split("/")[1] }}'
+        gw4: '{{ Net.gateway }}'
+        dns4 : '{{ Net.bind | join(",") }}'
+        dns4_search: '{{ domain }}'
+        state: present
+
+    - name: Настройка сетевого интерфейса '{{ device_name.stdout }}'
+      shell: |
+        nmcli connection modify "{{ device_name.stdout }}" ipv6.method  disabled
+
+    - name: Перезапуск службы 'NetworkManager'
+      service:
+        name: NetworkManager
+        state: restarted
+
+    when: not eth_config_exists.stat.exists
+
+  - name: Получить имя неактивного интерфейса
+    shell: |
+      nmcli con | grep 'ethernet  --' | awk '{print $1}' 
+    register: device_off
+
+  - name: Удаление неактивного интерфейса
+    shell: |
+      rm -f /etc/NetworkManager/system-connections/{{ device_off.stdout }}*
+    when: device_off.stdout != ''
+
+  when:
+    - nm_active.stdout == 'active'
+    - bond is not defined
+
+
+
+
+
+# Создание 'bond0'
+  # - name: Создание 'bond0' если количество интерфейсов отлично от одного в 'NetworkManager'
+    # block:
+
+    # - name: Установка пакетов для создания Bond0
+      # apt:
+        # name: ifenslave
+        # state: latest
+
+    # - name: Очистим '/etc/NetworkManager/system-connections'
+      # shell: |
+        # rm -rf /etc/NetworkManager/system-connections/*
+
+    # - name: Создание интерфейса 'bond0'
+      # nmcli:
+        # type: bond
+        # conn_name: bond0
+        # ifname: bond0
+        # mode: active-backup
+        # ip4: '{{ hostvars[inventory_hostname].ansible_ssh_host }}/{{ net.network.split("/")[1] }}'
+        # gw4: '{{ net.gateway }}'
+        # dns4 : '{{ net.bind }}'
+        # dns4_search: '{{ domain }}' 
+        # state: present
+
+    # - name: Добавление '{{ interfaces[0] }}' в 'bond0'
+      # nmcli:
+        # type: bond-slave
+        # conn_name: 'bond0-{{ interfaces[0] }}'
+        # ifname: '{{ interfaces[0] }}'
+        # master: bond0
+        # state: present
+
+    # - name: Добавление '{{ interfaces[1] }}' в 'bond0'
+      # nmcli:
+        # type: bond-slave
+        # conn_name: 'bond0-{{ interfaces[1] }}'
+        # ifname: '{{ interfaces[1] }}'
+        # master: bond0
+        # state: present
+
+    # - name: Активировать интерфейс 'bond0'
+      # command: nmcli connection up bond0
+
+    # - name: Выключение IPv6 на интерфейсе 'bond0'
+      # shell: |
+        # nmcli connection modify bond0 ipv6.method  disabled
+
+    # - name: Перезапуск службы 'NetworkManager'
+      # service:
+        # name: NetworkManager
+        # state: restarted
+
+    # when:
+      # - interfaces_length != '1'
+      # - bond0_status.stdout == ''
+
+  # when: NetworkManager_result.stat.exists
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ...

@@ -4,9 +4,12 @@
   shell: '{{ item }}'
   loop:
     - systemctl stop ceph-*.service ceph-*.target
-    - ceph-volume lvm zap {{ Ceph.dev[0] }} --destroy
     - dnf remove ceph ceph-radosgw ceph-mds ceph-mgr ceph-osd ceph-common ceph-fuse -y
     - rm -rf /etc/ceph/ /var/lib/ceph/ /var/log/ceph/ /home/{{ ansible_ssh_user }}/ceph*
+    - rm -rf /usr/lib/systemd/system/ceph* /usr/bin/ceph* /usr/sbin/ceph* /etc/sysconfig/ceph
+
+
+userdel -r имя_пользователя
 
 - name: Перезагрузка узлов кластера
   reboot:

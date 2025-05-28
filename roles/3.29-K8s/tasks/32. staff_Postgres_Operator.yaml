@@ -1,0 +1,100 @@
+---
+
+- name: 3.29.32 | Чтение статуса 'postgres-operator'
+  shell: kubectl get pod -n staff | grep 'postgres-operator' | grep 'Running'
+  register: status_postgres
+  become: false
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: 3.29.32 | Чтение namespace 'staff'
+    shell: kubectl get namespace staff | grep 'Active'
+    register: status_namespace
+    become: false
+    ignore_errors: yes
+
+  - name: 3.29.32 | Создание пространства имен 'staff'
+    kubernetes.core.k8s:
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: staff
+          labels:
+            pod-security.kubernetes.io/enforce: privileged
+      state: present
+    when: status_namespace.rc == 1
+
+  - name: 3.29.32 | Развертывание из сетевого репозитория
+    block:
+
+    - name: 3.29.32 | Чтение репозитория 'postgres-operator'
+      shell: helm repo list | grep 'postgres-operator'
+      register: status_repo_postgres_operator
+      become: false
+      ignore_errors: yes
+
+    - name: 3.29.32 | Добавление репозитория 'postgres-operator'
+      kubernetes.core.helm_repository:
+        name: postgres-operator
+        repo_url: https://opensource.zalando.com/postgres-operator/charts/postgres-operator
+        force_update: true
+      become: false
+      when: status_repo_postgres_operator.rc == 1
+
+    - name: 3.29.32 | Развертывание 'postgres-operator v1.9.0'
+      kubernetes.core.helm:
+        name: postgres-operator
+        release_namespace: staff
+        chart_ref: postgres-operator/postgres-operator
+        chart_version: 1.9.0
+        values: "{{ lookup('template', 'Helm_Charts/postgres-operator.yaml') | from_yaml }}"
+        force: true
+      become: false
+
+    when: registry.srv is not defined
+
+  - name: 3.29.32 | Развертывание из локального репозитория
+    block:
+
+    - name: 3.29.32 | Чтение репозитория 'registry-local'
+      shell: helm repo list | grep 'registry-local'
+      register: status_repo_registry_local
+      become: false
+      ignore_errors: yes
+
+    - name: 3.29.32 | Добавление локального репозитория 'registry-local'
+      kubernetes.core.helm_repository:
+        name: registry-local
+        repo_url: http://{{ hostvars[registry.srv].ansible_ssh_host }}:{{ registry.port }}/helm
+        force_update: true
+      become: false
+      when: status_repo_registry_local.rc == 1
+
+    - name: 3.29.32 | Развертывание 'postgres-operator v1.9.0'
+      kubernetes.core.helm:
+        name: postgres-operator
+        release_namespace: staff
+        chart_ref: registry-local/postgres-operator
+        chart_version: 1.9.0
+        values: "{{ lookup('template', 'Helm_Charts/postgres-operator.yaml') | from_yaml }}"
+        force: true
+      become: false
+
+    when: registry.srv is defined
+
+  - name: 3.29.32 | Ожидание запуска 'postgres-operator'
+    shell: |
+      kubectl get pod -n staff | grep 'postgres-operator' | grep 'Running'
+    register: result
+    until: result.rc == 0
+    retries: 60
+    delay: 10
+    become: false
+
+  when: status_postgres.rc == 1
+
+...

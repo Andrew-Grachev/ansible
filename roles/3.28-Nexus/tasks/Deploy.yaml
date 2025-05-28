@@ -1,0 +1,82 @@
+---
+
+- name: 3.28.2 | Проверка наличия '{{ Nexus.path }}/nginx/nginx.conf'
+  stat:
+    path: '{{ Nexus.path }}/nginx/nginx.conf'
+  register: nexus_result
+  ignore_errors: yes
+
+- name: Настройка сервера 'Nginx'
+  block:
+
+  - name: 3.28.2 | Создание папок
+    file:
+      path: '{{ item }}'
+      state: directory
+      mode: 0777
+      recurse: True
+    with_items:
+      - '{{ Nexus.path }}/data'
+      - '{{ Nexus.path }}/nginx/ssl'
+
+  - name: 3.28.2 | Генерация ключей
+    shell: |
+      openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+        -keyout {{ Nexus.path }}/nginx/ssl/registry.{{ domain }}.key \
+        -out {{ Nexus.path }}/nginx/ssl/registry.{{ domain }}.crt \
+        -subj "/CN=registry.{{ domain }}" \
+        -addext "subjectAltName=DNS:registry.{{ domain }}"
+
+  - name: Копирование файла конфигурации 'nginx.conf'
+    template:
+      src: 'nginx.conf.j2'
+      dest: '{{ Nexus.path }}/nginx/nginx.conf'
+      mode: 0644
+      owner: root
+
+  - name: 3.28.2 | Копирование файла конфигурации 'docker-compose.yaml'
+    template:
+      src: 'docker-compose.yaml.j2'
+      dest: '/tmp/docker-compose.yaml'
+      mode: 0644
+      owner: root
+
+  - name: 3.28.2 | Перезапуск службы 'docker'
+    service:
+      name: docker
+      enabled: yes
+      state: restarted
+
+  - name: 3.28.2 | Запуск 'docker-compose'
+    shell: |
+      docker-compose -f /tmp/docker-compose.yaml up -d
+
+  # - name: 3.28.2 | Пауза на развертывание контейнера
+    # pause:
+      # seconds: 60
+
+  # - name: 3.28.2 | Создание файла 'nexus.properties'
+    # copy:
+      # dest: '{{ Nexus.path }}/data/admin.password'
+      # content: |
+        # {{ ansible_ssh_pass }}
+
+  when: not nexus_result.stat.exists
+
+...
+
+  # - name: Копирование файлов '*.tgz'
+    # copy:
+      # src: 'Repo_Helm/'
+      # dest: '{{ registry.path }}/repo/helm/'
+      # force: no
+
+  # - name: Копирование образов контейнеров
+    # copy:
+      # src: 'Repo_Imgs/'
+      # dest: '{{ registry.path }}/repo/imgs/'
+      # force: no
+
+  # - name: Построение индекса Helm репозитория
+    # shell: |
+      # helm repo index {{ registry.path }}/repo/helm/

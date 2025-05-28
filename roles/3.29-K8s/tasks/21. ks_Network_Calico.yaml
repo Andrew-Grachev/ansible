@@ -1,0 +1,37 @@
+---
+
+- name: 3.29.21 | Чтение статуса плагина
+  shell: kubectl get pods -n kube-system | grep 'calico-node' | grep 'Running'
+  register: status_calico
+  become: false
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: 3.29.21 | Устанавливаем сетевой плагин 'Calico with BGP'
+    k8s:
+      state: present
+      force: true
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition: "{{ lookup('template', 'Calico/kube-calico-bgp.yaml') }}"
+
+  - name: 3.29.21 | Устанавливаем 'calicoctl (3.29.3)'
+    shell: |
+      curl -L https://github.com/projectcalico/calico/releases/download/v3.29.3/calicoctl-linux-amd64 -o calicoctl
+      chmod +x calicoctl
+      mv -f calicoctl /usr/local/bin
+      mkdir /etc/calico
+
+  - name: 3.29.21 | Ожидание запуска 'Calico with BGP controller'
+    shell: |
+      kubectl get pod -n kube-system | grep alico-kube-controllers | grep Running
+    register: result
+    until: result.rc == 0
+    retries: 60
+    delay: 10
+    become: false
+
+  when: status_calico.stdout == ''
+
+...

@@ -1,0 +1,218 @@
+---
+
+- name: 3.29.23 | Ping Ceph ноды '{{ Ceph.nodes[0] }}'
+  shell: 'ping -c 1 {{ Ceph.nodes[0] }} | grep Unreachable'
+  register: ping_result
+  ignore_errors: yes
+
+- name: 3.29.23 | Чтение 'ClusterID' с ноды {{ Ceph.nodes[0] }}
+  shell: ssh {{ Ceph.nodes[0] }} sudo ceph fsid
+  register: ceph_cluster_id
+  become: false
+  when: ping_result.stdout == ''
+
+  
+- name: Подключение Ceph
+  block:
+
+  - name: 3.29.23 | Добавление сетевого репозитория 'ceph-csi'
+    kubernetes.core.helm_repository:
+      name: ceph-csi
+      repo_url: https://ceph.github.io/csi-charts
+      force_update: true
+    become: false
+    when: registry.srv is not defined
+
+  - name: 3.29.23 | Добавление локального репозитория 'registry-local'
+    kubernetes.core.helm_repository:
+      name: registry-local
+      repo_url: http://{{ hostvars[registry.srv].ansible_ssh_host }}:{{ registry.port }}/helm
+      force_update: true
+    become: false
+    when: registry.srv is defined
+
+  - name: 3.29.23 | Чтение статуса провайдера 'Ceph'
+    shell: kubectl get pods -n ceph-csi-rbd | grep 'ceph-csi-rbd-provisioner'
+    register: status_ceph_csi_rdb
+    become: false
+    ignore_errors: yes
+
+  - name: 3.29.23 | Чтение ключа доступа пользователя 'admin'
+    shell: ssh {{ Ceph.nodes[0] }} sudo ceph auth get-key client.admin
+    register: ceph_key_admin
+    become: false
+    ignore_errors: yes
+
+  - name: 3.29.23 | Чтение ключа доступа пользователя 'rbd'
+    shell: ssh {{ Ceph.nodes[0] }} sudo ceph auth get-key client.rbd
+    register: ceph_key_rbd
+    become: false
+    ignore_errors: yes
+
+  - name: Подключение Ceph RBD
+    block:
+
+    - name: 3.29.23 | Создание пространства имен 'ceph-csi-rbd'
+      kubernetes.core.k8s:
+        state: present
+        force: true
+        kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: ceph-csi-rbd
+            labels:
+              pod-security.kubernetes.io/enforce: privileged
+
+    - name: 3.29.23 | Развертывание 'ceph-csi-rbd (v3.13.1)'
+      kubernetes.core.helm:
+        name: ceph-csi-rbd
+        release_namespace: ceph-csi-rbd
+        chart_ref: ceph-csi/ceph-csi-rbd
+        chart_version: 3.13.1
+        values: "{{ lookup('template', 'Ceph/Ceph_RBD.yaml') | from_yaml }}"
+        force: true
+      become: false
+      when: registry.srv is not defined
+
+    - name: 3.29.23 | Развертывание 'ceph-csi-rbd (v3.13.1)'
+      kubernetes.core.helm:
+        name: ceph-csi-rbd
+        release_namespace: ceph-csi-rbd
+        chart_ref: registry-local/ceph-csi-rbd
+        chart_version: 3.13.1
+        values: "{{ lookup('template', 'Ceph/Ceph_RBD.yaml') | from_yaml }}"
+        force: true
+      become: false
+      when: registry.srv is defined
+
+    - name: 3.29.23 | Создание rbd secret
+      kubernetes.core.k8s:
+        state: present
+        force: true
+        kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+        definition: "{{ lookup('template', 'Ceph/Secret_RBD.yaml') }}"
+
+    - name: 3.29.23 | Создание rbd StorageClass
+      kubernetes.core.k8s:
+        state: present
+        force: true
+        kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+        definition: "{{ lookup('template', 'Ceph/StorageClass_RBD.yaml') }}"
+
+    # - name: 3.29.23 | Создание PVC для тестирования
+      # kubernetes.core.k8s:
+        # state: present
+        # force: true
+        # kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+        # definition: "{{ lookup('template', 'Ceph/PVC_RBD.yaml') }}"
+
+    - name: 3.29.23 | Ожидание запуска 'ceph-csi-rbd-provisioner'
+      shell: |
+        kubectl get pods -n ceph-csi-rbd | grep ceph-csi-rbd-provisioner | grep Running
+      register: result
+      until: result.rc == 0
+      retries: 120
+      delay: 10
+      become: false
+
+    when:
+      - ceph_key_rbd.stdout != ''
+      - status_ceph_csi_rdb.stdout == ''
+
+  - name: 3.29.23 | Чтение статуса провайдера 'Ceph'
+    shell: kubectl get pods -n ceph-csi-cephfs | grep 'ceph-csi-cephfs-provisioner'
+    register: status_ceph_csi_fs
+    become: false
+    ignore_errors: yes
+
+  - name: 3.29.23 | Чтение ключа доступа пользователя 'fs'
+    shell: ssh {{ Ceph.nodes[0] }} sudo ceph auth get-key client.fs
+    register: ceph_key_fs
+    become: false
+    ignore_errors: yes
+
+  - name: Подключение Ceph FS
+    block:
+
+    - name: 3.29.23 | Создание пространства имен 'ceph-csi-cephfs'
+      kubernetes.core.k8s:
+        state: present
+        force: true
+        kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: ceph-csi-cephfs
+            labels:
+              pod-security.kubernetes.io/enforce: privileged
+
+    - name: 3.29.23 | Развертывание 'ceph-csi-cephfs (v3.13.1)'
+      kubernetes.core.helm:
+        name: ceph-csi-cephfs
+        release_namespace: ceph-csi-cephfs
+        chart_ref: ceph-csi/ceph-csi-cephfs
+        chart_version: 3.13.1
+        values: "{{ lookup('template', 'Ceph/Ceph_FS.yaml') | from_yaml }}"
+        force: true
+      become: false
+      when: registry.srv is not defined
+
+    - name: 3.29.23 | Развертывание 'ceph-csi-cephfs (v3.13.1)'
+      kubernetes.core.helm:
+        name: ceph-csi-cephfs
+        release_namespace: ceph-csi-cephfs
+        chart_ref: registry-local/ceph-csi-cephfs
+        chart_version: 3.13.1
+        values: "{{ lookup('template', 'Ceph/Ceph_FS.yaml') | from_yaml }}"
+        force: true
+      become: false
+      when: registry.srv is defined
+
+    - name: 3.29.23 | Получение ключа доступа пользователя 'admin'
+      shell: |
+        cat /etc/ceph/secret.key
+      register: ceph_key_admin
+      delegate_to: '{{ Ceph.nodes[0] }}'
+
+    - name: 3.29.23 | Создание fs secret
+      kubernetes.core.k8s:
+        state: present
+        force: true
+        kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+        definition: "{{ lookup('template', 'Ceph/Secret_FS.yaml') }}"
+
+    - name: 3.29.23 | Создание fs StorageClass
+      kubernetes.core.k8s:
+        state: present
+        force: true
+        kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+        definition: "{{ lookup('template', 'Ceph/StorageClass_FS.yaml') }}"
+
+    # - name: 3.29.23 | Создание pvc для тестирования fs
+      # kubernetes.core.k8s:
+        # state: present
+        # force: true
+        # kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+        # definition: "{{ lookup('template', 'Ceph/PVC_FS.yaml') }}"
+
+    - name: 3.29.23 | Ожидание запуска 'ceph-csi-cephfs-provisioner'
+      shell: |
+        kubectl get pods -n ceph-csi-cephfs | grep ceph-csi-cephfs-provisioner | grep Running
+      register: result
+      until: result.rc == 0
+      retries: 60
+      delay: 10
+      become: false
+
+    when:
+      - ceph_key_fs.stdout != ''
+      - status_ceph_csi_fs.stdout == ''
+
+  when:
+    - ceph_cluster_id.stdout != ''
+    - k8s.ceph_csi != 0
+
+...

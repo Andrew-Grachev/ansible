@@ -1,0 +1,91 @@
+scope: postgres_cluster
+namespace: /service/
+name: {{ inventory_hostname }}
+log:
+  level: INFO
+  format: '%(asctime)s %(levelname)s: %(message)s'
+  dateformat: ''
+  max_queue_size: 1000
+  file_num: 2
+  file_size: 10000000
+  dir: /var/lib/pgsql
+restapi:
+  listen: 0.0.0.0:8008
+  connect_address: {{ hostvars[inventory_hostname].ansible_ssh_host }}:8008
+etcd:
+  hosts:
+    - "{{ hostvars[PostgreSQL.etcd_srv[0]].ansible_ssh_host }}:2379"
+    - "{{ hostvars[PostgreSQL.etcd_srv[1]].ansible_ssh_host }}:2379"
+    - "{{ hostvars[PostgreSQL.etcd_srv[2]].ansible_ssh_host }}:2379"
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 1048576
+    master_start_timeout: 300
+    synchronous_mode: false
+    synchronous_mode_strict: false
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      parameters:
+        timezone: "{{ ntp.timezone }}"
+        priority: {{ 200 - PostgreSQL.pg_srv.index(inventory_hostname)*10 }}
+        wal_level: replica
+        hot_standby: on
+        wal_keep_segments: 8
+        max_wal_senders: 5
+        max_replication_slots: 5
+        checkpoint_timeout: 30
+        max_connections: 1500
+        # wal_log_hints: on
+        # logging_collector: on
+        # max_wal_size: '10GB'
+        # archive_mode: on
+        # archive_timeout: 600s
+      pg_hba:
+        - local  all          all       trust
+        - host   all          all       127.0.0.1/32  md5
+        - host   replication  postgres  {{ hostvars[PostgreSQL.pg_srv[0]].ansible_ssh_host }}/32  md5
+        - host   replication  postgres  {{ hostvars[PostgreSQL.pg_srv[1]].ansible_ssh_host }}/32  md5
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+  users:
+    postgres:
+      password: {{ PostgreSQL.password }}
+      options:
+        - createrole
+        - createdb
+    replicator:
+      password: {{ PostgreSQL.password }}
+      options:
+        - replication
+postgresql:
+  listen: 0.0.0.0:5432
+  connect_address: {{ hostvars[inventory_hostname].ansible_ssh_host }}:5432
+  data_dir: /var/lib/pgsql/data
+  bin_dir: /usr/bin
+  pgpass: /tmp/pgpass
+  authentication:
+    replication:
+      username: postgres
+      password: {{ PostgreSQL.password }}
+    superuser:
+      username: postgres
+      password: {{ PostgreSQL.password }}
+    rewind:
+      username: postgres
+      password: {{ PostgreSQL.password }}
+  parameters:
+    unix_socket_directories: '/tmp'
+  basebackup:
+    max-rate: 100M
+    checkpoint: fast
+tags:
+  nofailover: false
+  noloadbalance: false
+  clonefrom: false
+  nosync: false
+  

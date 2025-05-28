@@ -1,0 +1,141 @@
+---
+
+- name: 3.29.4 | Проверка наличия файла '/etc/kubernetes'
+  stat:
+    path: /etc/kubernetes
+  register: kubernetes_result
+  ignore_errors: yes
+
+- name: 3.29.4 | Установка 'kubernetes'
+  block:
+
+  - name: 3.29.4 | Установка пакетов AstraLinux
+    apt:
+      name:
+        - python3-pip
+        - python3-kubernetes
+        - bind9utils
+        - curl
+        - htop
+        - iftop
+        - git
+        - wget
+        - net-tools
+        - apt-transport-https
+        - ca-certificates
+        - gpg
+      update_cache: yes
+
+  - name: 3.29.4 | Установка модулей Python
+    pip:
+      executable: pip3
+      extra_args: --upgrade
+      name:
+        - ansible
+        - ansible-lint
+        - kubernetes
+        - docker
+        - pyyaml
+
+  - name: 3.29.4  Создание директории '/etc/apt/keyrings'
+    file:
+      path: /etc/apt/keyrings
+      state: directory
+
+  - name: 3.29.4 | Добавление GPG-ключа репозитория 'Cri-O'
+    shell: |
+      rm -f /etc/apt/keyrings/cri-o-apt-keyring.gpg
+      curl -fsSL https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v{{ k8s.ver }}/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
+
+  - name: 3.29.4 | Создание файла '/etc/apt/sources.list.d/cri-o.list'
+    copy:
+      dest: '/etc/apt/sources.list.d/cri-o.list'
+      content: |
+        deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v{{ k8s.ver }}/deb/ /
+
+  - name: 3.29.4 | Добавление GPG-ключа репозитория 'Kubernetes'
+    shell: |
+      rm -f /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      curl -fsSL https://pkgs.k8s.io/core:/stable:/v{{ k8s.ver }}/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+  - name: 3.29.4 | Создание файла '/etc/apt/sources.list.d/kubernetes.list'
+    copy:
+      dest: '/etc/apt/sources.list.d/kubernetes.list'
+      content: |
+        deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v{{ k8s.ver }}/deb/ /
+
+  - name: Настроить приоритет репозитория 'Cri-O'
+    copy:
+      dest: /etc/apt/preferences.d/cri-o.pref
+      content: |
+        Package: *
+        Pin: origin "download.opensuse.org"
+        Pin-Priority: 1000
+      mode: '0644'
+
+  - name: Настроить приоритет репозитория 'Kubernetes'
+    copy:
+      dest: /etc/apt/preferences.d/kubernetes.pref
+      content: |
+        Package: *
+        Pin: origin "pkgs.k8s.io"
+        Pin-Priority: 1000
+      mode: '0644'
+
+  - name: 3.29.4 | Обновим репозитории
+    apt:
+      update_cache: yes
+
+  - name: 3.29.4 | Установка Kubernetes 'v{{ k8s.ver }}'
+    apt:
+      name:
+        - kubelet
+        - kubeadm
+        - kubectl
+        - cri-o
+        - cri-tools
+
+  - name: 3.29.4 | Запуск службы 'Сri-O'
+    service: 
+      name: crio
+      state: restarted
+      enabled: yes
+
+  # - name: 3.29.4 | Создание директорию '/etc/systemd/system/kubelet.service.d'
+    # file:
+      # path: /etc/systemd/system/kubelet.service.d
+      # state: directory
+
+  # - name: 3.29.4 | Создаем базовый конфиг
+    # copy:
+      # dest: /etc/systemd/system/kubelet.service.d/kubeadm.conf
+      # content: |
+       # [Service]
+       # Environment="KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf"
+       # Environment="KUBELET_CONFIG_ARGS=--config=/var/lib/kubelet/config.yaml"
+       # EnvironmentFile=-/var/lib/kubelet/kubeadm-flags.env
+       # ExecStart=
+       # ExecStart=/usr/bin/kubelet \$KUBELET_KUBECONFIG_ARGS \$KUBELET_CONFIG_ARGS \$KUBELET_KUBEADM_ARGS \$KUBELET_EXTRA_ARGS
+
+  # - name: 3.29.4 | Перезагрузка systemd
+    # shell: sudo systemctl daemon-reload
+
+  - name: 3.29.4 | Перезапуск службы 'kubelet'
+    service: 
+      name: kubelet
+      state: restarted
+      enabled: yes
+
+  - name: 3.29.4 | Инсталляция диспетчера пакетов 'Helm'
+    shell: |
+      HELM_VERSION=$(curl -s https://api.github.com/repos/helm/helm/releases/latest | grep 'tag_name' | cut -d '"' -f 4)
+      wget https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz
+      tar xvf helm-${HELM_VERSION}-linux-amd64.tar.gz
+      mv linux-amd64/helm /usr/bin
+      rm helm-${HELM_VERSION}-linux-amd64.tar.gz
+      rm -rf linux-amd64
+    when: inventory_hostname in k8s.masters
+
+  when: not kubernetes_result.stat.exists
+
+...

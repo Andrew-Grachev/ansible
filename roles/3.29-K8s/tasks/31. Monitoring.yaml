@@ -1,0 +1,119 @@
+---
+
+- name: 3.29.31 | Чтение статуса 'Prometheus'
+  shell: kubectl get pod -n monitoring | grep 'prometheus-prometheus-prometheus-0' | grep 'Running'
+  register: status_prometheus
+  become: false
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: 3.29.31 | Чтение namespace 'monitoring'
+    shell: kubectl get namespace monitoring | grep 'Active'
+    register: status_namespace
+    become: false
+    ignore_errors: yes
+
+  - name: 3.29.31 | Создание пространства имен для 'monitoring'
+    kubernetes.core.k8s:
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: monitoring
+          labels:
+            pod-security.kubernetes.io/enforce: privileged
+      state: present
+    when: status_namespace.rc == 1
+
+  - name: 3.29.31 | Развертывание из сетевого репозитория
+    block:
+
+    - name: 3.29.31 | Чтение репозитория 'prometheus'
+      shell: helm repo list | grep 'prometheus'
+      register: status_repo_prometheus
+      become: false
+      ignore_errors: yes
+
+    - name: 3.29.31 | Добавление репозитория 'prometheus' для Helm
+      kubernetes.core.helm_repository:
+        name: prometheus
+        repo_url: https://prometheus-community.github.io/helm-charts
+        force_update: true
+      become: false
+      when: status_repo_prometheus.rc == 1
+
+    - name: 3.29.31 | Развертывание 'Prometheus v43.2.1'
+      kubernetes.core.helm:
+        name: prometheus
+        release_namespace: monitoring
+        chart_ref: prometheus/kube-prometheus-stack
+        chart_version: 43.2.1
+        values: "{{ lookup('template', 'Helm_Charts/kube-prometheus-stack.yaml') | from_yaml }}"
+        force: true
+      become: false
+
+    when: registry.srv is not defined
+
+  - name: 3.29.31 | Развертывание из локального репозитория
+    block:
+
+    - name: 3.29.31 | Чтение репозитория 'registry-local'
+      shell: helm repo list | grep 'registry-local'
+      register: status_repo_registry_local
+      become: false
+      ignore_errors: yes
+
+    - name: 3.29.31 | Добавление локального репозитория 'registry-local'
+      kubernetes.core.helm_repository:
+        name: registry-local
+        repo_url: http://{{ hostvars[registry.srv].ansible_ssh_host }}:{{ registry.port }}/helm
+        force_update: true
+      become: false
+      when: status_repo_registry_local.rc == 1
+
+    - name: 3.29.31 | Развертывание 'Prometheus v43.2.1'
+      kubernetes.core.helm:
+        name: prometheus
+        release_namespace: monitoring
+        chart_ref: registry-local/kube-prometheus-stack
+        chart_version: 43.2.1
+        values: "{{ lookup('template', 'Helm_Charts/kube-prometheus-stack.yaml') | from_yaml }}"
+        force: true
+      become: false
+
+    when: registry.srv is defined
+
+  - name: 3.29.31 | Ожидание запуска 'prometheus-prometheus-prometheus-0'
+    shell: |
+      kubectl get pod -n monitoring | grep 'prometheus-prometheus-prometheus-0' | grep 'Running'
+    register: result
+    until: result.rc == 0
+    retries: 120
+    delay: 10
+    become: false
+
+  - name: 3.29.31 | Установка панелей инструментов для Grafana
+    kubernetes.core.k8s:
+      state: present
+      namespace: monitoring
+      force: true
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition:
+        - "{{ lookup('file', 'grafana/grafana_dashboard_ceph-cephfs.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/grafana_dashboard_ceph-cluster.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/grafana_dashboard_elasticsearch-cluster.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/grafana_dashboard_postgresql_database.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/grafana_dashboard_rabbitmq-overview.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/grafana_dashboard_redis-operator.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/grafana_dashboard_redis-overview.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/Prometheus_PodMonitor_Postgres.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/PrometheusRule_rabbitmq-cluster-operator.yaml') | from_yaml }}"
+        - "{{ lookup('file', 'grafana/rabbitmq-servicemonitor.yaml') | from_yaml }}"
+    become: false
+
+  when: status_prometheus.rc == 1
+
+...

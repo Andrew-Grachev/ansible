@@ -11,21 +11,21 @@
   when: timezone_status.stdout != ntp.timezone
 
 - name: Чтение статуса конфигурирования 'chrony'
-  shell: cat /etc/chrony/conf.d/chrony.conf | grep '{{ ntp.ntp }}'
+  shell: cat /etc/chrony/conf.d/chrony.conf | grep '{{ ntp.srv }}'
   register: chrony_status
   ignore_errors: yes
 
 - name: Настройка 'Chrony'
   block:
 
-  - name: Удаление пакета 'ntp'
-    apt:
-      name:
-      - ntp
-      - ntpdate
-      autoremove: yes
-      purge: true
-    ignore_errors: yes
+  # - name: Удаление пакета 'ntp'
+    # apt:
+      # name:
+      # - ntp
+      # - ntpdate
+      # autoremove: yes
+      # purge: true
+    # ignore_errors: yes
 
   - name: Установка пакета 'chrony'
     apt:
@@ -47,7 +47,7 @@
       state: present
       marker: ""
       block: |
-        server {{ ntp.ntp }} iburst
+        server {{ ntp.srv }} iburst
 
   - name: Перезапуск службы 'chrony'
     service:
@@ -58,5 +58,3 @@
   when: chrony_status.stdout == ''
 
 ...
-
-# chronyc sources

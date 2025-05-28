@@ -1,0 +1,56 @@
+---
+
+- name: 0.9-SSH Проверка установки 'sshpass'
+  command: which sshpass
+  register: sshpass_check
+  ignore_errors: yes
+
+- name: Инсталляция пакета 'sshpass'
+  apt_rpm:
+    name: sshpass
+    update_cache: yes
+  when: sshpass_check.rc != 0
+
+- name: Чтение '/etc/openssh/ssh_config'
+  shell: cat /etc/openssh/ssh_config | grep 'StrictHostKeyChecking no'
+  register: status_ssh
+  become: false
+  ignore_errors: yes
+
+
+- name: Проверка наличия файла '/etc/openssh/ssh_config.d/ceph.conf'
+  stat:
+    path: /etc/openssh/ssh_config.d/ceph.conf
+  register: sources_result
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: Внесение изменений в конфигурационныйе файл '/etc/openssh/sshd_config'
+    replace:
+      path: /etc/openssh/sshd_config
+      regexp: '^.*{{ item.src }}.*$'
+      replace: '{{ item.dest }}'
+    loop:
+      - { src: "PubkeyAuthentication",   dest: "PubkeyAuthentication yes" }
+      # - { src: "PermitEmptyPasswords",   dest: "PermitEmptyPasswords no" }
+      # - { src: "PasswordAuthentication", dest: "PasswordAuthentication no" }
+      # - { src: "PermitRootLogin",        dest: "PermitRootLogin yes" }
+
+  - name: Внесение изменений в конфигурационныйе файл '/etc/openssh/ssh_config'
+    replace:
+      path: /etc/openssh/ssh_config
+      regexp: '^.*{{ item.src }}.*$'
+      replace: '{{ item.dest }}'
+    loop:
+      - { src: "StrictHostKeyChecking", dest: "    StrictHostKeyChecking no" }
+
+  - name: Перезапуск службы 'sshd'
+    service:
+      name: sshd
+      state: restarted
+
+  when: status_ssh.stdout == ''
+
+...

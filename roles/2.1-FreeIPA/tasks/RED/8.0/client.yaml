@@ -1,39 +1,35 @@
 ---
 
-- name: Выполняется только на клиентах FreeIPA
+# https://redos.red-soft.ru/base/redos-8_0/8_0-administation/8_0-domain-redos/8_0-installation-ipa/8_0-redos-in-ipa/
+
+- name: Проверка наличия файла '/etc/ipa/default.conf'
+  stat:
+    path: /etc/ipa/default.conf
+  register: freeipa_result
+
+- name: Регистрация клиентов домена FreeIPA
   block:
 
-  - name: Проверка наличия файла '/etc/ipa/default.conf'
-    stat:
-      path: /etc/ipa/default.conf
-    register: freeipa_result
-
-  - name: Регистрация клиентов домена FreeIPA
-    block:
-
-    - name: Получить список сетевых интерфейсов
+    - name: Получить имя сетевого интерфейса
       shell: |
-        ip link show | grep BROADCAST | awk '{print $2}' | sed 's/.$//'
-      register: device_list
+        ip -o -4 a | grep '{{ hostvars[inventory_hostname].ansible_ssh_host }}' | awk '{print $2}'
+      register: interface
 
-    - name: Создание массива сетевых интерфейсов
-      set_fact:
-        interfaces: "{{ device_list.stdout_lines | list }}"
-
-    - name: Получение количества элементов в списке интерфейсов
-      set_fact:
-        interfaces_length: "{{ interfaces | length }}"
-
-    - name: Настройка сетевого интерфейса '{{ interfaces[0] }}'
+    - name: Настройка сетевого интерфейса '{{ interface.stdout }}'
       shell: '{{ item }}'
       loop:
-        - nmcli connection modify "{{ interfaces[0] }}" ipv4.dns "{{ hostvars[FreeIPA.srv].ansible_ssh_host }}"
-        - nmcli connection modify "{{ interfaces[0] }}" ipv4.dns-search "{{ domain }}"
-      when: interfaces_length == '1'
+        - nmcli connection modify "{{ interface.stdout }}" ipv4.dns "{{ hostvars[FreeIPA.srv].ansible_ssh_host }}"
+        - nmcli connection modify "{{ interface.stdout }}" ipv4.dns-search "{{ domain }}"
 
-    # - name: Перезагрузим хост
-      # reboot:
-        # msg: 'Reboot'
+    - name: Настройка сетевого интерфейса '{{ interface.stdout }}'
+      shell: '{{ item }}'
+      loop:
+        - nmcli connection modify "{{ interface.stdout }}" ipv4.dns "{{ hostvars[FreeIPA.srv].ansible_ssh_host }},{{ hostvars[FreeIPA.repl].ansible_ssh_host }}"
+      when: FreeIPA.repl is defined
+
+    - name: Перезагрузим хост
+      reboot:
+        msg: 'Reboot'
 
     - name: Установка пакетов необходимых для подключения к контроллеру домена FreeIPA
       dnf:
@@ -56,9 +52,6 @@
       reboot:
         msg: 'Reboot'
 
-    when: not freeipa_result.stat.exists
-
-  when: inventory_hostname != FreeIPA.srv
+  when: not freeipa_result.stat.exists
 
 ...
-# https://redos.red-soft.ru/base/redos-8_0/8_0-administation/8_0-domain-redos/8_0-installation-ipa/8_0-redos-in-ipa/

@@ -1,0 +1,26 @@
+---
+
+- name: 3.29.22 | Чтение статуса 'NodeLocalDNS'
+  shell: kubectl get pods -n kube-system | grep 'node-local-dns' | grep 'Running'
+  register: status_dns
+  become: false
+  ignore_errors: yes
+
+- name: 3.29.22 | Создаем 'NodeLocalDNS'
+  kubernetes.core.k8s:
+    state: present
+    force: true
+    kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+    definition: "{{ lookup('template', 'NodeLocalDNS/node_local_dns.yaml') }}"
+  when: status_dns.stdout == ''
+
+- name: 3.29.22 | Ожидание запуска 'NodeLocalDNS'
+  shell: |
+    kubectl get pod -n kube-system -l k8s-app=node-local-dns | grep Running
+  register: result
+  until: result.rc == 0
+  retries: 60
+  delay: 10
+  become: false
+
+...

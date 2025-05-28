@@ -1,13 +1,16 @@
-image:
-  registry: dockerreg.sphaera.ru
-  imagePullSecrets:
-  - name: dockerreg-sphaera-ru
+# image:
+  # registry: dockerreg.sphaera.ru
+  # repository: acid/postgres-operator
+  # tag: v1.9.0
+  # pullPolicy: "IfNotPresent"
+  # imagePullSecrets:
+  # - name: dockerreg-sphaera-ru
 
 configGeneral:
-  docker_image: dockerreg.sphaera.ru/zalando/spilo-15:2.1-p9
+  # docker_image: dockerreg.sphaera.ru/zalando/spilo-15:2.1-p9
   sidecars:
     - name: "exporter"
-      image: "dockerreg.sphaera.ru/prometheuscommunity/postgres-exporter:latest"
+      # image: "dockerreg.sphaera.ru/prometheuscommunity/postgres-exporter:latest"
       ports:
         - name: exporter
           containerPort: 9187

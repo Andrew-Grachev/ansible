@@ -1,5 +1,0 @@
----
-
-- include_tasks: '../8.0/Install_HAProxy.yaml'
-
-...

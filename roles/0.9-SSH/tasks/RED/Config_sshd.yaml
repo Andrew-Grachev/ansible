@@ -1,39 +1,41 @@
 ---
 
-- name: Проверка установки 'sshpass'
+- name: 0.9-SSH Проверка установки 'sshpass'
   command: which sshpass
   register: sshpass_check
   ignore_errors: yes
 
 - name: Инсталляция пакета 'sshpass'
   dnf:
-    name:
-      - sshpass
+    name: sshpass
   when: sshpass_check.rc != 0
+
+- name: Проверка наличия файла '/etc/ssh/ssh_config.d/ceph.conf'
+  stat:
+    path: /etc/ssh/ssh_config.d/ceph.conf
+  register: sources_result
+  ignore_errors: yes
 
 - name:
   block:
 
-#  - name: Внесение изменений в конфигурационныйе файл '/etc/ssh/ssh_config'
-#    lineinfile:
-#      dest: /etc/ssh/ssh_config
-#      regexp: 'StrictHostKeyChecking'
-#      line: '    StrictHostKeyChecking no'
+  - name: Внесение изменений в конфигурационныйе файл '/etc/ssh/sshd_config.d/ceph.conf'
+    shell: |
+      echo 'PubkeyAuthentication yes        # разрешить аутентификацию по ключу' > /etc/ssh/sshd_config.d/ceph.conf
+      # echo PermitEmptyPasswords no          # запретить пустые пароли >> /etc/ssh/sshd_config.d/ceph.conf
+      # echo PasswordAuthentication no        # отключить вход по паролю >> /etc/ssh/sshd_config.d/ceph.conf
+      # echo PermitRootLogin yes              # отключить вход root >> /etc/ssh/sshd_config.d/ceph.conf
 
-  - name: Внесение изменений в конфигурационныйе файл '/etc/ssh/sshd_config'
-    lineinfile:
-      dest: /etc/ssh/sshd_config
-      regexp: '{{ item.old }}'
-      line: '{{ item.new }}'
-    loop:
-    - { old: "PubkeyAuthentication",            new: "PubkeyAuthentication yes        # разрешить аутентификацию по ключу" }
-#    - { old: "PermitEmptyPasswords",            new: "PermitEmptyPasswords no         # запретить пустые пароли" }
-#    - { old: "PasswordAuthentication",          new: "PasswordAuthentication no       # отключить вход по паролю" }
-#    - { old: "PermitRootLogin",                 new: "PermitRootLogin yes             # отключить вход root" }
+  - name: Внесение изменений в конфигурационныйе файл '/etc/ssh/ssh_config.d/ceph.conf'
+    shell: |
+      echo 'StrictHostKeyChecking no        # отключить подтверждение (yes/no) при первом SSH-подключении' > /etc/ssh/ssh_config.d/ceph.conf
 
   - name: Перезапуск службы 'sshd'
     service:
       name: sshd
       state: restarted
+
+  when:
+    - not sources_result.stat.exists
 
 ...

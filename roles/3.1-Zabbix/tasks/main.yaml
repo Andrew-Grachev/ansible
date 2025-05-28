@@ -5,6 +5,14 @@
     - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/server.yaml'
   when: inventory_hostname == Zabbix.srv
 
-- include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/client.yaml'
+- name: Настройка агента
+  block:
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/agent.yaml'
+  when: Zabbix.agent == 1 
+
+- name: Настройка агента версия 2
+  block:
+    - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/agent2.yaml'
+  when: Zabbix.agent == 2
 
 ...

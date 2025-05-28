@@ -1,0 +1,22 @@
+version: '3'
+services:
+  nexus:
+    image: sonatype/nexus3:3.80.0
+    container_name: nexus
+    ports:
+      - "5000:5000"
+      - "8081:8081"
+    volumes:
+      - {{ Nexus.path }}/data:/nexus-data
+    environment:
+      - INSTALL4J_ADD_VM_PARAMS=-Xms2703m -Xmx2703m -XX:MaxDirectMemorySize=2703m
+    restart: always
+  proxy:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - {{ Nexus.path }}/nginx:/etc/nginx
+      - {{ Nexus.path }}/nginx/ssl:/etc/nginx/ssl
+    restart: always

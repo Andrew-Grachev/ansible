@@ -1,38 +1,21 @@
-# sudo dnf info ceph*
-# sudo dnf -y install --best ceph
-
-
-# Web-админка
-ceph mgr module disable dashboard
-ceph mgr module enable dashboard
-ceph config set mgr mgr/dashboard/server_addr 10.150.0.104
-ceph config set mgr mgr/dashboard/server_port 8080
-ceph config set mgr mgr/dashboard/ssl false
-
-sudo ceph config set mgr mgr/dashboard/ssl_server_port 8443
-echo 12345678 > /tmp/pass
-sudo ceph dashboard ac-user-create admin administrator -i /tmp/pass
-sudo radosgw-admin user create --uid=admin --display-name=admin --system
-"access_key": "DXC5TUKHV8XAI0A5MZEN",
-"secret_key": "Sg62G7zFt7oIsvxKIOOCuUumPK9L9KAZVhCxsaCe"
-echo DXC5TUKHV8XAI0A5MZEN > /tmp/key
-sudo ceph dashboard set-rgw-api-access-key -i /tmp/key
-echo Sg62G7zFt7oIsvxKIOOCuUumPK9L9KAZVhCxsaCe > /tmp/key2
-sudo ceph dashboard set-rgw-api-access-key -i /tmp/key2
-sudo ceph dashboard create-self-signed-cert
+# Создание LVM
+apt install lvm2 -y
+dnf install lvm2 -y
+vgcreate vg2 /dev/sdb
+lvcreate -l 100%FREE -n lv_cephosd vg2
 
 # rest-api
 ceph-deploy install --rgw {{ ceph.nodes | join(' ') }}
 ceph-deploy rgwmds create {{ ceph.nodes | join(' ') }}
 
 # Test
+sudo ceph ntp all
 sudo ceph versions
 watch sudo ceph status
 watch sudo ceph osd df
 watch sudo ceph osd tree
 sudo ceph fs ls
 watch sudo ceph mds stat
-
 
 # Mount
 sudo apt-get install ceph-fuse
@@ -63,3 +46,14 @@ for i in {1..10000}; do
   echo "Создан файл: $target_dir/$filename, размер: $filesize байт"
 done
 
+
+
+# Удаление разметки Ceph в случае повторного инсталлирования
+sudo ceph-volume lvm zap /dev/vg2/lv_cephosd
+# Удаление Ceph
+systemctl stop ceph-*.service ceph-*.target
+dnf remove ceph ceph-radosgw ceph-mds ceph-mgr ceph-osd ceph-common ceph-fuse -y
+rm -rf /etc/ceph/ /var/lib/ceph/ /var/log/ceph/ /home/{{ ansible_ssh_user }}/ceph*
+rm -rf /usr/lib/systemd/system/ceph* /usr/bin/ceph* /usr/sbin/ceph* /etc/sysconfig/ceph
+
+...

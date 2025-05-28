@@ -1,0 +1,86 @@
+---
+
+- name: 3.29.34 | Чтение статуса 'redis-operator'
+  shell: kubectl get pod -n staff | grep 'redis' | grep 'Running'
+  register: status_redis
+  become: false
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: 3.29.34 | Чтение namespace 'staff'
+    shell: kubectl get namespace staff | grep 'Active'
+    register: status_namespace
+    become: false
+    ignore_errors: yes
+
+  - name: 3.29.34 | Создание пространства имен 'staff'
+    kubernetes.core.k8s:
+      kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
+      definition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: staff
+          labels:
+            pod-security.kubernetes.io/enforce: privileged
+      state: present
+    when: status_namespace.rc == 1
+
+  - name: 3.29.34 | Развертывание из сетевого репозитория
+    block:
+
+    - name: 3.29.34 | Добавление репозитория 'redis-operator' для Helm
+      kubernetes.core.helm_repository:
+        name: redis-operator
+        repo_url: https://spotahome.github.io/redis-operator
+        force_update: true
+      become: false
+
+    - name: 3.29.34 | Развертывание 'redis-operator v3.2.7'
+      kubernetes.core.helm:
+        name: redis-operator
+        release_namespace: staff
+        chart_ref: redis-operator/redis-operator
+        chart_version: 3.2.7
+        values: "{{ lookup('template', 'Helm_Charts/redis-operator.yaml') | from_yaml }}"
+        force: true
+      become: false
+
+    when: registry.srv is not defined
+
+  - name: 3.29.34 | Развертывание из локального репозитория
+    block:
+
+    - name: Добавление локального репозитория 'registry-local'
+      kubernetes.core.helm_repository:
+        name: registry-local
+        repo_url: http://{{ hostvars[registry.srv].ansible_ssh_host }}:{{ registry.port }}/helm
+        force_update: true
+      become: false
+
+    - name: 3.29.34 | Развертывание 'redis-operator v3.2.7'
+      kubernetes.core.helm:
+        name: redis-operator
+        release_namespace: staff
+        chart_ref: registry-local/redis-operator
+        chart_version: 3.2.7
+        values: "{{ lookup('template', 'Helm_Charts/redis-operator.yaml') | from_yaml }}"
+        force: true
+      become: false
+
+    when: registry.srv is defined
+
+  - name: 3.29.34 | Ожидание запуска 'redis-operator'
+    shell: |
+      kubectl get pod -n staff | grep 'redis-operator' | grep 'Running'
+    register: result
+    until: result.rc == 0
+    retries: 60
+    delay: 10
+    become: false
+
+  when: status_redis.rc == 1
+
+...

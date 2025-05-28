@@ -1,27 +1,12 @@
 global:
-  imageRegistry: "dockerreg.sphaera.ru"
-  imagePullSecrets:
-  - dockerreg-sphaera-ru
-
+  # imageRegistry: "dockerreg.sphaera.ru"
+  # imagePullSecrets:
+  # - dockerreg-sphaera-ru
   storageClass: {{ k8s.rwo_sc }}
-
-clusterDomain: {{ domain }}
-
 fullnameOverride: "rabbitmq-operator"
-
+clusterDomain: {{ domain }}
 clusterOperator:
   metrics:
-    enabled: true
-    serviceMonitor:
-      enabled: true
-      labels:
-        release: prometheus
-
-msgTopologyOperator:
-  startupProbe:
-    enabled: false
-  metrics:
-    enabled: true
     serviceMonitor:
       enabled: true
       labels:
