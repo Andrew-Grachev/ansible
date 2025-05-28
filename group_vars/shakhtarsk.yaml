@@ -1,94 +1,79 @@
 ---
 
-# МосОблГаз
+# Шахтерск
 
-remote_user: s04admin
-ansible_ssh_user: s04admin
-ansible_ssh_pass: $04@dmin12%^
-ansible_ssh_private_key_file: ./ssh/s04admin/id_rsa.pub
+remote_user: admin1
+ansible_ssh_user: admin1
+ansible_ssh_pass: Sph@era92
+ansible_ssh_private_key_file: ./ssh/admin1/id_rsa.pub
 
-domain: 'mog.ent.local'
+domain: 'em.shahtersk.lan'
 
 Net:
-  network: 10.4.151.0/24
-  net: 10.4.151.0
+  network: 192.168.0.0/24
+  net: 192.168.0.0
   mask: 255.255.255.0
-  gateway: 10.4.151.254
+  gateway: 192.168.0.1
   bind:
+    - 192.168.0.1
+    - 77.88.8.8
     - 8.8.8.8
-    - 10.4.250.15
-    - 10.4.250.16
 
 ####################
 ### 0.5-Time     ###
 ####################
 ntp:
   timezone: Europe/Moscow
-  srv: 10.10.10.1
+  srv:
+    - 192.168.0.1
 
 ####################
 ### 2.1-FreeIPA  ###
 ####################
-FreeIPA:
-  pass: 'P@ssw0rd'
-  srv: s04dc1
-  repl: s04dc2      
+# FreeIPA:
+  # pass: 'P@ssw0rd'
+  # srv: s04dc1
+  # repl: s04dc2      
 
 
 ####################
 ### 3.1-Zabbix   ###
 ####################
 # Сервер Zabbix
-Zabbix:
-  srv: s04backup
-  port: 8085
-  db:
-    user: user_zabbix
-    password: P@ssw0rd
-    name: db_zabbix
-  agent: 2
+# Zabbix:
+  # srv: s04backup
+  # port: 8085
+  # db:
+    # user: user_zabbix
+    # password: P@ssw0rd
+    # name: db_zabbix
+  # agent: 2
 
 
 ####################
 ### 3.22-Ceph    ###
 ####################
-Ceph:
-  ver: 19.2.1
-  nodes:
-    - s04ceph1
-    - s04ceph2
-    - s04ceph3
-  dev:
-    - /dev/mapper/vg2-lv_cephosd
-  net:
-    interface: ens19 # 224
-    network: 10.4.237.0/24
+# Ceph:
+  # ver: 19.2.1
+  # nodes:
+    # - s04ceph1
+    # - s04ceph2
+    # - s04ceph3
+  # dev:
+    # - /dev/mapper/vg2-lv_cephosd
+  # net:
+    # interface: ens19 # 224
+    # network: 10.4.237.0/24
 #   keepalived_IP: 10.4.151.204
 #   dashboard_port: 8080
 
-########################
-### 3.27-PostgreSQL   ###
-########################
-PostgreSQL:
-  etcd_srv:
-    - s04etcd1
-    - s04etcd2
-    - s04etcd3
-  pg_srv:
-    - s04db1
-    - s04db2
-  device: /dev/sdb1
-  # keepalived_IP: 10.150.0.110
-  password: postgres
-
-
 #####################
-### 3.28-Nexus    ###
+### 3.28-Registry ###
 #####################
-Nexus:
-  srv: s04registry
-  path: /opt/nexus
-
+# registry:
+  # srv: s04registry
+  # path: /mnt/data
+  # port: 5000
 
 #####################
 ### 3.29-K8s      ###
@@ -103,7 +88,6 @@ k8s:
     - s04worker1
     - s04worker2
     - s04worker3
-  subdomain: emercore
   keepalived_IP: 10.4.151.205 ## Установка Keepalived на серверах masters
   # haproxy_port: 8443 ## Устанавливается HAProxy на серверах masters
   pod_subnet: 10.4.160.0/22 ## подсеть выделенная для подов

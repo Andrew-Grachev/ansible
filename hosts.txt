@@ -1,35 +1,105 @@
 [all]
-
-gitlab     ansible_ssh_host=10.150.0.200
-
+[mosoblgaz]
 [mosoblgaz_k8s]
-# k8s.keepalived_IP:           10.4.151.205 s04k8s.mog.ent.local
-s04master1    ansible_ssh_host=10.4.151.212
-s04worker1    ansible_ssh_host=10.4.151.213
-s04master2    ansible_ssh_host=10.4.151.210
-s04worker2    ansible_ssh_host=10.4.151.211
-s04master3    ansible_ssh_host=10.4.151.208
-s04worker3    ansible_ssh_host=10.4.151.209
+### k8s.keepalived_IP:           10.4.151.225 k8s.mog.ent.local
+# s04master1    ansible_ssh_host=10.4.151.212
+# s04worker1    ansible_ssh_host=10.4.151.213
+# s04master2    ansible_ssh_host=10.4.151.210
+# s04worker2    ansible_ssh_host=10.4.151.211
+# s04master3    ansible_ssh_host=10.4.151.208
+# s04worker3    ansible_ssh_host=10.4.151.209
 [mosoblgaz_ceph]
-s04ceph1      ansible_ssh_host=10.4.151.218
-s04ceph2      ansible_ssh_host=10.4.151.219
-s04ceph3      ansible_ssh_host=10.4.151.220
+### ceph.keepalived_IP:          10.4.151.224 ceph.mog.ent.local
+# s04ceph1      ansible_ssh_host=10.4.151.218
+# s04ceph2      ansible_ssh_host=10.4.151.219
+# s04ceph3      ansible_ssh_host=10.4.151.220
 [mosoblgaz_proxy]
-; s04proxy1   ansible_ssh_host=10.4.151.214
-; s04proxy2   ansible_ssh_host=10.4.151.206
+# s04proxy1     ansible_ssh_host=10.4.151.214
+# s04proxy2     ansible_ssh_host=10.4.151.206
 [mosoblgaz_freeipa]
-; s04dc1      ansible_ssh_host=10.4.151.215
-; s04dc2      ansible_ssh_host=10.4.151.207
+# s04dc1        ansible_ssh_host=10.4.151.215
+# s04dc2        ansible_ssh_host=10.4.151.207
+[mosoblgaz_etcd]
+# s04etcd1      ansible_ssh_host=10.4.151.200
+# s04etcd2      ansible_ssh_host=10.4.151.201
+# s04etcd3      ansible_ssh_host=10.4.151.202
+[mosoblgaz_db]
+### db.keepalived_IP:            10.4.151.226 db.mog.ent.local
+# s04db1        ansible_ssh_host=10.4.151.203
+# s04db2        ansible_ssh_host=10.4.151.204
 [mosoblgaz_other]
 s04registry   ansible_ssh_host=10.4.151.216
-s04backup     ansible_ssh_host=10.4.151.217
-
+# s04backup     ansible_ssh_host=10.4.151.217
 [mosoblgaz:children]
 mosoblgaz_k8s
 mosoblgaz_ceph
 mosoblgaz_proxy
+mosoblgaz_etcd
+mosoblgaz_db
 mosoblgaz_freeipa
 mosoblgaz_other
 
+########################################################
+
+# [sirius_k8s]
+# k8s.keepalived_IP:        10.23.13.100 k8s
+# master1    ansible_ssh_host=10.23.13.101
+# worker1    ansible_ssh_host=10.23.13.107
+# master2    ansible_ssh_host=10.23.13.102
+# worker2    ansible_ssh_host=10.23.13.108
+# master3    ansible_ssh_host=10.23.13.103
+# worker3    ansible_ssh_host=10.23.13.109
+# [sirius_ceph]
+# ceph1      ansible_ssh_host=10.23.13.104
+# ceph2      ansible_ssh_host=10.23.13.105
+# ceph3      ansible_ssh_host=10.23.13.106
+# [sirius_other]
+# monitoring   ansible_ssh_host=10.23.13.112
+# [sirius:children]
+# sirius_k8s
+# sirius_ceph
+# sirius_other
+
+########################################################
+# [samara]
+# astra17    ansible_ssh_host=10.163.17.100
+
+# [samara_k8s]
+# master1    ansible_ssh_host=10.163.17.21
+# master2    ansible_ssh_host=10.163.17.22
+# master3    ansible_ssh_host=10.163.17.23
+# worker1    ansible_ssh_host=10.163.17.24
+# worker2    ansible_ssh_host=10.163.17.25
+# worker3    ansible_ssh_host=10.163.17.26
+# [samara_ceph]
+# ceph1      ansible_ssh_host=10.163.17.31
+# ceph2      ansible_ssh_host=10.163.17.32
+# ceph3      ansible_ssh_host=10.163.17.33
+
+# [samara:children]
+# samara_ceph
+# samara_k8s
 
 
+########################################################
+# [shakhtarsk]
+# altlinux   ansible_ssh_host=192.168.0.100
+
+# [shakhtarsk_k8s]
+# master1    ansible_ssh_host=192.168.0.201
+# worker1    ansible_ssh_host=192.168.0.202
+
+# [shakhtarsk:children]
+# samara_k8s
+########################################################
+
+
+
+
+
+
+
+
+
+[alse18]
+# alse18    ansible_ssh_host=192.168.1.118

@@ -1,0 +1,126 @@
+---
+
+# Самара/Тальятти
+
+remote_user: admin1
+ansible_ssh_user: admin1
+ansible_ssh_pass: Sph@era92
+ansible_ssh_private_key_file: ./ssh/admin1/id_rsa.pub
+
+domain: 'ezor63.lan'
+
+Net:
+  network: 10.163.17.0/24
+  mask: 255.255.255.0
+  gateway: 10.163.17.1
+  bind:
+    - 10.163.17.11
+    - 10.163.1.12
+    - 77.88.8.8
+
+#####################
+### 0.2-Repo      ###
+#####################
+repo:
+  # srv: zabbix01  # Имя сервера репозиториев
+  # port: 8080     # Порт HTTP
+  # name_iso:
+    # - installation-1.7.6.15-15.11.24_17.20
+    # - main_update-1.7.6.15-15.11.24_17.20
+    # - base-1.7.6.15-15.11.24_17.20
+    # - extended-1.7.6.ext2.1-15.10.2024_20.28
+  name_web:
+    - download.astralinux.ru/astra/stable/1.7_x86-64/repository-main
+    - download.astralinux.ru/astra/stable/1.7_x86-64/repository-update
+    - download.astralinux.ru/astra/stable/1.7_x86-64/repository-base
+    - download.astralinux.ru/astra/stable/1.7_x86-64/repository-extended
+  dist: 1.7_x86-64
+  res: contrib main non-free
+  build: 1.7.7.7
+  # kernel: 6.1.124-1-generic
+  # live_cd: alse-1.7.7.livecd
+
+####################
+### 0.5-Time     ###
+####################
+ntp:
+  timezone: Europe/Samara
+  srv: 10.163.17.11
+
+####################
+### 2.1-FreeIPA  ###
+####################
+# FreeIPA:
+  # pass: 'P@ssw0rd'
+  # srv: s04dc1
+  # repl: s04dc2      
+
+####################
+### 3.1-Zabbix   ###
+####################
+# Сервер Zabbix
+# Zabbix:
+  # srv: s04backup
+  # port: 8085
+  # db:
+    # user: user_zabbix
+    # password: P@ssw0rd
+    # name: db_zabbix
+  # agent: 2
+
+####################
+### 3.22-Ceph    ###
+####################
+Ceph:
+  # ver: 19.2.1
+  nodes:
+    - ceph1
+    - ceph2
+    - ceph3
+  dev: /dev/sdb
+  net:
+    interface: eth1
+    network: 10.163.18.0/24
+    keepalived_IP: 10.163.17.34
+    dashboard_port: 8080
+
+#####################
+### 3.28-Registry ###
+#####################
+# registry:
+  # srv: s04registry
+  # path: /mnt/data
+  # port: 5000
+
+#####################
+### 3.29-K8s      ###
+#####################
+k8s:
+  ver: '1.32'
+  masters:
+    - master1
+    - master2
+    - master3
+  workers:
+    - worker1
+    - worker2
+    - worker3
+  keepalived_IP: 10.163.17.34   ## Установка Keepalived на серверах masters
+  haproxy_port: 8443             ## Устанавливается HAProxy на серверах masters
+  pod_subnet: 10.163.40.0/22     ## подсеть выделенная для подов
+  service_subnet: 10.163.44.0/24 ## подсеть выделенная для сервисов
+  core_dns: 10.163.44.10         ## адрес внутреннего днс куба (первые 3 октета из подсети сервисов, последний - 10)
+  rwo_sc: csi-rwo-sc
+  rwx_sc: csi-rwx-sc
+  ceph_csi: 3  ## Количество провиженоров 'CephRBD' и 'CephFS'. Должно равняться количеству воркеров. Если равно '0' устанавливается ниже указанные провиженеры
+  # lvm_provisioner:    ## LVM RWO # Уcтанавливатся вместо 'CephRBD'
+    # namespace: csi-lvm-system
+    # device: /dev/sdb
+    # vg_name: vg01
+  # nfs_provisioner:    ## NFS RWX # Уcтанавливатся вместо 'CephFS'
+    # namespace: csi-nfs-system
+    # disk_size: 50Gi
+    # server_ip:
+    # path:
+
+...
