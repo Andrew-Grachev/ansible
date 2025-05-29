@@ -1,0 +1,82 @@
+---
+- name: PROMT Translation Server 22.1 | Создадим файл версий установленного ПО
+  file:
+    path: /etc/software.conf
+    state: touch
+
+- name: PROMT Translation Server 22.1 | Чтение версии установленного ПО
+  shell: cat /etc/software.conf | grep PROMT
+  register: version
+  ignore_errors: yes
+
+- name: PROMT Translation Server 22.1 | Копирование дистрибутива
+  copy:
+    src: "PROMT22.1"
+    dest: /tmp
+    owner: "root"
+    mode: '700'
+    force: no
+    directory_mode: yes
+  when: version.stdout != relis
+
+- name: PROMT Translation Server 22.1 | Установка PNTS сервера
+  shell: "cd /tmp/PROMT22.1 && ./PNTS22.1_signed.run -y"
+  when: version.stdout != relis
+
+- name: PROMT Translation Server 22.1 | Добавление лицензии
+  shell: "sudo /usr/local/pnts22.1/bin64/update-license.sh /tmp/PROMT22.1/{{ inventory_hostname }}.lic"
+  when: version.stdout != relis
+  ignore_errors: yes
+
+- name: PROMT Translation Server 22.1 | Установка NMT модулей
+  shell: "cd /tmp/PROMT22.1 && ./PNTS22.1_nmt_signed.run -y -m /tmp/PROMT22.1/nmt_models/"
+  when: version.stdout != relis
+
+- name: PROMT Translation Server 22.1 | Остановка сервисов
+  shell: "/usr/local/pnts22.1/bin64/services.sh restart"
+  when: version.stdout != relis
+
+- name: PROMT Translation Server 22.1 | Задание cross directions
+  shell: "sudo /usr/local/pnts22.1/bin64/pnts-config.sh add-cross {{item}}"
+  loop: 
+    - '[tg]r=[tg]e,er'
+    - 'r[tg]=re,e[tg]'
+    - '[ar]r=[ar]e,er'
+    - 'r[ar]=re,e[ar]'
+    - 'tr=te,er'
+    - 'rt=re,et'
+    - '[zh-cn]r=[zh-cn]e,er'
+    - 'r[zh-cn]=re,e[zh-cn]'
+    - '[pl]r=[pl]e,er'
+    - 'r[pl]=re,e[pl]'
+    - '[lv]r=[lv]e,er'
+    - 'r[lv]=re,e[lv]'
+    - 'lr=le,er'
+    - 'rl=re,el'
+    - '[fi]r=[fi]e,er'
+    - 'r[fi]=re,e[fi]'
+    - '[et]r=[et]e,er'
+    - 'r[et]=re,e[et]'
+    - '[he]r=[he]e,er'
+    - 'r[he]=re,e[he]'
+    - '[ko]r=[ko]e,er'
+    - 'r[ko]=re,e[ko]'
+    - '[ja]r=[ja]e,er'
+    - 'r[ja]=re,e[ja]'
+  when: version.stdout != relis
+
+- name: PROMT Translation Server 22.1 | Запуск сервисов
+  shell: "/usr/local/pnts22.1/bin64/services.sh restart"
+  when: version.stdout != relis
+
+- name: PROMT Translation Server 22.1 | Запишем версию ПО если ее не разу не было (Install)
+  become: true
+  shell: "echo '{{ relis }}' >> /etc/software.conf"
+  when: version.stdout == ""
+  ignore_errors: yes
+
+- name: PROMT Translation Server 22.1 | Запишем новую версию ПО (Update)
+  become: true
+  shell: "sed -i 's/{{version.stdout}}/{{ relis }}/g' /etc/software.conf"
+  when: version.stdout != relis
+  ignore_errors: yes

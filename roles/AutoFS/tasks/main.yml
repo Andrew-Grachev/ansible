@@ -1,0 +1,56 @@
+---
+- name: Чтение версии установленного ПО
+  shell: cat /opt/distr/software.conf | grep AutoFS
+  register: version
+  ignore_errors: yes
+
+- name: Инсталляция необходимых пакетов для клиентов
+  apt:
+    name:
+     - nfs-common
+     - autofs
+    state: latest
+  when: version.stdout != relis
+
+- name: Cоздание папки /etc/auto.master.d
+  file:
+    path: '/etc/auto.master.d'
+    state: directory
+    mode: '0755'
+  when: version.stdout != relis
+
+- name: Cоздание папок для монтирования SHD
+  file:
+    path: '{{item}}'
+    state: directory
+    mode: '0755'
+  with_items:
+    - '/shd'
+  when: version.stdout != relis
+
+- name: Создание файла /etc/auto.master.d/shd_files.autofs
+  copy:
+    src: 'shd_files.autofs'
+    dest: '/etc/auto.master.d/'
+    follow: yes
+  when: version.stdout != relis
+
+- name: Создание файла /etc/auto.master.d/shd_files.nfs
+  copy:
+    src: 'shd_files.nfs'
+    dest: '/etc/auto.master.d/'
+    follow: yes
+  when: version.stdout != relis
+
+- name: Перезапуск службы autofs
+  service:
+    name: autofs
+    enabled: yes
+    state: restarted
+  when: version.stdout != relis
+
+- name: Запишем новую версию ПО (Update)
+  become: true
+  shell: "sed -i '/AudoFS/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
+  when: version.stdout != relis
+  ignore_errors: yes

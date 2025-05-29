@@ -1,0 +1,68 @@
+---
+- name: Чтение версии установленного ПО
+  shell: cat /opt/distr/software.conf | grep RebusSov-client
+  register: version
+  ignore_errors: yes
+
+- name: Установка необходимых пакетов
+  apt:
+    update_cache: yes
+    name:
+    - libcrypto++6
+    - insserv
+    - libqtwebkit4
+    - astra-digsig-oldkeys
+    - libqt4-svg
+    state: latest
+  when: version.stdout != relis
+
+- name: Копирование необходимых пакетов
+  copy:
+    src: rebus-sov/
+    dest: /opt/distr/RebusSov-client/
+    mode: '0777'
+    force: yes
+    directory_mode: yes
+  when: version.stdout != relis
+
+- name: Остановка службы ipsAgentd
+  service:
+    name: ipsAgentd
+    state: stopped
+  when: version.stdout != relis
+  ignore_errors: yes
+
+- name: Деинсталяция RebusSov
+  shell: "/opt/distr/RebusSov-client/install -d"
+  when: version.stdout != relis
+  ignore_errors: yes
+
+- name: Установка ключа
+  copy:
+    src: rebus-sov/cps.tver_pub_key.gpg
+    dest: /etc/digsig/keys/legacy/keys/
+    mode: '0444'
+  when: version.stdout != relis
+
+- name: update-initramfs
+  shell: update-initramfs -u -k all
+  when: version.stdout != relis
+
+- name: Инсталяция RebusSov
+  shell: "/opt/distr/RebusSov-client/install -i agn -a {{ Rebus_Server }} -p 6669 -b /opt/distr/RebusSov-client/initial.zip"
+  when: version.stdout != relis
+
+- name: Модифицируем файл конфигурации
+  shell: "sed 's/network-manager/networking/' /etc/init.d/ipsAgentd"
+  when: version.stdout != relis  
+
+- name: Запуск службы ipsAgentd
+  service:
+    name: ipsAgentd
+    state: started
+  when: version.stdout != relis
+
+- name: Запишем новую версию ПО (Update)
+  shell: "sed -i '/RebusSov-client/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
+  become: true
+  when: version.stdout != relis

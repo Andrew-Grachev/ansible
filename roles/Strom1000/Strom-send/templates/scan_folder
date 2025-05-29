@@ -1,0 +1,2 @@
+{{ Strom_IP }}:{{ Strom_Port }} /opt/vit_data/strom/out
+

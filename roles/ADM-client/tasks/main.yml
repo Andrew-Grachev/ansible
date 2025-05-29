@@ -1,0 +1,33 @@
+---
+- name: ADM-client | Создадим файл версий установленного ПО
+  file:
+    path: /etc/software.conf
+    state: touch
+
+- name: ADM-client | Чтение версии установленного ПО
+  shell: cat /etc/software.conf | grep ADM-client
+  register: version
+  ignore_errors: yes
+
+- name: ADM-client | Копируем deb клиента ADM
+  copy:
+    src: "agent-iss-1.0_signed.deb"
+    dest: "/tmp/"
+  when: version.stdout != relis
+
+- name: ADM-client | Install deb-files
+  shell: "dpkg -i /tmp/agent-iss-1.0_signed.deb"
+  when: version.stdout != relis
+
+- name: ADM-client | Запишем версию ПО если ее не разу не было (Install)
+  become: true
+  shell: "echo '{{ relis }}' >> /etc/software.conf"
+  when: version.stdout == ""
+  ignore_errors: yes
+
+- name: ADM-client | Запишем новую версию ПО (Update)
+  become: true
+  shell: "sed -i 's/{{version.stdout}}/{{ relis }}/g' /etc/software.conf"
+  when: version.stdout != relis
+  ignore_errors: yes
+

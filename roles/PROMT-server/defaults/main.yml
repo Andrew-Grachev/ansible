@@ -1,0 +1,28 @@
+---
+path_services : /usr/local/pnts22.1/bin64
+
+cross:
+  - '[tg]r=[tg]e,er'
+  - 'r[tg]=re,e[tg]'
+  - '[ar]r=[ar]e,er'
+  - 'r[ar]=re,e[ar]'
+  - 'tr=te,er'
+  - 'rt=re,et'
+  - '[zh-cn]r=[zh-cn]e,er'
+  - 'r[zh-cn]=re,e[zh-cn]'
+  - '[pl]r=[pl]e,er'
+  - 'r[pl]=re,e[pl]'
+  - '[lv]r=[lv]e,er'
+  - 'r[lv]=re,e[lv]'
+  - 'lr=le,er'
+  - 'rl=re,el'
+  - '[fi]r=[fi]e,er'
+  - 'r[fi]=re,e[fi]'
+  - '[et]r=[et]e,er'
+  - 'r[et]=re,e[et]'
+  - '[he]r=[he]e,er'
+  - 'r[he]=re,e[he]'
+  - '[ko]r=[ko]e,er'
+  - 'r[ko]=re,e[ko]'
+  - '[ja]r=[ja]e,er'
+  - 'r[ja]=re,e[ja]'

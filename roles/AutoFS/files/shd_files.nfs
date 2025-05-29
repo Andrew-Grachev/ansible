@@ -1,0 +1,3 @@
+KKIP   -fstype=nfs4,rw,soft,intr  192.168.110.29:/mnt/vol-40/kkip
+VIDEO  -fstype=nfs4,rw,soft,intr  192.168.110.29:/mnt/vol-160/video
+system -fstype=nfs4,rw,soft,intr  192.168.110.29:/mnt/system
