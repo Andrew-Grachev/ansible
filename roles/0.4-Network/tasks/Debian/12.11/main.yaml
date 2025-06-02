@@ -10,10 +10,6 @@
     path: /etc/network/interfaces
   register: ifupdown_exists
 
-
-
-
-
 - name: 0.4.1 | Создание первого интерфейса в NetworkManager
   block:
 

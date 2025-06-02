@@ -1,0 +1,42 @@
+---
+
+- name: Проверка наличия файла '/etc/apt/sources.list.d/sources.list'
+  stat:
+    path: /etc/apt/sources.list.d/sources.list
+  register: sources_result
+  
+- name: Подключение к сетевому репозиторию
+  block:
+
+  - name: Удаление файла '/etc/apt/sources.list'
+    file:
+      path: /etc/apt/sources.list
+      state: '{{ item }}'
+    with_items:
+      - absent
+      - touch
+
+  - name: Удаление файла '/etc/apt/sources.list.d/sources.list'
+    file:
+      path: /etc/apt/sources.list.d/sources.list
+      state: '{{ item }}'
+    with_items:
+      - absent
+      - touch
+
+  - name: Заполняем файл '/etc/apt/sources.list.d/sources.list'
+    lineinfile:
+      path: /etc/apt/sources.list.d/sources.list
+      line: 'deb http://{{ item}} {{ repo.dist }} {{ repo.res }}'
+      state: present
+    with_items:
+      - '{{ repo.name_web }}'
+
+  - name: Обновление репозиториев
+    apt:
+      update_cache: yes
+
+  when:
+    - not sources_result.stat.exists
+
+...

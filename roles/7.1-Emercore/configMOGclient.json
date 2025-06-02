@@ -1,0 +1,43 @@
+{
+  "APP_VERSION": "1.52",
+  "DCS": [
+    {
+      "SERVICE_URL": "http://operator-facade-api.emercore.svc.emercore.mog.ent.local:8080",
+      "SERVICE_HUB": "phoneHub",
+      "GIS_HUB": "gisHub",
+      "SIP_PRCL": "ws",
+      "SIP_HOST": "kamailio.emercore.svc.emercore.mog.ent.local",
+      "SIP_PORT": 44444,
+      "SIP_PATH": "",
+      "SIP_PASS": "SuperS3cret",
+      "SIP_TEXP": 10,
+      "SIP_ICES": [
+        "stun:stun.l.google.com:19302"
+      ],
+      "LOGGER_URL": "http://operator-facade-api.emercore.svc.emercore.mog.ent.local:8080/api/logs/webclient",
+      "CLIENT_VERSION": "1.1.10736"
+    }
+  ],
+  "GIS_WINDOW_OPEN": true,
+  "SIGNALR_ENABLE_LOGGING": true,
+  "SIP_DEBUG": true,
+  "LOGGER_SEND_TO_SERVER": true,
+  "GIS_BASE_URL": "http://gis-facade.emercore.svc.emercore.mog.ent.local:8080",
+  "GIS_GEOSERVER_URL": "http://geoserver-service.gis.svc.emercore.mog.ent.local:8080",
+  "GIS_MAP_ID": 1000,
+  "GIS_DRAWING_ENABLED": true,
+  "GIS_ADDRESS_SEARCH_ENABLED": true,
+  "GIS_ADDRESS_SEARCH_PROVIDER": "DADATA",
+  "GIS_ADDRESS_SEARCH_LIMIT": 20,
+  "GIS_LAYERS_SEARCH_ENABLED": true,
+  "GIS_LAYERS_SEARCH_LAYER_NAMES": [
+    "municipality_area"
+  ],
+  "GIS_LAYERS_SEARCH_LIMIT": 10,
+  "GIS_NEAREST_INCIDENTS_DISTANCE_VALUE": 1000,
+  "GIS_NEAREST_INCIDENTS_DISTANCE_UNIT": "meter",
+  "DEBUG": {
+    "IS_WRITE_LOCAL_LOGS": false,
+    "ALLOW_ACCEPT_CALL_WITHOUT_MIC": false
+  }
+}

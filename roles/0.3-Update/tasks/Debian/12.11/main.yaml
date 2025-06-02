@@ -1,0 +1,14 @@
+---
+
+- name: Обновление репозиториев Debian
+  shell: apt update
+
+- name: Обновление Debian
+  shell: apt upgrade -y
+
+- name: Перезагрузка ОС
+  reboot:
+    msg: "Reboot"
+  when: ansible_distribution_version != '12.11'
+
+...

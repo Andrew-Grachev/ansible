@@ -1,0 +1,5 @@
+{
+  "API_URL": "http://admin-facade-api.emercore.svc.emercore.mog.ent.local:8080/",
+  "DEFAULT_LOCALE": "ru",
+  "APP_VERSION": "1.52 MOG"
+}
