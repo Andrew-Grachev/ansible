@@ -1,8 +1,8 @@
 ---
 
-- name: Настройка сервера 'GitLab'
+- name: Настройка сервера 'Jenkins'
   block:
     - include_tasks: '{{ ansible_distribution }}/main.yaml'
-  when: inventory_hostname == GitLab.srv
+  when: inventory_hostname == Jenkins.srv
 
 ...

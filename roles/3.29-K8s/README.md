@@ -1,6 +1,40 @@
 export EDITOR=mcedit
-kubectl -n kube-system get configmap coredns -o yaml
-kubectl -n kube-system edit configmap coredns -o yaml
+#######################################
+### Расшарить внутренний DNS
+# Установить MetalLB
+helm repo add metallb https://metallb.github.io/metallb
+helm install metallb metallb/metallb -n metallb-system --create-namespace
+# Настроить пул IP
+# metallb-pool.yaml
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: public-ips
+  namespace: metallb-system
+spec:
+  addresses:
+  - 192.168.1.100-192.168.1.200  # Ваши свободные IP
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: l2-advert
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+  - public-ips
+# Примените
+kubectl apply -f metallb-pool.yaml
+
+# Изменить тип сервиса с ClusterIP на LoadBalancer
+kubectl -n kube-system patch svc kube-dns -p '{"spec":{"type":"LoadBalancer"}}'
+kubectl -n kube-system get svc kube-dns
+########################################
+
+
+
+
+
 
 
 kubectl get svc -n kube-system | grep dns

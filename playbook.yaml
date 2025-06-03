@@ -37,7 +37,7 @@
     # - ../roles/3.22-Ceph
     # - ../roles/3.28-Nexus
     # - ../roles/3.27-PostgreSQL
-    # - ../roles/3.29-K8s
+    - ../roles/3.29-K8s
     # - 3.1-bacula
     # - 3.3-cluster
     # - 3.4-cups
@@ -51,6 +51,7 @@
 # 6. Установка серверной части СПО
     # - ../roles/6.1-GitLab
     # - ../roles/6.2-Prometheus
+    # - ../roles/6.3-Jenkins
 # 7. Установка собственного ПО
     # - ../roles/7.1-Emercore
 # 8. Настройка безопасности

@@ -1,0 +1,103 @@
+---
+
+# - name: Проверка наличия '{{ GitLab.path }}/gitlab'
+  # stat:
+    # path: '{{ GitLab.path }}/gitlab'
+  # register: gitlab_result
+  # ignore_errors: yes
+
+- name: Установка и настройка Jenkins
+  block:
+
+  - name: Установка 'Docker'
+    apt:
+      update_cache: true
+      state: present
+      name:
+        - docker-ce
+        - docker-ce-cli
+        - docker-compose
+
+  # - name: Создание файла '/tmp/docker-compose.yaml'
+    # blockinfile:
+      # path: /tmp/docker-compose.yaml
+      # create: yes
+      # state: present
+      # marker: ""
+      # block: |
+        # version: '3.8'
+        # services:
+          # gitlab:
+            # image: gitlab/gitlab-ce:latest
+            # pull_policy: always
+            # container_name: gitlab
+            # restart: always
+            # hostname: 'gitlab.{{ domain }}'
+            # environment:
+              # GITLAB_OMNIBUS_CONFIG: |
+                # external_url 'https://gitlab.{{ domain }}'
+                # gitlab_rails['gitlab_shell_ssh_port'] = 2222
+                # gitlab_rails['smtp_enable'] = false
+                # nginx['redirect_http_to_https'] = true
+                # nginx['ssl_certificate'] = "/etc/gitlab/ssl/gitlab.crt"
+                # nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/gitlab.key"
+            # ports:
+              # - "80:80"
+              # - "443:443"
+              # - "2222:22"
+            # volumes:
+              # - '{{ GitLab.path }}/gitlab/config:/etc/gitlab'
+              # - '{{ GitLab.path }}/gitlab/logs:/var/log/gitlab'
+              # - '{{ GitLab.path }}/gitlab/data:/var/opt/gitlab'
+            # shm_size: '256m'
+            # networks:
+              # - gitlab-network
+        # networks:
+          # gitlab-network:
+            # driver: bridge
+
+  # - name: Создание папок
+    # file:
+      # path: '{{ item }}'
+      # state: directory
+      # mode: 0777
+      # recurse: True
+    # with_items:
+      # - '{{ GitLab.path }}/gitlab/config/ssl'
+      # - '{{ GitLab.path }}/gitlab/logs'
+      # - '{{ GitLab.path }}/gitlab/data'
+
+  # - name: Копирование сертификатов
+    # copy:
+      # src: '{{ item }}'
+      # dest: '{{ GitLab.path }}/gitlab/config/ssl/{{ item }}'
+      # force: no
+    # with_items:
+      # - 'gitlab.crt'
+      # - 'gitlab.key'
+
+  # - name: Перезапуск службы 'docker'
+    # service:
+      # name: docker
+      # enabled: yes
+      # state: restarted
+
+  # - name: Запуск 'docker-compose'
+    # shell: |
+      # cd /tmp && docker-compose up -d
+
+  # when: not gitlab_result.stat.exists
+
+...
+
+
+
+
+
+
+
+
+
+
+
+
