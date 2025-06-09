@@ -1,0 +1,102 @@
+#!/bin/bash
+# Скрипт для автоматического обновления сертификатов при остатке 5 дней до истечения срока
+# Поддерживает CRI-O, требует выполнения от root
+
+# Переменные (настройте под ваш кластер)
+BACKUP_DIR="/etc/kubernetes/backup_$(date +%Y%m%d_%H%M%S)"
+# Цвета для вывода
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Проверка root-прав
+if [ "$(id -u)" -ne 0 ]; then
+  echo -e "${RED}Ошибка: Скрипт должен выполняться от root${NC}" >&2
+  exit 1
+fi
+
+# Функция проверки срока действия
+check_cert_expiry() {
+  local cert=$1
+  local days_left=0
+
+  # Получаем дату истечения срока
+  local expiry_date=$(openssl x509 -enddate -noout -in "$cert" | cut -d= -f2)
+  local expiry_epoch=$(date -d "$expiry_date" +%s)
+  local current_epoch=$(date +%s)
+
+  # Вычисляем оставшиеся дни
+  days_left=$(( (expiry_epoch - current_epoch) / 86400 ))
+
+  echo $days_left
+}
+
+# Проверяем срок действия apiserver.crt
+APISERVER_CERT="/etc/kubernetes/pki/apiserver.crt"
+if [ ! -f "$APISERVER_CERT" ]; then
+  echo -e "${RED}Ошибка: Не найден сертификат apiserver${NC}"
+  exit 1
+fi
+
+DAYS_LEFT=$(check_cert_expiry "$APISERVER_CERT")
+
+if [ "$DAYS_LEFT" -gt 5 ]; then
+  echo -e "${GREEN}Сертификаты действительны еще $DAYS_LEFT дней. Обновление не требуется.${NC}"
+  exit 0
+fi
+
+echo -e "${YELLOW}Внимание: До истечения срока сертификатов осталось $DAYS_LEFT дней${NC}"
+echo -e "${BLUE}=== Начало обновления сертификатов на $(hostname) ===${NC}"
+echo "Время начала: $(date +'%Y-%m-%d %H:%M:%S')"
+echo ""
+
+# 1. Резервное копирование
+echo -e "${YELLOW}[1/6] Создание резервных копий в ${BACKUP_DIR}...${NC}"
+mkdir -p "${BACKUP_DIR}"/pki
+cp -a /etc/kubernetes/pki/ "${BACKUP_DIR}/pki/"
+cp -a /etc/kubernetes/*.conf "${BACKUP_DIR}/"
+echo -e "${GREEN}OK${NC}"
+
+# 2. Обновление сертификатов
+echo -e "${YELLOW}[2/6] Обновление сертификатов...${NC}"
+kubeadm certs renew all
+echo -e "${GREEN}OK${NC}"
+
+# 3. Обновление kubeconfig
+echo -e "${YELLOW}[3/6] Обновление конфигураций...${NC}"
+mkdir -p /root/.kube
+kubeadm init phase kubeconfig all
+cp /etc/kubernetes/admin.conf /root/.kube/config
+chmod 600 /root/.kube/config
+chown root:root /root/.kube/config
+cp /etc/kubernetes/admin.conf /home/{{ ansible_ssh_user }}/.kube/config
+chmod 600 /home/{{ ansible_ssh_user }}/.kube/config
+chown {{ ansible_ssh_user }}:{{ ansible_ssh_user }} /home/{{ ansible_ssh_user }}/.kube/config
+echo -e "${GREEN}OK${NC}"
+
+# 4. Перезапускаем компоненты Кubernetes
+echo -e "${YELLOW}[4/6] Пперезапускаем компоненты Кubernetes...${NC}"
+kubectl delete pod -n kube-system -l component=kube-apiserver
+kubectl delete pod -n kube-system -l component=kube-controller-manager
+kubectl delete pod -n kube-system -l component=kube-scheduler
+kubectl delete pod -n kube-system -l component=etcd
+
+# 5. Перезапуск сервисов
+echo -e "${YELLOW}[5/6] Перезапуск сервисов...${NC}"
+systemctl restart kubelet
+systemctl restart crio
+echo -e "${GREEN}OK${NC}"
+
+# 6. Проверка
+echo -e "${YELLOW}[6/6] Проверка результатов...${NC}"
+echo -e "\n${BLUE}Сроки действия сертификатов:${NC}"
+kubeadm certs check-expiration
+echo -e "\n${BLUE}Состояние узла:${NC}"
+kubectl get nodes -o wide | grep $(hostname)
+echo -e "\n${BLUE}Версия CRI-O:${NC}"
+crio --version
+
+echo -e "\n${GREEN}=== Обновление завершено успешно! ===${NC}"
+echo "Резервные копии: ${BACKUP_DIR}"

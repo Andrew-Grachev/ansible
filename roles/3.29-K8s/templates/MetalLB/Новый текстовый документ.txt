@@ -1,0 +1,2 @@
+kubectl apply -f metallb-native.yaml
+kubectl apply -f metallb-config.yaml

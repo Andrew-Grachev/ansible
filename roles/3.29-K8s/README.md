@@ -1,6 +1,9 @@
 export EDITOR=mcedit
 #######################################
 ### Расшарить внутренний DNS
+
+kubectl create namespace metallb-system
+
 # Установить MetalLB
 helm repo add metallb https://metallb.github.io/metallb
 helm install metallb metallb/metallb -n metallb-system --create-namespace
@@ -13,7 +16,7 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-  - 192.168.1.100-192.168.1.200  # Ваши свободные IP
+  - 10.4.151.28-10.4.151.29  # Ваши свободные IP
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement

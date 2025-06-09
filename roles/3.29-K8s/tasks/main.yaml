@@ -18,11 +18,6 @@
     ##### - import_tasks: 12. Remove_Taint.yaml 
   ##### when: inventory_hostname in k8s.masters
 
-- name: Обновление сертификатов кластера
-  block:
-    - import_tasks: 14. Renew_Certs.yaml
-  when: inventory_hostname == k8s.masters[0]
-
 - name: Регистрация узлов Masters
   include_tasks: 15. Adding_Master.yaml
   with_items: '{{ k8s.masters }}'
@@ -32,6 +27,11 @@
   include_tasks: 16. Adding_Worker.yaml
   with_items: '{{ k8s.workers }}'
   when: inventory_hostname == k8s.masters[0]
+
+- name: Обновление сертификатов кластера
+  block:
+    - import_tasks: 19. Renew_Certs.yaml
+  when: inventory_hostname in k8s.masters or inventory_hostname in k8s.workers
 
 - name: Настройка 'kube-system'
   block:
@@ -43,16 +43,16 @@
     ##### - import_tasks: K8s_Provisioner_NFS_Client.yaml
   when: inventory_hostname == k8s.masters[0]
 
-# - name: Регистрация сервисов в кластере
-  # block:
+- name: Регистрация сервисов в кластере
+  block:
     # - import_tasks: 31. Monitoring.yaml
-    # - import_tasks: 32. staff_Postgres_Operator.yaml
+    - import_tasks: 32. staff_Postgres_Operator.yaml
     # - import_tasks: 33. staff_Rabbitmq_Operator.yaml
     # - import_tasks: 34. staff_Redis_Operator.yaml
     # - import_tasks: 35. Logging.yaml
     ##### - import_tasks: Ingress.yaml
     ##### - import_tasks: Dashboard.yaml
-  # when: inventory_hostname == k8s.masters[0]
+  when: inventory_hostname == k8s.masters[0]
 
 # - name: Развертывание Docker Registry
   # block:

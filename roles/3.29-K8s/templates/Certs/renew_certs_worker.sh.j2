@@ -1,0 +1,31 @@
+#!/bin/bash
+# Скрипт для обновления конфигурации worker-узлов после обновления сертификатов на master-узле
+# Требует прав sudo, но не требует прямого доступа root
+
+# Цвета для вывода
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
+
+# 1. Обновление kubeconfig
+echo -e "${YELLOW}[1/3] Обновление конфигураций...${NC}"
+mkdir -p /root/.kube
+cp /etc/kubernetes/admin.conf /root/.kube/config
+chmod 600 /root/.kube/config
+chown root:root /root/.kube/config
+cp /etc/kubernetes/admin.conf /home/{{ ansible_ssh_user }}/.kube/config
+chmod 600 /home/{{ ansible_ssh_user }}/.kube/config
+chown {{ ansible_ssh_user }}:{{ ansible_ssh_user }} /home/{{ ansible_ssh_user }}/.kube/config
+echo -e "${GREEN}OK${NC}"
+
+# 2. Перезапуск сервисов
+echo -e "${YELLOW}[2/3] Перезапуск сервисов...${NC}"
+systemctl restart kubelet
+systemctl restart crio
+echo -e "${GREEN}OK${NC}"
+
+# 3. Проверка
+echo -e "${YELLOW}[3/3] Проверка результатов...${NC}"
+echo -e "${BLUE}Проверяем статус kubelet...${NC}"
+systemctl status kubelet --no-pager
