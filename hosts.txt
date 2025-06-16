@@ -1,18 +1,46 @@
 [all]
+
+[stend]
+[stend_k8s]
+master    ansible_ssh_host=10.150.0.11
+worker    ansible_ssh_host=10.150.0.12
+[stend_nfs]
+nfs       ansible_ssh_host=10.150.0.14
+[stend_db]
+db        ansible_ssh_host=10.150.0.13
+[stend_other]
+registry  ansible_ssh_host=10.150.0.10
+dns       ansible_ssh_host=10.150.0.2
+[stend_arm]
+arm       ansible_ssh_host=10.150.0.29
+[stend:children]
+stend_k8s
+stend_nfs
+stend_db
+stend_other
+stend_arm
+
+
+
+
+
+
+
+
 [mosoblgaz]
 [mosoblgaz_k8s]
-### k8s.keepalived_IP:           10.4.151.225 k8s.mog.ent.local
-s04master1    ansible_ssh_host=10.4.151.212
-s04worker1    ansible_ssh_host=10.4.151.213
-s04master2    ansible_ssh_host=10.4.151.210
-s04worker2    ansible_ssh_host=10.4.151.211
-s04master3    ansible_ssh_host=10.4.151.208
-s04worker3    ansible_ssh_host=10.4.151.209
+### k8s.keepalived_IP:           10.4.151. k8s.mog.ent.local
+# s04master1    ansible_ssh_host=10.4.151.212
+# s04worker1    ansible_ssh_host=10.4.151.213
+# s04master2    ansible_ssh_host=10.4.151.210
+# s04worker2    ansible_ssh_host=10.4.151.211
+# s04master3    ansible_ssh_host=10.4.151.208
+# s04worker3    ansible_ssh_host=10.4.151.209
 [mosoblgaz_ceph]
-### ceph.keepalived_IP:          10.4.151.224 ceph.mog.ent.local
-s04ceph1      ansible_ssh_host=10.4.151.218
-s04ceph2      ansible_ssh_host=10.4.151.219
-s04ceph3      ansible_ssh_host=10.4.151.220
+### ceph.keepalived_IP:          10.4.151. ceph.mog.ent.local
+# s04ceph1      ansible_ssh_host=10.4.151.218
+# s04ceph2      ansible_ssh_host=10.4.151.219
+# s04ceph3      ansible_ssh_host=10.4.151.220
 [mosoblgaz_proxy]
 # s04proxy1     ansible_ssh_host=10.4.151.214
 # s04proxy2     ansible_ssh_host=10.4.151.206
@@ -20,15 +48,15 @@ s04ceph3      ansible_ssh_host=10.4.151.220
 # s04dc1        ansible_ssh_host=10.4.151.215
 # s04dc2        ansible_ssh_host=10.4.151.207
 [mosoblgaz_etcd]
-s04etcd1      ansible_ssh_host=10.4.151.200
-s04etcd2      ansible_ssh_host=10.4.151.201
-s04etcd3      ansible_ssh_host=10.4.151.202
+# s04etcd1      ansible_ssh_host=10.4.151.200
+# s04etcd2      ansible_ssh_host=10.4.151.201
+# s04etcd3      ansible_ssh_host=10.4.151.202
 [mosoblgaz_db]
-### db.keepalived_IP:            10.4.151.226 db.mog.ent.local
-s04db1        ansible_ssh_host=10.4.151.203
-s04db2        ansible_ssh_host=10.4.151.204
+### db.keepalived_IP:            10.4.151. db.mog.ent.local
+# s04db1        ansible_ssh_host=10.4.151.203
+# s04db2        ansible_ssh_host=10.4.151.204
 [mosoblgaz_other]
-s04registry   ansible_ssh_host=10.4.151.216
+# s04registry   ansible_ssh_host=10.4.151.216
 # s04backup     ansible_ssh_host=10.4.151.217
 [mosoblgaz:children]
 mosoblgaz_k8s
@@ -106,4 +134,4 @@ mosoblgaz_other
 
 [debian12]
 # debian12  ansible_ssh_host=192.168.1.12
-jenkins   ansible_ssh_host=192.168.1.100
+# jenkins   ansible_ssh_host=192.168.1.100

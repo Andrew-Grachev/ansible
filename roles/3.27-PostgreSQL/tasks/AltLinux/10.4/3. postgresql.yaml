@@ -1,0 +1,70 @@
+---
+
+- name: 3.27.3 | Проверка наличия файла '/usr/bin/postgres'
+  stat:
+    path: /usr/bin/postgres
+  register: postgres_result
+
+- name: 3.27.3 | Создания серверов
+  block:
+
+  - name: 3.27.3 | Установка 'postgresql'
+    apt_rpm:
+      name:
+        - lvm2
+        - postgresql16-server
+        # - postgresql-server
+        # - postgresql-contrib
+        # - postgresql-devel
+        # - gcc
+        # - python3
+        # - python3-pip
+        # - python3-devel
+      # state: latest
+
+  - name: 3.27.3 | Удаление данных из '/var/lib/pgsql/data/*'
+    shell: |
+      rm -rf /var/lib/pgsql/data/*
+
+  - name: 3.27.3 | Создание LVM диска на {{ PostgreSQL.device }}
+    shell: |
+      vgcreate postgresqlvg {{ PostgreSQL.device }}
+      lvcreate -l 50%FREE -n postgresqllv postgresqlvg
+      mkfs.ext4 /dev/postgresqlvg/postgresqllv
+    ignore_errors: yes
+
+  - name: 3.27.3 | Чтение 'UUID' диска
+    shell: |
+      blkid /dev/mapper/postgresqlvg-postgresqllv -s UUID -o value
+    register: disk_uuid
+
+  - name: 3.27.3 | Монтирование '{{ PostgreSQL.device }}' в '/var/lib/pgsql/data'
+    mount:
+      path: /var/lib/pgsql/data
+      src: 'UUID={{ disk_uuid.stdout }}'
+      fstype: ext4
+      state: mounted
+    when: disk_uuid.stdout != ""
+
+  - name: 3.27.3 | Установить права на папку '/var/lib/pgsql/data'
+    file:
+      path: /var/lib/pgsql/data
+      owner: postgres
+      group: postgres
+      mode: '0700'
+      recurse: yes
+      state: directory
+
+  - name: 3.27.3 | Удаление данных из '/var/lib/pgsql/data/*'
+    shell: |
+      rm -rf /var/lib/pgsql/data/*
+
+  - name: 3.27.3 | Остановка сервиса 'postgresql' 
+    service:
+      name: postgresql
+      state: stopped
+      enabled: no
+
+  when: not postgres_result.stat.exists
+
+...

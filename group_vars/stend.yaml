@@ -1,0 +1,85 @@
+---
+
+# МосОблГаз
+
+remote_user: admin1
+ansible_ssh_user: admin1
+ansible_ssh_pass: Sph@era92
+ansible_ssh_private_key_file: ./ssh/admin1/id_rsa.pub
+
+domain: 'stend.local'
+
+####################
+### 0.4-Network  ###
+####################
+Net:
+  network: 10.150.0.0/27
+  net: 10.150.0.0
+  mask: 255.255.255.224
+  gateway: 10.150.0.1
+  bind:
+    - 10.150.0.1
+    - 10.150.0.2
+  routes:
+    - '10.150.164.0/24 10.150.0.11 11'
+    - '10.150.164.0/24 10.150.0.12 12'
+
+####################
+### 0.5-Time     ###
+####################
+ntp:
+  timezone: Europe/Moscow
+  srv: 10.150.0.1
+
+
+########################
+### 3.27-PostgreSQL   ###
+########################
+PostgreSQL:
+  etcd_srv:
+    - ''
+  pg_srv:
+    - db
+  device: /dev/sdb1
+  keepalived_IP:
+  password: postgres
+
+
+#####################
+### 3.28-Nexus    ###
+#####################
+Nexus:
+  srv: registry
+  path: /opt/nexus
+
+
+#####################
+### 3.29-K8s      ###
+#####################
+k8s:
+  ver: '1.32'
+  masters:
+    - master
+  workers:
+    - worker
+  subdomain: emercore
+  keepalived_IP: # 10.150.0.3 ## Установка Keepalived на серверах masters
+  haproxy_port: # 8443 ## Устанавливается HAProxy на серверах masters
+  pod_subnet: 10.150.160.0/22 ## подсеть выделенная для подов
+  service_subnet: 10.150.164.0/24 ## подсеть выделенная для сервисов
+  core_dns: 10.150.164.10 ## адрес внутреннего днс куба (первые 3 октета из подсети сервисов, последний - 10)
+  metallb_pool: 10.150.0.28-10.150.0.29 ## пул адресов для MetalLB
+  rwo_sc: csi-rwo-sc
+  rwx_sc: csi-rwx-sc
+  ceph_csi: 0  ## Количество провиженоров 'CephRBD' и 'CephFS'. Должно равняться количеству воркеров. Если равно '0' устанавливается ниже указанные провиженеры
+  lvm_provisioner:    ## LVM RWO # Уcтанавливатся вместо 'CephRBD'
+    namespace: csi-lvm-system
+    device: /dev/sdb
+    vg_name: vg01
+  nfs_provisioner:    ## NFS RWX # Уcтанавливатся вместо 'CephFS'
+    namespace: csi-nfs-system
+    disk_size: 50Gi
+    server_ip:
+    path:
+
+...

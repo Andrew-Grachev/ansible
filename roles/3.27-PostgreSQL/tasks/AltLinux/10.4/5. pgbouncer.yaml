@@ -1,0 +1,68 @@
+---
+
+- name: Проверка наличия файла '/etc/pgbouncer/pgbouncer.ini'
+  stat:
+    path: /etc/pgbouncer/pgbouncer.ini
+  register: pgbouncer_result
+
+- name: 3.27.5 | Создания серверов
+  block:
+
+  - name: 3.27.5 | Установка пакетов
+    apt_rpm:
+      name:
+        - pgbouncer
+
+  - name: 3.27.5 | Установить права на папку '/etc/pgbouncer'
+    file:
+      path: /etc/pgbouncer
+      owner: pgbouncer
+      group: pgbouncer
+      recurse: yes
+      state: directory
+
+  - name: 3.27.5 | Создание папок
+    shell: |
+      mkdir -p /var/log/pgbouncer /var/run/pgbouncer
+      chown pgbouncer:pgbouncer /var/log/pgbouncer /var/run/pgbouncer
+
+  - name: 3.27.5 | Создание файла '/etc/pgbouncer/pgbouncer.ini'
+    copy:
+      dest: /etc/pgbouncer/pgbouncer.ini
+      content: |
+        [databases]
+        * = host=localhost port=5432
+        [pgbouncer]
+        logfile = /var/log/pgbouncer/pgbouncer.log
+        pidfile = /var/run/pgbouncer/pgbouncer.pid
+        listen_addr = 127.0.0.1
+        listen_port = 6432
+        unix_socket_dir = /var/run/pgbouncer
+        auth_type = md5
+        auth_file = /etc/pgbouncer/userlist.txt
+        max_client_conn = 500
+        admin_users = postgres
+        stats_users = stats, postgres
+      mode: 0640
+
+  - name: 3.27.5 | Получение хеша пароля
+    shell: |
+      echo -n "{{ PostgreSQL.password }}" | md5sum | awk '{print $1}'
+    register: hash
+
+  - name: 3.27.5 | Создание файла '/etc/pgbouncer/userlist.txt'
+    copy:
+      dest: /etc/pgbouncer/userlist.txt
+      content: |
+        "postgres" "{{ hash.stdout }}"
+      mode: 0640
+
+  - name: Запускаем службу 'pgbouncer'
+    service:
+      name: pgbouncer
+      state: restarted
+      enabled: yes
+
+  when: not pgbouncer_result.stat.exists
+
+...

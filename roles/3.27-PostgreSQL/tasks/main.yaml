@@ -15,8 +15,8 @@
     - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/3. postgresql.yaml'
     - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/4. patroni.yaml'
     - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/5. pgbouncer.yaml'
-    # - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/keepalived.yaml' 
-    # - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/HAProxy.yaml'
+    # - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/6. keepalived.yaml' 
+    # - include_tasks: '{{ ansible_distribution }}/{{ ansible_distribution_version }}/7. HAProxy.yaml'
   when: inventory_hostname in PostgreSQL.pg_srv
 
 ...

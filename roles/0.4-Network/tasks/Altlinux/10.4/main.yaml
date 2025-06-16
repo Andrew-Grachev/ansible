@@ -32,7 +32,6 @@
       copy:
         dest: '/etc/net/ifaces/{{ device_name.stdout }}/resolv.conf'
         content: |
-          # Создано Ansible
           {% for dns in Net.bind %}
           nameserver {{ dns }}
           {% endfor %}
@@ -42,7 +41,6 @@
       copy:
         dest: '/etc/net/ifaces/{{ device_name.stdout }}/ipv4route'
         content: |
-          # Создано Ansible
           default via {{ Net.gateway }}
 
     - name: 0.4.1 | Перезапуск службы 'network'
@@ -58,7 +56,97 @@
     - ifupdown_exists.stat.exists    # networking есть
     # bonding не определен
 
+# Создание интерфейсов в 'NetworkManager'
+- name: 0.4.1 | Конфигурирование активного интерфейса
+  block:
 
+  - name: Чтение DNS серверов в файле '/etc/NetworkManager/conf.d/dns.conf'
+    shell: cat /etc/NetworkManager/conf.d/dns.conf | grep '{{ Net.bind | join(',') }}'
+    register: dns_status
+    ignore_errors: yes
+
+  - name: Настройка 'dns.conf'
+    block:
+
+    - name: Останавливаем  службу 'firewalld' 
+      service:
+        name: firewalld
+        state: stopped
+        enabled: false
+      ignore_errors: yes
+
+    - name: Создаем конфигурацию '/etc/NetworkManager/conf.d/dns.conf'
+      shell: |
+        echo -e "[global-dns-domain-*]\nservers = {{ Net.bind | join(',') }}\n" > /etc/NetworkManager/conf.d/dns.conf
+        rm -f /etc/resolv.conf
+
+    - name: Перезапуск службы 'NetworkManager'
+      service:
+        name: NetworkManager
+        state: restarted
+
+    when:
+      - dns_status.stdout == ''
+
+  - name: Чтение конфигурации интерфейса
+    shell: nmcli device show | grep '{{ domain }}'
+    register: domain_status
+    ignore_errors: yes
+
+  - name: Создание первого интерфейса если ..............................
+    block:
+
+    - name: Получить имя активного интерфейса
+      shell: |
+        ip -o -4 addr show | grep "{{ hostvars[inventory_hostname].ansible_ssh_host }}" | awk '{print $2}'  
+      register: device_name
+
+    - name: Настройка сетевого интерфейса
+      nmcli:
+        type: ethernet
+        conn_name: '{{ device_name.stdout }}'
+        ip4: '{{ hostvars[inventory_hostname].ansible_ssh_host }}/{{ Net.network.split("/")[1] }}'
+        gw4: '{{ Net.gateway }}'
+        dns4 : '{{ Net.bind | join(",") }}'
+        dns4_search: '{{ domain }}'
+        state: present
+
+    - name: Настройка сетевого интерфейса
+      shell: |
+        nmcli connection modify "{{ device_name.stdout }}" ipv6.method  disabled
+
+    - name: Проверяем, содержит ли список маршрутов IP хоста
+      set_fact:
+        ip_found: "{{ Net.routes | select('search', hostvars[inventory_hostname].ansible_ssh_host) | list | length > 0 }}"
+
+    - name: Добавление маршрутов сетевого интерфейса
+      shell: |
+        nmcli connection modify "{{ device_name.stdout }}" ipv4.routes "{{ Net.routes | join(',') }}"
+      when: 
+        - Net.routes is defined
+        - not ip_found
+
+    - name: Перезапуск службы 'NetworkManager'
+      service:
+        name: NetworkManager
+        state: restarted
+
+    - name: Получить имя неактивного интерфейса
+      shell: |
+        nmcli con | grep 'ethernet  --' | awk '{print $1}' 
+      register: device_off
+
+    - name: Удаление неактивного интерфейса
+      shell: |
+        rm -f /etc/NetworkManager/system-connections/{{ device_off.stdout }}*
+      when: device_off.stdout != ''
+
+    when:
+      - domain_status.stdout == ''
+
+  when:
+    - nm_active.stdout == 'active' # NetworkManager не активен
+    # bonding не определен
 
 
 

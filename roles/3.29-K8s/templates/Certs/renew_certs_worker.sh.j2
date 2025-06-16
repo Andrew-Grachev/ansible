@@ -2,22 +2,54 @@
 # Скрипт для обновления конфигурации worker-узлов после обновления сертификатов на master-узле
 # Требует прав sudo, но не требует прямого доступа root
 
+# Переменные
+BACKUP_DIR="/etc/kubernetes/backup_$(date +%Y%m%d_%H%M%S)"
+MASTER_HOST="{{ k8s.masters[0] }}" # hostname первого master-узла
+SSH_USER="{{ ansible_ssh_user }}"  # Пользователь с доступом к мастеру
+
 # Цвета для вывода
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
-# 1. Обновление kubeconfig
-echo -e "${YELLOW}[1/3] Обновление конфигураций...${NC}"
-mkdir -p /root/.kube
-cp /etc/kubernetes/admin.conf /root/.kube/config
-chmod 600 /root/.kube/config
-chown root:root /root/.kube/config
-cp /etc/kubernetes/admin.conf /home/{{ ansible_ssh_user }}/.kube/config
-chmod 600 /home/{{ ansible_ssh_user }}/.kube/config
-chown {{ ansible_ssh_user }}:{{ ansible_ssh_user }} /home/{{ ansible_ssh_user }}/.kube/config
-echo -e "${GREEN}OK${NC}"
+# Функция проверки свежести сертификатов на мастере
+check_master_certs() {
+  echo -e "${YELLOW}Проверяем сертификаты на master-узле...${NC}"
+
+  # Получаем дату изменения apiserver.crt через SSH
+  local cert_mtime=$(ssh ${SSH_USER}@${MASTER_HOST} \
+    "stat -c %Y /etc/kubernetes/pki/apiserver.crt 2>/dev/null")
+
+  if [ -z "$cert_mtime" ]; then
+    echo -e "${RED}Ошибка: Не удалось проверить сертификаты на master-узле${NC}"
+    return 1
+  fi
+
+  local cert_age=$(( ($(date +%s) - cert_mtime) / 86400 ))
+ 
+  if [ "$cert_age" -gt 1 ]; then
+    echo -e "${YELLOW}Сертификаты на master не обновлялись ($cert_age дней назад)${NC}"
+    return 1
+  fi
+
+  echo -e "${GREEN}Сертификаты на master были обновлены ($cert_age дней назад)${NC}"
+  return 0
+}
+
+# --- Основной процесс ---
+if ! check_master_certs; then
+  echo -e "${YELLOW}Обновление worker-узла не требуется${NC}"
+  exit 0
+fi
+
+echo -e "${GREEN}=== Начало обновления worker-узла $(hostname) ==="
+
+# 1. Резервное копирование
+echo -e "${YELLOW}[1/3] Создание резервных копий...${NC}"
+sudo mkdir -p "${BACKUP_DIR}"
+sudo cp /etc/kubernetes/kubelet.conf "${BACKUP_DIR}/"
+echo -e "${GREEN}Резервная копия создана: ${BACKUP_DIR}${NC}"
 
 # 2. Перезапуск сервисов
 echo -e "${YELLOW}[2/3] Перезапуск сервисов...${NC}"

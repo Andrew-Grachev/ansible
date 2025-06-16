@@ -1,5 +1,15 @@
 ---
 
+# Проверяем существует ли Nexus
+
+
+
+
+
+
+
+
+
 - name: 3.29.40 | Чтение namespace 'registry'
   shell: |
     kubectl get namespace registry | grep 'Active'

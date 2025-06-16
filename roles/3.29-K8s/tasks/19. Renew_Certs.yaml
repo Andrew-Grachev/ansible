@@ -3,23 +3,23 @@
 - name: На мастерах
   block:
 
-  - name: 3.29.19 | Проверка наличия файла '/usr/local/bin/k8s_certs_master.sh'
+  - name: 3.29.19 | Проверка наличия файла '/usr/local/bin/k8s_renew_certs_master.sh'
     stat:
-      path: /usr/local/bin/k8s_certs_master.sh
+      path: /usr/local/bin/k8s_renew_certs_master.sh
     register: renew_certs_master_result
     ignore_errors: yes
 
   - name:
     block:
 
-    - name: 3.29.19 | Копирование скрипта демона
+    - name: 3.29.19 | Копирование скрипта
       template:
         src: Certs/renew_certs_master.sh.j2
         dest: /usr/local/bin/k8s_renew_certs_master.sh
         mode: 0755
         force: yes
 
-    - name: 3.29.19 | Создание задания на обновление сертификатов кластера (/var/spool/cron/root)
+    - name: 3.29.19 | Создание задания на запуск скрипта (/var/spool/cron/root)
       cron:
         name: Certs_Master_Kubernetes
         job: /usr/local/bin/k8s_renew_certs_master.sh
@@ -35,39 +35,39 @@
   when:
     - inventory_hostname in k8s.masters
 
-# - name: На воркерах
-  # block:
+- name: На воркерах
+  block:
 
-  # - name: 3.29.19 | Проверка наличия файла '/usr/local/bin/k8s_certs_worker.sh'
-    # stat:
-      # path: /usr/local/bin/k8s_certs_worker.sh
-    # register: renew_certs_worker_result
-    # ignore_errors: yes
+  - name: 3.29.19 | Проверка наличия файла '/usr/local/bin/k8s_renew_certs_worker.sh'
+    stat:
+      path: /usr/local/bin/k8s_renew_certs_worker.sh
+    register: renew_certs_worker_result
+    ignore_errors: yes
 
-  # - name:
-    # block:
+  - name:
+    block:
 
-    # - name: 3.29.19 | Копирование скрипта демона
-      # template:
-        # src: Certs/renew_certs_worker.sh.j2
-        # dest: /usr/local/bin/k8s_renew_certs_worker.sh
-        # mode: 0755
-        # force: yes
+    - name: 3.29.19 | Копирование скрипта
+      template:
+        src: Certs/renew_certs_worker.sh.j2
+        dest: /usr/local/bin/k8s_renew_certs_worker.sh
+        mode: 0755
+        force: yes
 
-    # - name: 3.29.19 | Создание задания на обновление сертификатов кластера (/var/spool/cron/root)
-      # cron:
-        # name: Certs_Worker_Kubernetes
-        # job: /usr/local/bin/k8s_renew_certs_worker.sh
-        # minute: "2{{ k8s.workers.index(inventory_hostname) }}"
-        # hour: "1"
-        # day: "*"
-        # month: "*"
-        # weekday: "*"
-        # user: "{{ ansible_ssh_user }}"
+    - name: 3.29.19 | Создание задания на запуск скрипта (/var/spool/cron/root)
+      cron:
+        name: Certs_Worker_Kubernetes
+        job: /usr/local/bin/k8s_renew_certs_worker.sh
+        minute: "2{{ k8s.workers.index(inventory_hostname) }}"
+        hour: "1"
+        day: "*"
+        month: "*"
+        weekday: "*"
+        user: "{{ ansible_ssh_user }}"
 
     # when: not renew_certs_worker_result.stat.exists
 
-  # when:
-    # - inventory_hostname in k8s.workers
+  when:
+    - inventory_hostname in k8s.workers
 
 ...

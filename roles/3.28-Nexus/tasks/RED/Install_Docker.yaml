@@ -5,37 +5,29 @@
   register: docker_check
   ignore_errors: yes
 
-- name: 3.28.1 | Установка 'Docker'
-  dnf:
-    update_cache: true
-    state: present
-    name:
-      - docker-ce
-      - docker-ce-cli
-      - docker-compose
-      - wget
-      - openssl
+- name:
+  block:
+
+  - name: 3.28.1 | Установка 'Docker'
+    dnf:
+      update_cache: true
+      state: present
+      name:
+        - docker-ce
+        - docker-ce-cli
+        - docker-compose
+        - wget
+        - openssl
+
+# Актуальную версию можно увидеть: https://helm.sh/ru/docs/
+  - name: 3.28.1 | Инсталляция диспетчера пакетов 'Helm v3.17.3'
+    shell: |
+      wget https://get.helm.sh/helm-v3.17.3-linux-amd64.tar.gz
+      tar xvf helm-v3.17.3-linux-amd64.tar.gz
+      mv linux-amd64/helm /usr/bin
+      rm helm-v3.17.3-linux-amd64.tar.gz
+      rm -rf linux-amd64
+
   when: docker_check.rc != 0
 
-# - name: 3.28.1 | Инсталляция диспетчера пакетов 'Helm v3.16.4'
-  # shell: |
-    # wget https://get.helm.sh/helm-v3.16.4-linux-amd64.tar.gz
-    # tar xvf helm-v3.16.4-linux-amd64.tar.gz
-    # mv linux-amd64/helm /usr/bin
-    # rm helm-v3.16.4-linux-amd64.tar.gz
-    # rm -rf linux-amd64
-  # when: docker_check.rc != 0
-
 ...
-
-
-
-
-
-
-
-
-
-
-
-

@@ -54,9 +54,9 @@
     ##### - import_tasks: Dashboard.yaml
   when: inventory_hostname == k8s.masters[0]
 
-# - name: Развертывание Docker Registry
-  # block:
-    # - import_tasks: 40. Registry.yaml
-  # when: inventory_hostname in k8s.masters or inventory_hostname in k8s.workers
+- name: Развертывание Registry
+  block:
+    - import_tasks: 40. Registry.yaml
+  when: inventory_hostname in k8s.masters or inventory_hostname in k8s.workers
 
 ...
