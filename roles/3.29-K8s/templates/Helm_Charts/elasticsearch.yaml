@@ -2,6 +2,7 @@ fullnameOverride: "elasticsearch"
 clusterDomain: {{ domain }}
 
 master:
+  replicaCount: "{% if k8s.workers | default([]) | length > 1 %}2{% else %}1{% endif %}"
   extraVolumes:
     - name: elasticsearch-templates
       configMap:
@@ -15,9 +16,13 @@ master:
     size: 1Gi
 
 data:
+  replicaCount: "{% if k8s.workers | default([]) | length > 1 %}2{% else %}1{% endif %}"
   persistence:
     storageClass: {{ k8s.rwo_sc }}
     size: 100Gi
+
+coordinating:
+  replicaCount: "{% if k8s.workers | default([]) | length > 1 %}2{% else %}1{% endif %}"
   
 ingest:
   enabled: false

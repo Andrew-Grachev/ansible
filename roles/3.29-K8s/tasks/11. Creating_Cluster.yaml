@@ -21,11 +21,23 @@
       --apiserver-advertise-address="{{ hostvars[k8s.masters[0]].ansible_ssh_host }}" \
       --control-plane-endpoint="{{ hostvars[k8s.masters[0]].ansible_ssh_host }}:6443"
 
+  - name: 3.29.11 | Создаем директорию '/root/.kube'
+    file:
+      path: '/root/.kube'
+      state: directory
+      mode: 0755
+
   - name: 3.29.11 | Создаем директорию '/home/{{ ansible_ssh_user }}/.kube'
     file:
       path: '/home/{{ ansible_ssh_user }}/.kube'
       state: directory
       mode: 0755
+
+  - name: 3.29.11 | Копируем конфигурацию кластера в домашний каталог 'root'
+    copy:
+      src: '/etc/kubernetes/admin.conf'
+      dest: '/root/.kube/config'
+      remote_src: true
 
   - name: 3.29.11 | Копируем конфигурацию кластера в домашний каталог администратора '{{ ansible_ssh_user }}'
     copy:

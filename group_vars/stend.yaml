@@ -1,6 +1,6 @@
 ---
 
-# МосОблГаз
+# Стенд (AltLinux, Kubernetes)
 
 remote_user: admin1
 ansible_ssh_user: admin1
@@ -9,9 +9,9 @@ ansible_ssh_private_key_file: ./ssh/admin1/id_rsa.pub
 
 domain: 'stend.local'
 
-####################
-### 0.4-Network  ###
-####################
+###################
+### 0.4-Network ###
+###################
 Net:
   network: 10.150.0.0/27
   net: 10.150.0.0
@@ -24,17 +24,26 @@ Net:
     - '10.150.164.0/24 10.150.0.11 11'
     - '10.150.164.0/24 10.150.0.12 12'
 
-####################
-### 0.5-Time     ###
-####################
+################
+### 0.5-Time ###
+################
 ntp:
   timezone: Europe/Moscow
   srv: 10.150.0.1
 
 
-########################
-### 3.27-PostgreSQL   ###
-########################
+
+################
+### 3.2-Bind ###
+################
+Bind:
+  srv:
+    - dns
+
+
+#######################
+### 3.27-PostgreSQL ###
+#######################
 PostgreSQL:
   etcd_srv:
     - ''
@@ -45,19 +54,20 @@ PostgreSQL:
   password: postgres
 
 
-#####################
-### 3.28-Nexus    ###
-#####################
+##################
+### 3.28-Nexus ###
+##################
 Nexus:
+  ver: '3.81.1'
   srv: registry
   path: /opt/nexus
 
 
-#####################
-### 3.29-K8s      ###
-#####################
+################
+### 3.29-K8s ###
+################
 k8s:
-  ver: '1.32'
+  ver: '1.28'
   masters:
     - master
   workers:
@@ -68,16 +78,16 @@ k8s:
   pod_subnet: 10.150.160.0/22 ## подсеть выделенная для подов
   service_subnet: 10.150.164.0/24 ## подсеть выделенная для сервисов
   core_dns: 10.150.164.10 ## адрес внутреннего днс куба (первые 3 октета из подсети сервисов, последний - 10)
-  metallb_pool: 10.150.0.28-10.150.0.29 ## пул адресов для MetalLB
+  # metallb_pool: 10.150.0.21-10.150.0.25 ## пул адресов для MetalLB
   rwo_sc: csi-rwo-sc
   rwx_sc: csi-rwx-sc
   ceph_csi: 0  ## Количество провиженоров 'CephRBD' и 'CephFS'. Должно равняться количеству воркеров. Если равно '0' устанавливается ниже указанные провиженеры
   lvm_provisioner:    ## LVM RWO # Уcтанавливатся вместо 'CephRBD'
-    namespace: csi-lvm-system
+    namespace: system-lvm-csi
     device: /dev/sdb
     vg_name: vg01
   nfs_provisioner:    ## NFS RWX # Уcтанавливатся вместо 'CephFS'
-    namespace: csi-nfs-system
+    namespace: system-nfs-csi
     disk_size: 50Gi
     server_ip:
     path:

@@ -13,14 +13,6 @@
       name:
         - lvm2
         - postgresql16-server
-        # - postgresql-server
-        # - postgresql-contrib
-        # - postgresql-devel
-        # - gcc
-        # - python3
-        # - python3-pip
-        # - python3-devel
-      # state: latest
 
   - name: 3.27.3 | Удаление данных из '/var/lib/pgsql/data/*'
     shell: |

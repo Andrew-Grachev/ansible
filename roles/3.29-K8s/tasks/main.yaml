@@ -13,10 +13,10 @@
     - import_tasks: 11. Creating_Cluster.yaml
   when: inventory_hostname == k8s.masters[0]
 
-##### - name: Создание кластера без воркеров
-  ##### block:
-    ##### - import_tasks: 12. Remove_Taint.yaml 
-  ##### when: inventory_hostname in k8s.masters
+- name: Создание кластера без воркеров
+  block:
+    - import_tasks: 12. Remove_Taint.yaml 
+  when: inventory_hostname in k8s.masters
 
 - name: Регистрация узлов Masters
   include_tasks: 15. Adding_Master.yaml
@@ -28,35 +28,35 @@
   with_items: '{{ k8s.workers }}'
   when: inventory_hostname == k8s.masters[0]
 
-- name: Обновление сертификатов кластера
-  block:
-    - import_tasks: 19. Renew_Certs.yaml
-  when: inventory_hostname in k8s.masters or inventory_hostname in k8s.workers
+# - name: Обновление сертификатов кластера
+  # block:
+    # - import_tasks: 19. Renew_Certs.yaml
+  # when: inventory_hostname in k8s.masters or inventory_hostname in k8s.workers
 
 - name: Настройка 'kube-system'
   block:
     - import_tasks: 21. ks_Network_Calico.yaml
     - import_tasks: 22. ks_NodeLocalDNS.yaml
     # - import_tasks: 23. ks_Provisioner_Ceph.yaml
-    ##### - import_tasks: K8s_Provisioner_LVM.yaml
-    ##### - import_tasks: K8s_Provisioner_NFS.yaml
+    - import_tasks: 24. ks_Provisioner_LVM.yaml
+    - import_tasks: 25. ks_Provisioner_NFS.yaml
     ##### - import_tasks: K8s_Provisioner_NFS_Client.yaml
   when: inventory_hostname == k8s.masters[0]
 
 - name: Регистрация сервисов в кластере
   block:
-    # - import_tasks: 31. Monitoring.yaml
-    - import_tasks: 32. staff_Postgres_Operator.yaml
-    # - import_tasks: 33. staff_Rabbitmq_Operator.yaml
-    # - import_tasks: 34. staff_Redis_Operator.yaml
-    # - import_tasks: 35. Logging.yaml
+    - import_tasks: 31. Monitoring.yaml
+    - import_tasks: 32. Postgres_Operator.yaml
+    - import_tasks: 33. Rabbitmq_Operator.yaml
+    - import_tasks: 34. Redis_Operator.yaml
+    - import_tasks: 35. Logging.yaml
     ##### - import_tasks: Ingress.yaml
     ##### - import_tasks: Dashboard.yaml
   when: inventory_hostname == k8s.masters[0]
 
-- name: Развертывание Registry
-  block:
-    - import_tasks: 40. Registry.yaml
-  when: inventory_hostname in k8s.masters or inventory_hostname in k8s.workers
+# - name: Развертывание Registry
+  # block:
+    # - import_tasks: 40. Registry.yaml
+  # when: inventory_hostname in k8s.masters or inventory_hostname in k8s.workers
 
 ...

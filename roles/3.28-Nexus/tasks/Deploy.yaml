@@ -47,36 +47,10 @@
       enabled: yes
       state: restarted
 
-  - name: 3.28.2 | Запуск 'docker-compose'
+  - name: 3.28.2 | Запуск 'Nexus (v{{ Nexus.ver }})'
     shell: |
       docker-compose -f /tmp/docker-compose.yaml up -d
-
-  # - name: 3.28.2 | Пауза на развертывание контейнера
-    # pause:
-      # seconds: 60
-
-  # - name: 3.28.2 | Создание файла 'nexus.properties'
-    # copy:
-      # dest: '{{ Nexus.path }}/data/admin.password'
-      # content: |
-        # {{ ansible_ssh_pass }}
 
   when: not nexus_result.stat.exists
 
 ...
-
-  # - name: Копирование файлов '*.tgz'
-    # copy:
-      # src: 'Repo_Helm/'
-      # dest: '{{ registry.path }}/repo/helm/'
-      # force: no
-
-  # - name: Копирование образов контейнеров
-    # copy:
-      # src: 'Repo_Imgs/'
-      # dest: '{{ registry.path }}/repo/imgs/'
-      # force: no
-
-  # - name: Построение индекса Helm репозитория
-    # shell: |
-      # helm repo index {{ registry.path }}/repo/helm/

@@ -61,9 +61,9 @@
       state: restarted
       enabled: yes
     with_items:
-    - xrdp
-    - xrdp-sesman
+      - xrdp
+      - xrdp-sesman
 
-  # when: not rdp_result.stat.exists
+  when: not rdp_result.stat.exists
 
 ...

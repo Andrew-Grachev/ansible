@@ -30,16 +30,10 @@
       enabled: false
     ignore_errors: yes
 
-  - name: 3.29.1 | Создаем файл '/etc/sysctl.d/kubernetes.conf'
-    file:
-      path: /etc/sysctl.d/kubernetes.conf
-      mode: 0644
-      state: touch
-
-  - name: 3.29.1 | Заполняем файл '/etc/sysctl.d/kubernetes.conf'
-    blockinfile:
-      path: /etc/sysctl.d/kubernetes.conf
-      block: |
+  - name: 3.29.1 | Создание файла '/etc/sysctl.d/kubernetes.conf'
+    copy:
+      dest: '/etc/sysctl.d/kubernetes.conf'
+      content: |
         net.bridge.bridge-nf-call-ip6tables = 1
         net.bridge.bridge-nf-call-iptables = 1
         net.ipv4.ip_forward = 1
@@ -49,16 +43,10 @@
     shell: |
       sysctl --system
 
-  - name: 3.29.1 | Создаем файл '/etc/modules-load.d/kubernetes.conf'
-    file:
-      path: /etc/modules-load.d/kubernetes.conf
-      mode: 0644
-      state: touch
-
-  - name: 3.29.1 | Заполняем файл '/etc/modules-load.d/kubernetes.conf'
-    blockinfile:
-      path: /etc/modules-load.d/kubernetes.conf
-      block: |
+  - name: 3.29.1 | Создание файла '/etc/modules-load.d/kubernetes.conf'
+    copy:
+      dest: '/etc/modules-load.d/kubernetes.conf'
+      content: |
         overlay
         br_netfilter
 

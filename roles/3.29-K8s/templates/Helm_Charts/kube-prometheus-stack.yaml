@@ -192,9 +192,9 @@ grafana:
 kubeEtcd:
   enabled: true
   endpoints:
-    - {{ hostvars[k8s.masters[0]].ansible_ssh_host }}
-    - {{ hostvars[k8s.masters[1]].ansible_ssh_host }}
-    - {{ hostvars[k8s.masters[2]].ansible_ssh_host }}
+    {% for master in k8s.masters %}
+    - {{ hostvars[master].ansible_ssh_host }}
+    {% endfor %}
 
 prometheusOperator:
   clusterDomain: "demo.{{ domain }}"

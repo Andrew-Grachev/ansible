@@ -1,0 +1,48 @@
+---
+
+- name: 3.29.1 | Проверка наличия файла '/etc/modules-load.d/kubernetes.conf'
+  stat:
+    path: /etc/modules-load.d/kubernetes.conf
+  register: modules_result
+  ignore_errors: yes
+
+- name: 3.29.1 | Настройка параметров ядра при загрузке
+  block:
+
+  - name: 3.29.1 | Создание файла '/etc/modules-load.d/kubernetes.conf'
+    copy:
+      dest: '/etc/modules-load.d/kubernetes.conf'
+      content: |
+        overlay
+        br_netfilter
+
+  - name: 3.29.1 | Подгружаем модуль ядра 'overlay'
+    modprobe:
+      name: overlay
+
+  - name: 3.29.1 | Подгружаем модуль ядра 'br_netfilter'
+    modprobe:
+      name: br_netfilter
+
+
+  - name: 3.29.1 | Создание файла '/etc/sysctl.d/kubernetes.conf'
+    copy:
+      dest: '/etc/sysctl.d/kubernetes.conf'
+      content: |
+        net.bridge.bridge-nf-call-ip6tables = 1
+        net.bridge.bridge-nf-call-iptables = 1
+        net.ipv4.ip_forward = 1
+        fs.inotify.max_user_instances = 524288
+        vm.swappiness = 0
+
+  - name: 3.29.1 | Перечитаем параметры ядра
+    shell: |
+      sysctl --system
+
+  - name: Перезагрузка ОС
+    reboot:
+      msg: 'Reboot'
+
+  when: not modules_result.stat.exists
+
+...

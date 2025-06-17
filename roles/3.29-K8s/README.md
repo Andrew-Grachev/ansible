@@ -46,19 +46,7 @@ kubectl get svc -n kube-system | grep dns
 ansible-galaxy collection install community.kubernetes
 
 
-## Развёртывание кластера Kubernetes
 
-# http://192.168.1.230:9000
-
-# kubectl cluster-info
-watch kubectl get pods -A -o wide       
-# watch kubectl get pods -A
-# watch kubectl get nodes -A
-# kubectl exec -it <pod-name> -n <namespace> -- sh
-# kubectl describe pvc -A
-# watch kubectl get pvc -A
-# kubectl get pv -A
-# kubectl describe pvc -A
 
 # rbd ls -p kube (на Ceph)
 
@@ -190,3 +178,41 @@ curl http://registry.ec.mog.ent.local:30500/v2/_catalog
 podman pull docker.io/library/postgres
 podman tag postgres:latest registry.ec.mog.ent.local:30500/postgres:latest
 podman push registry.ec.mog.ent.local:30500/postgres:latest
+
+
+
+
+
+### Шаг № 11 ###
+# Развёртывание кластера Kubernetes #
+kubectl cluster-info
+watch kubectl get pods -A -o wide
+watch kubectl get pods -A
+watch kubectl get nodes -A
+kubectl exec -it <pod-name> -n <namespace> -- sh
+kubectl describe pvc -A
+watch kubectl get pvc -A
+kubectl get pv -A
+kubectl describe pvc -A
+
+
+
+
+
+
+
+
+### Шаг № 24 ###
+# поменять местами sda и sdb #
+
+sudo udevadm info --query=all --name=/dev/sda | grep ID_SERIAL
+sudo udevadm info --query=all --name=/dev/sdb | grep ID_SERIAL
+
+sudo mcedit /etc/udev/rules.d/10-disk-order.rules
+# Правило для sdb (drive-scsi0) - сделать его sda
+SUBSYSTEM=="block", ENV{ID_SERIAL}=="0QEMU_QEMU_HARDDISK_drive-scsi0", SYMLINK+="disk-primary", NAME="sda"
+# Правило для sda (drive-scsi1) - сделать его sdb
+SUBSYSTEM=="block", ENV{ID_SERIAL}=="0QEMU_QEMU_HARDDISK_drive-scsi1", SYMLINK+="disk-secondary", NAME="sdb"
+
+sudo udevadm control --reload-rules
+sudo udevadm trigger

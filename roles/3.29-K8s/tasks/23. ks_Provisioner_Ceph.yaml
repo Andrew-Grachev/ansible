@@ -10,7 +10,7 @@
   register: ceph_cluster_id
   become: false
   when: ping_result.stdout == ''
-
+  ignore_errors: yes
   
 - name: Подключение Ceph
   block:

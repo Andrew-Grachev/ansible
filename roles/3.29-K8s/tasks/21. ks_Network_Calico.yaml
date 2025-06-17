@@ -25,7 +25,7 @@
 
   - name: 3.29.21 | Ожидание запуска 'Calico with BGP controller'
     shell: |
-      kubectl get pod -n kube-system | grep alico-kube-controllers | grep Running
+      kubectl get pod -n kube-system | grep calico-kube-controllers | grep Running
     register: result
     until: result.rc == 0
     retries: 60

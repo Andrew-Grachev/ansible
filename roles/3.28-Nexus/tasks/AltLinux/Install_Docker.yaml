@@ -1,0 +1,35 @@
+---
+
+- name: 3.28.1 | Проверка установки 'Docker'
+  command: docker --version
+  register: docker_check
+  ignore_errors: yes
+
+- name:
+  block:
+
+  - name: 3.28.1 | Установка 'Docker'
+    apt_rpm:
+      name:
+        - docker-ce
+        - docker-cli
+        - docker-compose
+        - wget
+        - openssl-engines
+
+  - name: 3.28.1 | Создание линка 'docker-compose'
+    shell: |
+      ln -s /usr/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
+
+# Актуальную версию можно увидеть: https://helm.sh/ru/docs/
+  - name: 3.28.1 | Инсталляция диспетчера пакетов 'Helm v3.17.3'
+    shell: |
+      wget https://get.helm.sh/helm-v3.17.3-linux-amd64.tar.gz
+      tar xvf helm-v3.17.3-linux-amd64.tar.gz
+      mv linux-amd64/helm /usr/bin
+      rm helm-v3.17.3-linux-amd64.tar.gz
+      rm -rf linux-amd64
+
+  when: docker_check.rc != 0
+
+...

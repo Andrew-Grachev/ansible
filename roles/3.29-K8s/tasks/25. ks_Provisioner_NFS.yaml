@@ -3,8 +3,9 @@
 - name:
   block:
 
-  - name: Чтение статуса 'LVM'
-    shell: kubectl get pods -n {{ k8s.nfs_provisioner.namespace }} | grep 'nfs-provisioner' | grep 'Running'
+  - name: 3.29.25 | Чтение статуса 'LVM'
+    shell: |
+      kubectl get pods -n {{ k8s.nfs_provisioner.namespace }} | grep 'nfs-provisioner' | grep 'Running'
     register: status_nfs
     become: false
     ignore_errors: yes
@@ -12,7 +13,7 @@
   - name:
     block:
 
-    - name: Создание пространства имен для 'NFS provisioner'
+    - name: 3.29.25 | Создание пространства имен для 'NFS provisioner'
       kubernetes.core.k8s:
         kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
         definition:
@@ -24,37 +25,47 @@
               pod-security.kubernetes.io/enforce: privileged
         state: present
 
-    - name: Создание NFS Provisioner PVC
+    - name: 3.29.25 | Создание NFS Provisioner PVC
       k8s:
         state: present
         force: true
         kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
         definition: "{{ lookup('template', 'NFS/nfs_pvc.yaml') }}"
 
-    - name: Создание NFS provisioner RBAC
+    - name: 3.29.25 | Создание NFS provisioner RBAC
       k8s:
         state: present
         force: true
         kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
         definition: "{{ lookup('template', 'NFS/nfs_rbac.yaml') }}"
 
-    - name: Создание NFS Provisioner deployment
+    - name: 3.29.25 | Создание NFS Provisioner deployment
       k8s:
         state: present
         force: true
         kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
         definition: "{{ lookup('template', 'NFS/nfs_deployment.yaml') }}"
 
-    - name: Создание NFS Provisioner StorageClass
+    - name: 3.29.25 | Создание NFS Provisioner StorageClass
       k8s:
         state: present
         force: true
         kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
         definition: "{{ lookup('template', 'NFS/nfs_storageclass.yaml') }}"
 
+    - name: 3.29.25 | Ожидание запуска 'NFS Provisioner'
+      shell: |
+        kubectl get pods -n {{ k8s.nfs_provisioner.namespace }} | grep 'nfs-provisioner' | grep 'Running'
+      register: result
+      until: result.rc == 0
+      retries: 60
+      delay: 10
+      become: false
+
     when: status_nfs.stdout == ''
 
   when:
     - k8s.nfs_provisioner.namespace is defined
     - k8s.ceph_csi == 0
+
 ...

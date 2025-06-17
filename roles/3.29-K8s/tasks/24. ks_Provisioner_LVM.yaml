@@ -3,8 +3,9 @@
 - name:
   block:
 
-  - name: Чтение статуса 'LVM'
-    shell: kubectl get pods -n {{ k8s.lvm_provisioner.namespace }} | grep 'csi-driver-lvm-controller-0' | grep 'Running'
+  - name: 3.29.24 | Чтение статуса 'LVM'
+    shell: |
+      kubectl get pods -n {{ k8s.lvm_provisioner.namespace }} | grep 'csi-driver-lvm-controller-0' | grep 'Running'
     register: status_lvm
     become: false
     ignore_errors: yes
@@ -12,7 +13,7 @@
   - name:
     block:
 
-    - name: Создание пространства имен для 'LVM Provisioner'
+    - name: 3.29.24 | Создание пространства имен для 'LVM Provisioner'
       kubernetes.core.k8s:
         kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
         definition:
@@ -24,33 +25,42 @@
               pod-security.kubernetes.io/enforce: privileged
         state: present
 
-    - name: Создание LVM Provisioner CSIDriver
+    - name: 3.29.24 | Создание LVM Provisioner CSIDriver
       kubernetes.core.k8s:
         state: present
         force: true
         kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
         definition: "{{ lookup('template', 'LVM/lvm_common.yaml') }}"
 
-    - name: Создание LVM provisioner controller deployment
+    - name: 3.29.24 | Создание LVM provisioner controller deployment
       kubernetes.core.k8s:
         state: present
         force: true
         kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
         definition: "{{ lookup('template', 'LVM/lvm_controller.yaml') }}"
 
-    - name: Создание LVM provisioner plugin deployment
+    - name: 3.29.24 | Создание LVM provisioner plugin deployment
       kubernetes.core.k8s:
         state: present
         force: true
         kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
         definition: "{{ lookup('template', 'LVM/lvm_plugin.yaml') }}"
 
-    - name: Создание LVM provisioner StorageClass
+    - name: 3.29.24 | Создание LVM provisioner StorageClass
       kubernetes.core.k8s:
         state: present
         force: true
         kubeconfig: '/home/{{ ansible_ssh_user }}/.kube/config'
         definition: "{{ lookup('template', 'LVM/lvm_storageclass.yaml') }}"
+
+    - name: 3.29.24 | Ожидание запуска 'LVM Provisioner controller'
+      shell: |
+        kubectl get pods -n {{ k8s.lvm_provisioner.namespace }} | grep 'csi-driver-lvm-controller-0' | grep 'Running'
+      register: result
+      until: result.rc == 0
+      retries: 60
+      delay: 10
+      become: false
 
     when: status_lvm.stdout == ''
 

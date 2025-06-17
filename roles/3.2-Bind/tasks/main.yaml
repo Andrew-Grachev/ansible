@@ -1,0 +1,10 @@
+---
+
+- name: Настройка сервера Bind
+  block:
+    - include_tasks: '{{ ansible_distribution }}//main.yaml'
+  when: inventory_hostname in Bind.srv
+
+...
+
+
