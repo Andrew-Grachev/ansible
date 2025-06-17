@@ -31,13 +31,13 @@
   # become: yes
   # roles:
     # - ../roles/3.1-Zabbix
-    # - ../roles/3.2-Bind
+    - ../roles/3.2-Bind
     # - ../roles/3.3-Xrdp
     # - ../roles/3.8-NFS
     # - ../roles/3.22-Ceph
     # - ../roles/3.28-Nexus
     # - ../roles/3.27-PostgreSQL
-    - ../roles/3.29-K8s
+    # - ../roles/3.29-K8s
     # - 3.1-bacula
     # - 3.3-cluster
     # - 3.4-cups

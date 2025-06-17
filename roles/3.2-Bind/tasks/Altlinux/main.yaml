@@ -1,146 +1,132 @@
 ---
 
-- name: Проверка наличия файла '/etc/named.conf'
+- name: 3.2 | Проверка наличия файла '/etc/named.conf'
   stat:
     path: /etc/named.conf
   register: bind_result
 
-- name: Создание сервера Bind
+- name: 3.2 | Создание сервера Bind
   block:
 
-  - name: Установка пакетов сервера
+  - name: 3.2 | Установка пакетов сервера
     apt_rpm:
       update_cache: yes
       pkg:
         - bind
+        - bind-utils
+        - net-tools
 
-  - name: Чтение 'forwarders' в '/var/lib/bind/etc/bind/options.conf'
+  - name: 3.2 | Чтение 'forwarders' в '/etc/bind/options.conf'
     shell: |
-      cat /var/lib/bind/etc/bind/options.conf | grep '//forwarders { };'
+      cat /etc/bind/options.conf | grep '//forwarders { };'
     register: status_forwarders
     ignore_errors: yes
 
-  - name: Внесение изменений 'forwarders' в '/var/lib/bind/etc/bind/options.conf'
+  - name: 3.2 | Внесение изменений 'forwarders' в '/etc/bind/options.conf'
     shell: |
-      sed -i 's#//forwarders { };#forwarders { {{ Net.bind | join('; ') }} ; };#g' /var/lib/bind/etc/bind/options.conf
+      sed -i 's#//forwarders { };#forwarders { {{ Net.bind | join('; ') }} ; };#g' /etc/bind/options.conf
     when: status_forwarders.stdout != ''
 
-  - name: Чтение '{{ domain }}' в '/var/lib/bind/etc/bind/local.conf'
+  - name: 3.2 | Чтение '{{ domain }}' в '/etc/bind/local.conf'
     shell: |
-      cat /var/lib/bind/etc/bind/local.conf | grep '{{ domain }}'
+      cat /etc/bind/local.conf | grep '{{ domain }}'
     register: status_domain
     ignore_errors: yes
 
-# zone "XX" {
-  # type master;
-  # file "/etc/bind/zones/db.XX";
-# };
+  - name: 3.2 | Создание зоны 'domain'
+    block:
 
-# zone "1.10.in-addr.arpa" {
-  # type master;
-  # file "/etc/bind/zones/db.YY";
-# };
+    - name: 3.2 | Добавить текст в конец файла '/etc/bind/local.conf'
+      blockinfile:
+        path: /etc/bind/local.conf
+        block: |
+          zone "{{ domain }}" {
+          type master;
+          file "/etc/bind/zone/db.{{ domain }}";
+          };
+          
+          zone "{{ ansible_ssh_host.split('.')[2] }}.{{ ansible_ssh_host.split('.')[1] }}.{{ ansible_ssh_host.split('.')[0] }}.in-addr.arpa" {
+          type master;
+          file "/etc/bind/zone/db.{{ ansible_ssh_host.split('.')[2] }}.{{ ansible_ssh_host.split('.')[1] }}.{{ ansible_ssh_host.split('.')[0] }}";
+          };
+        insertafter: EOF
+        marker: "// Зона {{ domain }}"
 
-# https://wiki.lblss.ru/BIND_-_%D1%81%D0%B5%D1%80%D0%B2%D0%B5%D1%80_%D0%B4%D0%BE%D0%BC%D0%B5%D0%BD%D0%BD%D1%8B%D1%85_%D0%B8%D0%BC%D1%91%D0%BD_%D0%BD%D0%B0_Alt_Linux
 
+    - name: 3.2 | Создание файла '/etc/bind/zone/db.{{ domain }}'
+      copy:
+        dest: '/etc/bind/zone/db.{{ domain }}'
+        content: |
+          $TTL  1D
+          @   IN  SOA  {{ inventory_hostname }}.{{ domain }}.  admin.{{ domain }}. (
+                       {{ (ansible_date_time.year | int * 10000 + ansible_date_time.month | int * 100 + ansible_date_time.day | int) }}00; Serial
+                       604800    ; Refresh
+                       86400     ; Retry
+                       2419200   ; Expire
+                       604800 )  ; Negative Cach TTL
+         
+             IN   NS   {{ inventory_hostname }}.{{ domain }}.
+         
+          {% for item in ansible_play_batch %}
+          {{ item }}.{{ domain }}.    IN  A {{ hostvars[item].ansible_ssh_host }}
+          {% endfor %}
+         
+          zabbix  CNAME  zabbix.{{ domain }}.
 
+    - name: 3.2 | Создание файла '/etc/bind/zone/db.{{ ansible_ssh_host.split('.')[2] }}.{{ ansible_ssh_host.split('.')[1] }}.{{ ansible_ssh_host.split('.')[0] }}'
+      copy:
+        dest: "/etc/bind/zone/db.{{ ansible_ssh_host.split('.')[2] }}.{{ ansible_ssh_host.split('.')[1] }}.{{ ansible_ssh_host.split('.')[0] }}"
+        content: |
+          $TTL  1D
+          @   IN  SOA  {{ inventory_hostname }}.{{ domain }}.  admin.{{ domain }}. (
+                       {{ (ansible_date_time.year | int * 10000 + ansible_date_time.month | int * 100 + ansible_date_time.day | int) }}00; Serial
+                       604800    ; Refresh
+                       86400     ; Retry
+                       2419200   ; Expire
+                       604800 )  ; Negative Cach TTL
+         
+              IN  NS   {{ inventory_hostname }}.{{ domain }}.
+         
+          {% for item in ansible_play_batch %}
+          {{ hostvars[item].ansible_ssh_host.split('.')[3] }}  IN  PTR  {{ item }}.{{ domain }}.
+          {% endfor %}
 
-  - name: Включаем и перезапускаем службы
+    when: status_domain.stdout == ''
+
+  - name: 3.2 | Создание зоны-заглушки 'k8s.subdomain.domain'
+    block:
+
+    - name: 3.2 | Чтение '{{ k8s.subdomain }}.{{ domain }}' в '/etc/bind/local.conf'
+      shell: |
+        cat /etc/bind/local.conf | grep '{{ k8s.subdomain }}.{{ domain }}'
+      register: status_subdomain
+      ignore_errors: yes
+
+    - name: 3.2 | Создание зоны 'k8s.subdomain.domain'
+      block:
+
+      - name: 3.2 | Добавить текст в конец файла '/etc/bind/local.conf'
+        blockinfile:
+          path: /etc/bind/local.conf
+          block: |
+            zone "{{ k8s.subdomain }}.{{ domain }}" {
+            type stub;
+            masters { {{ k8s.core_dns }}; };
+            file "/etc/bind/zone/db.{{ k8s.subdomain }}.{{ domain }}";
+            };
+          insertafter: EOF
+          marker: "// Зона {{ k8s.subdomain }}.{{ domain }}"
+
+      when: status_subdomain.stdout == ''
+
+    when: k8s.subdomain is defined
+
+  - name: 3.2 | Включаем и перезапускаем службы
     service:
       name: bind
       state: restarted
       enabled: yes
  
   # when: not bind_result.stat.exists
-
-
-
-
-
-
-
-
-
-
-
-
-
-# - name: Копирование файла named.conf.local
-  # copy:
-    # src: named.conf.local
-    # dest: /etc/bind/
-    # force: yes
-  # when: version.stdout != relis
-
-# - name: Внесение изменений в named.conf.local
-  # shell: "{{ item }}"
-  # with_items:
-    # - "sed -i 's/XX/{{ domain }}/g' /etc/bind/named.conf.local"
-    # - "sed -i 's/YY/{{ ansible_ssh_host.split('.')[2] }}/g' /etc/bind/named.conf.local"
-  # when: version.stdout != relis
-
-# - name: Копирование файла named.conf.options
-  # copy:
-    # src: named.conf.options
-    # dest: /etc/bind/
-    # force: yes
-  # when: version.stdout != relis
-
-# - name: Внесение изменений в named.conf.options
-  # shell: "sed -i 's/XX/{{ ansible_ssh_host.split('.')[2] }}/g' /etc/bind/named.conf.options"
-  # when: version.stdout != relis
-
-# - name: Копирование файла bind9
-  # copy:
-    # src: bind9
-    # dest: /etc/default/
-    # force: yes
-  # when: version.stdout != relis
-
-# - name: Создание папки для зоны
-  # file:
-    # state: directory
-    # path: /etc/bind/zones
-  # when: version.stdout != relis
-
-# - name: Копирование файла прямой зоны
-  # copy:
-    # src: db.{{ domain }}
-    # dest: /etc/bind/zones/
-    # force: yes
-  # when: version.stdout != relis
-
-# - name: Копирование файла обратной зоны
-  # copy:
-    # src: db.{{ ansible_ssh_host.split('.')[2] }}
-    # dest: /etc/bind/zones/
-    # force: yes
-  # when: version.stdout != relis
-
-# - name: Активируем механизм privsock
-  # shell: "sed -i '/named/d' /etc/parsec/privsock.conf && echo '/usr/sbin/named' >> /etc/parsec/privsock.conf"
-  # when: version.stdout != relis
-  # ignore_errors: yes
-
-# - name: Установка PATH
-  # shell: "sed -i '/PATH/d' /etc/default/bind9 && echo 'PATH=/usr/lib/parsec/bin:$PATH' >> /etc/default/bind9"
-  # when: version.stdout != relis
-  # ignore_errors: yes
-
-# - name: Включим службы и перезапустим службы
-  # service:
-    # name: "{{ item }}"
-    # state: restarted
-    # enabled: yes
-  # with_items:
-    # - bind9-resolvconf
-    # - bind9
-  # when: version.stdout != relis
-
-# - name: Запишем новую версию ПО (Update)
-  # shell: "sed -i '/BIND-server/d' /opt/distr/software.conf && echo '{{ relis }}' >> /opt/distr/software.conf"
-  # become: true
-  # when: version.stdout != relis
-
 
 ...

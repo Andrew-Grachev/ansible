@@ -42,6 +42,9 @@
         dest: '/etc/net/ifaces/{{ device_name.stdout }}/ipv4route'
         content: |
           default via {{ Net.gateway }}
+          {% for route in Net.routes %}
+          {{ route.split(' ')[0] }} via {{ route.split(' ')[1] }} metric {{ route.split(' ')[2] }}
+          {% endfor %}
 
     - name: 0.4.1 | Перезапуск службы 'network'
       service:
