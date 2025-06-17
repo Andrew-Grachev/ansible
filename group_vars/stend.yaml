@@ -88,7 +88,7 @@ k8s:
     vg_name: vg01
   nfs_provisioner:    ## NFS RWX # Уcтанавливатся вместо 'CephFS'
     namespace: system-nfs-csi
-    disk_size: 50Gi
+    disk_size: 100Gi
     server_ip:
     path:
 
