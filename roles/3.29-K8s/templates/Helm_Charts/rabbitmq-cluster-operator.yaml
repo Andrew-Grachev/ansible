@@ -4,7 +4,7 @@ global:
   # - dockerreg-sphaera-ru
   storageClass: {{ k8s.rwo_sc }}
 fullnameOverride: "rabbitmq-operator"
-clusterDomain: {{ domain }}
+clusterDomain: {{ k8s.subdomain }}.{{ domain }}
 clusterOperator:
   metrics:
     serviceMonitor:

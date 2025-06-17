@@ -148,7 +148,15 @@ kubectl patch MutatingWebhookConfiguration <prometheus-webhook-name> \
   
   
 
-#DNS
+# DNS
+# Проверка DNS
+# Запустить временный pod с утилитами
+kubectl run -it --rm dns-test --image=busybox:1.28 -n logging -- sh
+# Внутри контейнера проверить разрешение имён
+nslookup elasticsearch-data-hl.logging.svc.cluster.local
+nslookup kubernetes.default.svc.cluster.local
+
+
 kubectl -n kube-system edit cm coredns
 kubectl -n kube-system edit cm node-local-dns
 kubectl run -it --rm --restart=Never --image=infoblox/dnstools:latest dnstools

@@ -33,4 +33,4 @@ configGeneral:
         value: "true"
 
 configKubernetes:
-  cluster_domain: {{ domain }}
+  cluster_domain: {{ k8s.subdomain }}.{{ domain }}

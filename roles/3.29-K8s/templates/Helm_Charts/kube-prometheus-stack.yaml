@@ -123,7 +123,7 @@ alertmanager:
     enabled: false
     ingressClassName: nginx
     hosts:
-      - alertmanager.{{ domain }}
+      - alertmanager.{{ k8s.subdomain }}.{{ domain }}
   alertmanagerSpec:
     alertmanagerConfiguration: {}
     logFormat: json
@@ -135,13 +135,12 @@ grafana:
     enabled: true
     ingressClassName: nginx
     hosts:
-      - grafana.{{ domain }}
+      - grafana.{{ k8s.subdomain }}.{{ domain }}
   persistence:
     ingressClassName: nginx
     hosts:
-      - grafana.{{ domain }}
-  env:
-    GF_SERVER_ROOT_URL: http://grafana.{{ domain }}
+      - grafana.{{ k8s.subdomain }}.{{ domain }}
+    GF_SERVER_ROOT_URL: http://grafana.{{ k8s.subdomain }}.{{ domain }}
     GF_AUTH_ANONYMOUS_ENABLED: true
 
   sidecar:
@@ -197,7 +196,7 @@ kubeEtcd:
     {% endfor %}
 
 prometheusOperator:
-  clusterDomain: "demo.{{ domain }}"
+  clusterDomain: "{{ k8s.subdomain }}.{{ domain }}"
   logFormat: json
 
 prometheus:

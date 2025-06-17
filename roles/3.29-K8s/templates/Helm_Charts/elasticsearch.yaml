@@ -1,5 +1,5 @@
 fullnameOverride: "elasticsearch"
-clusterDomain: {{ domain }}
+clusterDomain: {{ k8s.subdomain }}.{{ domain }}
 
 master:
   replicaCount: "{% if k8s.workers | default([]) | length > 1 %}2{% else %}1{% endif %}"

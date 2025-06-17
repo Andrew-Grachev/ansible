@@ -8,7 +8,7 @@ fullnameOverride: "kibana"
 commonAnnotations: {}
 commonLabels: {}
 extraDeploy: []
-clusterDomain: {{ domain }}
+clusterDomain: {{ k8s.subdomain }}.{{ domain }}
 diagnosticMode:
   enabled: false
   command:
@@ -113,7 +113,7 @@ ingress:
   enabled: false
   pathType: ImplementationSpecific
   apiVersion: ""
-  hostname: kibana.{{ domain }}
+  hostname: kibana.{{ k8s.subdomain }}.{{ domain }}
   path: /
   annotations: {}
   tls: false
