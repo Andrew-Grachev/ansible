@@ -22,9 +22,13 @@
     register: status_forwarders
     ignore_errors: yes
 
-  - name: 3.2 | Внесение изменений 'forwarders' в '/etc/bind/options.conf'
-    shell: |
+  - name: 3.2 | (Проверка!!!!!!!!!!!!!)Внесение изменений 'forwarders' в '/etc/bind/options.conf'
+    !shell: |
       sed -i 's#//forwarders { };#forwarders { {{ Net.bind | join('; ') }} ; };#g' /etc/bind/options.conf
+      sed -i 's#listen-on { 127.0.0.1; };#listen-on { any };#g' /etc/bind/options.conf
+      sed -i 's#//allow-recursion { ??????; };#allow-recursion { any; };#g' /etc/bind/options.conf
+      sed -i 's#//forward only;#recursion yes;#g' /etc/bind/options.conf
+      
     when: status_forwarders.stdout != ''
 
   - name: 3.2 | Чтение '{{ domain }}' в '/etc/bind/local.conf'
@@ -68,10 +72,10 @@
              IN   NS   {{ inventory_hostname }}.{{ domain }}.
          
           {% for item in ansible_play_batch %}
-          {{ item }}.{{ domain }}.    IN  A {{ hostvars[item].ansible_ssh_host }}
+          {{ item }}    IN  A {{ hostvars[item].ansible_ssh_host }}
           {% endfor %}
          
-          zabbix  CNAME  zabbix.{{ domain }}.
+          test.{{ domain }}.  CNAME  {{ inventory_hostname }}.{{ domain }}.
 
     - name: 3.2 | Создание файла '/etc/bind/zone/db.{{ ansible_ssh_host.split('.')[2] }}.{{ ansible_ssh_host.split('.')[1] }}.{{ ansible_ssh_host.split('.')[0] }}'
       copy:
@@ -88,7 +92,7 @@
               IN  NS   {{ inventory_hostname }}.{{ domain }}.
          
           {% for item in ansible_play_batch %}
-          {{ hostvars[item].ansible_ssh_host.split('.')[3] }}  IN  PTR  {{ item }}.{{ domain }}.
+          {{ hostvars[item].ansible_ssh_host.split('.')[3] }}  IN  PTR  {{ item }}.
           {% endfor %}
 
     when: status_domain.stdout == ''

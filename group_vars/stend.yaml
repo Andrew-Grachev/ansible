@@ -49,7 +49,7 @@ PostgreSQL:
     - ''
   pg_srv:
     - db
-  device: /dev/sdb1
+  device: /dev/sdb
   keepalived_IP:
   password: postgres
 

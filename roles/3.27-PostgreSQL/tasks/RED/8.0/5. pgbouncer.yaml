@@ -47,6 +47,8 @@
         admin_users = postgres
         stats_users = stats, postgres
       mode: 0640
+      owner: pgbouncer
+      group: pgbouncer
 
   - name: 3.27.5 | Получение хеша пароля
     shell: |
@@ -59,6 +61,8 @@
       content: |
         "postgres" "{{ hash.stdout }}"
       mode: 0640
+      owner: pgbouncer
+      group: pgbouncer
 
   - name: Запускаем службу 'pgbouncer'
     service:

@@ -58,6 +58,11 @@
 
   when: PostgreSQL.pg_srv | default([]) | length > 1
 
+
+
+
+
+
 - name: 3.27.4 | Инициализация БД если сервер только один
   block:
 
